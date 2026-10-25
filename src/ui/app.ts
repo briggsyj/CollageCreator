@@ -76,11 +76,13 @@ function el<T extends HTMLElement>(id: string): T {
   return found as T;
 }
 
-const LANG_KEY = "collage-web.language";
+const LANG_KEY = "collage-creator.language";
+/** What the key was called before the app was renamed, still read so a saved choice is kept. */
+const OLD_LANG_KEY = "collage-web.language";
 
 function readStoredLanguage(): string | null {
   try {
-    return localStorage.getItem(LANG_KEY);
+    return localStorage.getItem(LANG_KEY) ?? localStorage.getItem(OLD_LANG_KEY);
   } catch {
     return null;
   }

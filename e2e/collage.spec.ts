@@ -395,7 +395,7 @@ test.describe("Progress, cancel, offline and language", () => {
     await expect(dialog).toContainText("NO WARRANTY");
     await expect(dialog.getByRole("link", { name: "Source code" })).toHaveAttribute(
       "href",
-      "https://github.com/briggsyj/PhotoCollage",
+      "https://github.com/briggsyj/CollageCreator",
     );
   });
 });

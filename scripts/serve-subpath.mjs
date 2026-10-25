@@ -4,13 +4,13 @@
 // Pages serves a project site (https://<user>.github.io/<repo>/). Used to test
 // that the build works away from the site root.
 //
-//   node scripts/serve-subpath.mjs [dir=dist] [prefix=/PhotoCollage/] [port=4174]
+//   node scripts/serve-subpath.mjs [dir=dist] [prefix=/CollageCreator/] [port=4174]
 
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { extname, join, resolve, sep } from "node:path";
 
-const [, , dirArg = "dist", prefix = "/PhotoCollage/", port = "4174"] = process.argv;
+const [, , dirArg = "dist", prefix = "/CollageCreator/", port = "4174"] = process.argv;
 const root = resolve(dirArg);
 
 // Roughly what a static host knows about; anything else is a download.

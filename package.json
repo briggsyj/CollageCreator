@@ -1,12 +1,12 @@
 {
-  "name": "collage-web",
+  "name": "collage-creator",
   "version": "0.1.0",
   "description": "Collage Creator: a browser-only, modified web reimplementation of PhotoCollage by Adrien Vergé and contributors",
   "license": "GPL-2.0-or-later",
-  "homepage": "https://github.com/briggsyj/PhotoCollage",
+  "homepage": "https://github.com/briggsyj/CollageCreator",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/briggsyj/PhotoCollage.git"
+    "url": "git+https://github.com/briggsyj/CollageCreator.git"
   },
   "private": true,
   "type": "module",

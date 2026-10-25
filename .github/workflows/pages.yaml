@@ -30,14 +30,14 @@ jobs:
       # user flows against the real build served that way: assets, workers, the
       # CSP <meta> tag, offline use and the licence links.
       - run: npx playwright install --with-deps chromium
-      - name: Smoke test at /PhotoCollage/
+      - name: Smoke test at /CollageCreator/
         run: |
-          node scripts/serve-subpath.mjs dist /PhotoCollage/ 4174 &
+          node scripts/serve-subpath.mjs dist /CollageCreator/ 4174 &
           for i in $(seq 1 30); do
-            curl -fsS http://localhost:4174/PhotoCollage/ >/dev/null && break
+            curl -fsS http://localhost:4174/CollageCreator/ >/dev/null && break
             sleep 0.5
           done
-          E2E_BASE_URL=http://localhost:4174/PhotoCollage/ npx playwright test --project=chromium \
+          E2E_BASE_URL=http://localhost:4174/CollageCreator/ npx playwright test --project=chromium \
             --grep "saves a PNG|network disconnected|another language|About dialog|other origins|right way up"
 
       # Only a real deployment needs the Pages site to exist and be enabled.

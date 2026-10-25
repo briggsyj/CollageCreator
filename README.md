@@ -1,8 +1,8 @@
 # Collage Creator
 
-[![CI](https://github.com/briggsyj/PhotoCollage/actions/workflows/ci.yaml/badge.svg)](https://github.com/briggsyj/PhotoCollage/actions/workflows/ci.yaml)
-[![Docker build](https://github.com/briggsyj/PhotoCollage/actions/workflows/docker.yaml/badge.svg)](https://github.com/briggsyj/PhotoCollage/actions/workflows/docker.yaml)
-[![GitHub Pages](https://github.com/briggsyj/PhotoCollage/actions/workflows/pages.yaml/badge.svg)](https://github.com/briggsyj/PhotoCollage/actions/workflows/pages.yaml)
+[![CI](https://github.com/briggsyj/CollageCreator/actions/workflows/ci.yaml/badge.svg)](https://github.com/briggsyj/CollageCreator/actions/workflows/ci.yaml)
+[![Docker build](https://github.com/briggsyj/CollageCreator/actions/workflows/docker.yaml/badge.svg)](https://github.com/briggsyj/CollageCreator/actions/workflows/docker.yaml)
+[![GitHub Pages](https://github.com/briggsyj/CollageCreator/actions/workflows/pages.yaml/badge.svg)](https://github.com/briggsyj/CollageCreator/actions/workflows/pages.yaml)
 [![License: GPL v2 or later](https://img.shields.io/badge/license-GPL--2.0--or--later-blue.svg)](LICENSE)
 [![Derived from PhotoCollage](https://img.shields.io/badge/derived%20from-adrienverge%2FPhotoCollage-informational.svg)](https://github.com/adrienverge/PhotoCollage)
 
@@ -72,7 +72,7 @@ general information, not legal advice.
 
 The `master` branch is published to GitHub Pages by the
 [GitHub Pages workflow](.github/workflows/pages.yaml):
-**<https://briggsyj.github.io/PhotoCollage/>**. It is the same static build as the Docker
+**<https://briggsyj.github.io/CollageCreator/>**. It is the same static build as the Docker
 image, and your photos still never leave your browser: the page carries a Content Security Policy
 that only allows its own files.
 

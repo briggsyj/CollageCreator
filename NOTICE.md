@@ -10,7 +10,7 @@ original authors.
 | Original authors     | Adrien Vergé and contributors (listed below)                                                           |
 | Original source      | <https://github.com/adrienverge/PhotoCollage>                                                          |
 | Original licence     | GNU General Public License, version 2 or (at your option) any later version (SPDX: `GPL-2.0-or-later`) |
-| This project         | <https://github.com/briggsyj/PhotoCollage>                                                             |
+| This project         | <https://github.com/briggsyj/CollageCreator>                                                           |
 | This project licence | `GPL-2.0-or-later`, the same terms (full text in `LICENSE`)                                            |
 
 The original's file headers say "either version 2 of the License, or (at your
