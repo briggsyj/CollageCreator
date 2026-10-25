@@ -335,11 +335,20 @@ test.describe("Progress, cancel, offline and language", () => {
       })),
     );
     await addPhotos(page, files);
-    await expect(page.locator("#photo-list li")).toHaveCount(24);
-    await page.click("#save");
-    await page.click("#cancel");
+    let downloaded = false;
+    page.on("download", () => {
+      downloaded = true;
+    });
+    // Save and Cancel in one task, so the cancel always lands before the export can finish
+    // (a separate click can lose the race on a fast machine and find the dialog already gone).
+    await page.evaluate(() => {
+      (document.getElementById("save") as HTMLButtonElement).click();
+      (document.getElementById("cancel") as HTMLButtonElement).click();
+    });
     await expect(page.locator("#progress-dialog")).not.toBeVisible();
+    await expect(page.locator("#save")).toBeEnabled();
     await expect(page.locator("#messages .error")).toHaveCount(0);
+    expect(downloaded).toBe(false);
   });
 
   test("works with the network disconnected once loaded", async ({ page, context }) => {
