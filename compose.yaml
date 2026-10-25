@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (C) 2026 briggsyj and contributors
+
+# docker compose up --build -d     then open http://localhost:8080
+# HOST_PORT=9000 docker compose up -d   to use another port
+services:
+  photocollage:
+    build: .
+    image: collage-web:latest
+    ports:
+      - "${HOST_PORT:-8080}:8080"
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
