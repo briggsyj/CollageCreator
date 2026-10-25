@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (C) 2026 briggsyj and contributors
+
+node_modules
+dist
+.git
+.github
+coverage
+playwright-report
+test-results
+specs
+.specify
+*.md
+!README.md
+!NOTICE.md
+Dockerfile
+compose.yaml
+.dockerignore

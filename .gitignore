@@ -1,6 +1,9 @@
-*.py[co]
-MANIFEST
+node_modules
 dist
-photocollage.egg-info
-photocollage/locale/photocollage.pot
-photocollage/locale/*/LC_MESSAGES/photocollage.mo
+coverage
+playwright-report
+test-results
+*.tsbuildinfo
+public/THIRD-PARTY-LICENSES.txt
+public/LICENSE
+public/NOTICE.md
