@@ -56,6 +56,17 @@ function finished(tx: IDBTransaction): Promise<void> {
   });
 }
 
+/**
+ * A stored photo. The bytes are kept as a plain buffer, not as a `File`: some browsers (Safari in
+ * private windows, and the WebKit used in tests) refuse to store files in IndexedDB.
+ */
+interface StoredFile {
+  name: string;
+  type: string;
+  lastModified: number;
+  data: ArrayBuffer;
+}
+
 /** Store the session. Files already stored are left alone; files no longer used are deleted. */
 export async function saveSession(
   session: SavedSession,
@@ -63,11 +74,27 @@ export async function saveSession(
 ): Promise<void> {
   const db = await open();
   try {
+    const stored = new Set(
+      (await wait(db.transaction(FILES, "readonly").objectStore(FILES).getAllKeys())).map(String),
+    );
+    // Read the new files first: a transaction closes if it waits on anything but its own requests.
+    const added: [string, StoredFile][] = [];
+    for (const [key, file] of files) {
+      if (stored.has(key)) continue;
+      added.push([
+        key,
+        {
+          name: file.name,
+          type: file.type,
+          lastModified: file.lastModified,
+          data: await file.arrayBuffer(),
+        },
+      ]);
+    }
     const tx = db.transaction([FILES, META], "readwrite");
     const store = tx.objectStore(FILES);
-    const stored = new Set((await wait(store.getAllKeys())).map(String));
     for (const key of stored) if (!files.has(key)) store.delete(key);
-    for (const [key, file] of files) if (!stored.has(key)) store.put(file, key);
+    for (const [key, record] of added) store.put(record, key);
     tx.objectStore(META).put(session, SESSION_KEY);
     await finished(tx);
   } finally {
@@ -88,8 +115,18 @@ export async function loadSession(defaults: PosterSettings): Promise<{
     if (!session) return null;
     const files = new Map<string, File>();
     for (const { key } of session.photos) {
-      const file = await wait(tx.objectStore(FILES).get(key));
-      if (file instanceof Blob) files.set(key, file as File);
+      const record = (await wait(tx.objectStore(FILES).get(key))) as
+        | Partial<StoredFile>
+        | undefined;
+      if (record?.data instanceof ArrayBuffer && typeof record.name === "string") {
+        files.set(
+          key,
+          new File([record.data], record.name, {
+            type: record.type ?? "",
+            lastModified: record.lastModified ?? 0,
+          }),
+        );
+      }
     }
     return { session, files };
   } finally {
