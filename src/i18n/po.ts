@@ -33,7 +33,6 @@ export function parsePo(source: string): Messages {
     if (line.startsWith("#,")) {
       if (line.includes("fuzzy")) pendingFuzzy = true;
     } else if (line.startsWith("#")) {
-      continue;
     } else if (line.startsWith("msgid_plural") || line.startsWith("msgstr[")) {
       target = null;
     } else if (line.startsWith("msgid ")) {

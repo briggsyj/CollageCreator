@@ -8,7 +8,7 @@ proposed targets for the owner to confirm.
 
 1. **Privacy.** All photo processing happens client-side. Photos are never uploaded. The app makes no network requests at runtime except loading its own static assets.
 2. **Spec first.** Specs describe user outcomes only. Technology choices appear only in plans.
-3. **Code quality.** TypeScript in strict mode, no implicit or explicit `any` without a justifying comment, ESLint and Prettier enforced in CI.
+3. **Code quality.** TypeScript in strict mode, no implicit or explicit `any` without a justifying comment, Biome (lint and format) enforced in CI.
 4. **Pure core.** The layout generator has no DOM or canvas dependency and is deterministic for a given seed, so it can be unit tested.
 5. **Testing.** Unit tests (Vitest) for the core and end-to-end tests (Playwright) for each user story. Every user story must be independently testable and demonstrable.
 6. **Performance.** The UI thread never runs long tasks during export. Generating a new layout for 100 photos feels instant (target under 200 ms). Export reports progress and can be cancelled.
@@ -32,4 +32,4 @@ proposed targets for the owner to confirm.
 - If something in a plan conflicts with what the repo shows, stop and ask the owner; do not resolve it silently. Record the decision in the spec's research notes.
 - Updating `spec.md` or `plan.md` is itself a task whenever implementation changes the design.
 
-**Version**: 1.0.0 | **Ratified**: 2026-10-25
+**Version**: 1.1.0 | **Ratified**: 2026-10-25 | **Amended**: principle 3 names Biome instead of ESLint and Prettier

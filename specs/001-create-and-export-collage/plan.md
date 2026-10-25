@@ -6,7 +6,7 @@
 - Canvas 2D. The live preview draws small thumbnails (480 px longest side). Export runs in a pool of module Web Workers; each photo is decoded with `createImageBitmap` at the size its cell needs (`imageOrientation: "from-image"`, `resizeQuality: "high"`), transferred back, drawn onto an `OffscreenCanvas` on the main thread, and closed.
 - Canvas limits are measured at runtime with `canvas-size` and the export size is capped to them; a conservative 4096 px fallback is used until detection finishes.
 - Layout is a pure TypeScript module with a seeded generator (mulberry32). Output is a list of rectangles.
-- Tests: Vitest (+ fast-check for property tests), Playwright in Chromium, Firefox and WebKit. Tooling: ESLint, Prettier, GitHub Actions.
+- Tests: Vitest (+ fast-check for property tests), Playwright in Chromium, Firefox and WebKit. Tooling: Biome, GitHub Actions.
 
 ## Modules
 

@@ -4,11 +4,11 @@
 import type { Layout, PosterSettings, Rect } from "../core/types";
 import {
   borderPixels,
+  type Ctx2D,
   cellPixelRects,
   drawBackground,
   drawBorders,
   drawPhotoCover,
-  type Ctx2D,
 } from "./draw";
 
 export interface PreviewInput {

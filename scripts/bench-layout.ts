@@ -33,5 +33,5 @@ console.table(results);
 if (process.argv.includes("--write")) {
   mkdirSync("benchmarks", { recursive: true });
   const record = { node: process.version, date: new Date().toISOString().slice(0, 10), results };
-  writeFileSync("benchmarks/layout.json", JSON.stringify(record, null, 2) + "\n");
+  writeFileSync("benchmarks/layout.json", `${JSON.stringify(record, null, 2)}\n`);
 }
