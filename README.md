@@ -50,7 +50,7 @@ general information, not legal advice.
 - Every layout has a **seed** (under Technical configuration): the same seed and photos give the same layout
 - Choose the **number of columns**, or leave it on automatic (the original's choice)
 - Poster size in pixels, with A4, A3 and A2 presets at 300 DPI; sizes your browser cannot produce are reduced to the largest available
-- Border colour, thickness (0.5 % white by default), corner style (none, slightly rounded, rounded or circle), and an option to leave out the border around the whole collage
+- Border colour, thickness (0.5 % white by default), corner style (none, slightly rounded or rounded), and an option to leave out the border around the whole collage
 - Swap two photos by clicking or from the keyboard; remove photos from the collage (Delete), all at once, with undo
 - Zoom the preview by scrolling over it; hold Space and drag to move it
 - Photos are shown the right way up (EXIF orientation)

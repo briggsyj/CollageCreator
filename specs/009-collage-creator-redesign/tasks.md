@@ -4,17 +4,17 @@ Commit once per phase. Tick a box only when its tests pass.
 
 ## Phase 0: baseline
 
-- [ ] R001 Run install, unit tests, lint, typecheck, header check and e2e; write down what already fails
-- [ ] R002 Read the design Artifact boards listed in the plan and `src/ui/app.ts`, `src/render/view.ts`, `src/render/preview.ts`
+- [x] R001 Run install, unit tests, lint, typecheck, header check and e2e; write down what already fails
+- [x] R002 Read the design Artifact boards listed in the plan and `src/ui/app.ts`, `src/render/view.ts`, `src/render/preview.ts`
 
 ## Phase 1: core (no UI)
 
-- [ ] R010 Remove `"circle"` from `CornerStyle`, `draw.ts`, tests and README
-- [ ] R011 `LayoutStyle` type; `generateSlicingLayout` in `src/core/slicing.ts`
-- [ ] R012 Unit and property tests for Gallery: exact tiling, determinism, all photos placed, spans enlarge cells
-- [ ] R013 `generateBest` and `scoreLayout` work for both styles; test "seed reproduces the winner" for Gallery
-- [ ] R014 Swap and removal work for Gallery layouts
-- [ ] R015 Benchmark Gallery with 100 photos (`npm run bench`); the target is under 200 ms for one layout
+- [x] R010 Remove `"circle"` from `CornerStyle`, `draw.ts`, tests and README
+- [x] R011 `LayoutStyle` type; `generateSlicingLayout` in `src/core/slicing.ts`
+- [x] R012 Unit and property tests for Gallery: exact tiling, determinism, all photos placed, spans enlarge cells
+- [x] R013 `generateBest` and `scoreLayout` work for both styles; test "seed reproduces the winner" for Gallery
+- [x] R014 Swap and removal work for Gallery layouts
+- [x] R015 Benchmark Gallery with 100 photos (`npm run bench`); the target is under 200 ms for one layout
 
 ## Phase 2: look and structure (desktop)
 

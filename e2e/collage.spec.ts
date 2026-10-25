@@ -716,29 +716,9 @@ test.describe("Border default and corner style", () => {
     await expect(page.locator("#corner-style")).toHaveValue("none");
   });
 
-  test("offers none, slightly rounded, rounded and circle", async ({ page }) => {
+  test("offers none, slightly rounded and rounded", async ({ page }) => {
     const options = await page.locator("#corner-style option").allTextContents();
-    expect(options).toEqual(["None", "Slightly rounded", "Rounded", "Circle"]);
-  });
-
-  test("circle: the photo is an ellipse, corners show the background", async ({ page }) => {
-    await setSize(page, 400, 300);
-    await page.fill("#border-width", "0");
-    await addPhotos(page, await makeImages(page, RED));
-    await page.selectOption("#corner-style", "circle");
-
-    const corner = await previewColor(page, 0.02, 0.02);
-    const centre = await previewColor(page, 0.5, 0.5);
-    expect(near(corner, [255, 255, 255], 10)).toBe(true);
-    expect(near(centre, COLORS.red, 30)).toBe(true);
-
-    const png = await saveAndRead(page);
-    const saved = await analyse(page, png, [
-      [0.02, 0.02],
-      [0.5, 0.5],
-    ]);
-    expect(near(saved.colors[0] as number[], [255, 255, 255], 10)).toBe(true);
-    expect(near(saved.colors[1] as number[], COLORS.red, 30)).toBe(true);
+    expect(options).toEqual(["None", "Slightly rounded", "Rounded"]);
   });
 
   test("with a border, rounded corners are cut out of each photo and filled with the border colour", async ({
@@ -755,7 +735,7 @@ test.describe("Border default and corner style", () => {
     // Square: the border is drawn over the photo's edge only, so this spot is still photo.
     expect(near(await previewColor(page, ...point), COLORS.red, 30)).toBe(true);
 
-    for (const style of ["slight", "rounded", "circle"]) {
+    for (const style of ["slight", "rounded"]) {
       await page.selectOption("#corner-style", style);
       expect(near(await previewColor(page, ...point), [0, 255, 0], 30), style).toBe(true);
       // The middle is still the photo, and the outer edge is still the border.
@@ -774,7 +754,7 @@ test.describe("Border default and corner style", () => {
     await page.fill("#border-width", "2");
     await page.locator("#border-color").fill("#202020");
     await addPhotos(page, await makeImages(page, SIX));
-    for (const style of ["none", "slight", "rounded", "circle"]) {
+    for (const style of ["none", "slight", "rounded"]) {
       await page.selectOption("#corner-style", style);
       const png = await saveAndRead(page);
       expect(await previewDifference(page, png), style).toBeLessThan(8);
@@ -1094,7 +1074,7 @@ test.describe("Border around the whole collage", () => {
     await page.locator("#border-color").fill("#00ff00");
     await addPhotos(page, await makeImages(page, TWO));
     await page.fill("#columns", "1");
-    await page.selectOption("#corner-style", "circle");
+    await page.selectOption("#corner-style", "rounded");
 
     // On: the whole poster behind the photos is the border colour.
     expect(near(await previewColor(page, 0.003, 0.003), [0, 255, 0], 30)).toBe(true);
@@ -1112,7 +1092,7 @@ test.describe("Border around the whole collage", () => {
     await page.locator("#border-color").fill("#202020");
     await addPhotos(page, await makeImages(page, SIX));
     await page.uncheck("#outer-border");
-    for (const style of ["none", "slight", "rounded", "circle"]) {
+    for (const style of ["none", "slight", "rounded"]) {
       await page.selectOption("#corner-style", style);
       const png = await saveAndRead(page);
       expect(await previewDifference(page, png), style).toBeLessThan(8);

@@ -627,8 +627,7 @@ export function startApp(): void {
     });
     ui.cornerStyle.addEventListener("change", () => {
       const value = ui.cornerStyle.value;
-      state.settings.cornerStyle =
-        value === "slight" || value === "rounded" || value === "circle" ? value : "none";
+      state.settings.cornerStyle = value === "slight" || value === "rounded" ? value : "none";
       draw();
     });
     ui.borderColor.addEventListener("input", () => {
