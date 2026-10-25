@@ -748,7 +748,7 @@ test.describe("Border default and corner style", () => {
   });
 
   test("offers square, slight, rounded and circle", async ({ page }) => {
-    const options = await page.locator("#corners .corner").allTextContents();
+    const options = (await page.locator("#corners .corner").allTextContents()).map((t) => t.trim());
     expect(options).toEqual(["Square", "Slight", "Rounded", "Circle"]);
   });
 
@@ -1053,21 +1053,35 @@ test.describe("Sidebar fits its bounds", () => {
         await makeImages(page, [{ name: longName, w: 100, h: 100, color: "red" }]),
       );
 
-      const overflow = await page.evaluate(() => {
-        const panel = document.querySelector("aside.panel") as HTMLElement;
-        const box = panel.getBoundingClientRect();
-        const outside: string[] = [];
-        for (const el of panel.querySelectorAll<HTMLElement>("*")) {
-          const r = el.getBoundingClientRect();
-          if (r.width === 0 || r.height === 0) continue;
-          if (r.right > box.right + 1 || r.left < box.left - 1) {
-            outside.push(`${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ""}`);
+      // With the photo selected, its name and controls show in the dock as well.
+      await showTab(page, "photos");
+      await page.locator("#photo-list li").first().getByRole("button").click();
+      for (const tab of ["photos", "poster", "style"] as const) {
+        await showTab(page, tab);
+        const overflow = await page.evaluate(() => {
+          const panel = document.querySelector("aside.side") as HTMLElement;
+          const box = panel.getBoundingClientRect();
+          const outside: string[] = [];
+          for (const el of panel.querySelectorAll<HTMLElement>("*")) {
+            const r = el.getBoundingClientRect();
+            if (r.width === 0 || r.height === 0) continue;
+            // Inside a scrolling panel, only sideways overflow matters.
+            if (r.right > box.right + 1 || r.left < box.left - 1) {
+              outside.push(`${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ""}`);
+            }
           }
-        }
-        return { outside, scrolls: panel.scrollWidth > panel.clientWidth + 1 };
-      });
-      expect(overflow.outside).toEqual([]);
-      expect(overflow.scrolls).toBe(false);
+          const scrolling = Array.from(panel.querySelectorAll<HTMLElement>("*")).some(
+            (el) =>
+              el.scrollWidth > el.clientWidth + 1 &&
+              getComputedStyle(el).overflowX === "visible" &&
+              el.clientWidth > 0 &&
+              !["SPAN", "A", "BUTTON", "LABEL", "SMALL", "OUTPUT", "H2"].includes(el.tagName),
+          );
+          return { outside, scrolls: panel.scrollWidth > panel.clientWidth + 1, scrolling };
+        });
+        expect(overflow.outside, tab).toEqual([]);
+        expect(overflow.scrolls, tab).toBe(false);
+      }
       // And the page itself does not scroll sideways.
       const pageScrolls = await page.evaluate(
         () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
@@ -1077,10 +1091,11 @@ test.describe("Sidebar fits its bounds", () => {
   }
 
   test("the width and height fields share the row evenly and stay inside it", async ({ page }) => {
+    await showTab(page, "poster");
     const [w, h, panel] = await Promise.all([
       page.locator("#width").boundingBox(),
       page.locator("#height").boundingBox(),
-      page.locator("aside.panel").boundingBox(),
+      page.locator("aside.side").boundingBox(),
     ]);
     expect(w && h && panel).toBeTruthy();
     expect(h!.x + h!.width).toBeLessThanOrEqual(panel!.x + panel!.width);
