@@ -92,17 +92,11 @@ Every source file needs an SPDX identifier and a copyright line at the top;
 original must keep its notice and add a dated change notice (see an existing
 ported file such as `src/core/layout.ts`).
 
-### Status and known issues
-
-- **Layout gaps.** The original algorithm sometimes leaves small empty areas in a layout. This is kept on purpose for now, so the four tests in `tests/layout.properties.test.ts` that require an exact tiling of the poster fail and CI is red until the layout is improved. Details and measurements: [research notes](specs/001-create-and-export-collage/research.md#3-known-limitation-of-the-original-layouts-can-have-holes).
-- Firefox and Safari export quality on real photos has not been compared yet ([Spec 003](specs/003-export-quality-and-limits/plan.md)).
-- Status of each feature slice: [specs/README.md](specs/README.md).
-
 ## How the project is organised
 
 The project follows spec-driven development (Spec Kit layout). The principles
 are in [.specify/memory/constitution.md](.specify/memory/constitution.md); each
-feature has a `spec.md`, `plan.md` and `tasks.md` under [specs/](specs/).
+feature has a `spec.md`, `plan.md` and `tasks.md` under [specs/](specs/); [specs/README.md](specs/README.md) tracks the status of each slice.
 
 | Module          | Responsibility                               |
 | --------------- | -------------------------------------------- |
