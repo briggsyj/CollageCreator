@@ -171,6 +171,16 @@ button:disabled {
 }
 
 .unit,
+.privacy {
+  margin: 0 0 12px;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  background: var(--bg);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+}
+
 .hint {
   color: var(--muted);
   font-size: 0.85rem;

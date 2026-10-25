@@ -519,3 +519,47 @@ test.describe("Choosing the number of columns", () => {
     await expect(page.locator("#columns-note")).toContainText("Columns in use");
   });
 });
+
+test.describe("Privacy note at the upload controls", () => {
+  const NOTE = /never uploaded/;
+
+  test("is shown next to Add images before any photo is added", async ({ page }) => {
+    const note = page.locator("#privacy-note");
+    await expect(note).toBeVisible();
+    await expect(note).toContainText("Everything runs in your browser");
+    await expect(note).toContainText("never uploaded");
+  });
+
+  test("is announced with the Add images button", async ({ page }) => {
+    await expect(page.locator("#add")).toHaveAccessibleDescription(NOTE);
+  });
+
+  test("stays visible after photos are added", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, SIX.slice(0, 2)));
+    await expect(page.locator("#privacy-note")).toBeVisible();
+  });
+
+  test("is true: adding and saving photos sends nothing anywhere", async ({ page }) => {
+    const sent: string[] = [];
+    page.on("request", (request) => {
+      const url = new URL(request.url());
+      const sameOrigin = url.origin === new URL(page.url()).origin;
+      // Loading the app's own files (GET) is fine; nothing may be posted, and nothing may leave.
+      if (request.method() !== "GET" || !sameOrigin || request.postData()) {
+        sent.push(`${request.method()} ${request.url()}`);
+      }
+    });
+    await setSize(page, 320, 240);
+    await addPhotos(page, await makeImages(page, SIX));
+    await saveAndRead(page);
+    expect(sent).toEqual([]);
+  });
+
+  test("is translated when the language has the text, otherwise shown in English", async ({
+    page,
+  }) => {
+    await page.selectOption("#language", "fr");
+    // No translation exists yet for this new sentence, so the English text is kept.
+    await expect(page.locator("#privacy-note")).toContainText("never uploaded");
+  });
+});

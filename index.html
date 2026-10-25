@@ -29,11 +29,25 @@
       <aside class="panel" aria-label="Controls">
         <section>
           <div class="button-row">
-            <button type="button" id="add" class="primary" data-i18n="Add images...">
+            <button
+              type="button"
+              id="add"
+              class="primary"
+              aria-describedby="privacy-note"
+              data-i18n="Add images..."
+            >
               Add images...
             </button>
             <button type="button" id="regenerate" data-i18n="Regenerate">Regenerate</button>
           </div>
+          <p
+            id="privacy-note"
+            class="privacy"
+            data-i18n="Everything runs in your browser. Your photos are never uploaded; they stay on your device."
+          >
+            Everything runs in your browser. Your photos are never uploaded; they stay on your
+            device.
+          </p>
           <input id="file-input" type="file" accept="image/*" multiple hidden />
           <label class="field">
             <span data-i18n="Seed">Seed</span>

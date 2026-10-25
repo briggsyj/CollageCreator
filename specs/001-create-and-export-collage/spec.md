@@ -19,7 +19,7 @@ People want a free, private way to combine many photos into one printable image 
 ## Requirements
 
 - Works with at least 100 photos in one collage.
-- Photos are never sent anywhere. The app works without a network connection after it has loaded.
+- Photos are never sent anywhere. The app works without a network connection after it has loaded. The upload controls say so in plain words (everything runs in the browser, nothing is uploaded), so people know before they add a photo.
 - Photos are shown the right way up, respecting the orientation stored in each file.
 - If the requested poster size is larger than this device and browser can produce, tell the user the largest size available and let them continue with that size.
 - Unreadable or unsupported files are skipped with a clear message naming the file.
