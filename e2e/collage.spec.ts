@@ -341,6 +341,8 @@ test.describe("Progress, cancel, offline and language", () => {
   });
 
   test("works with the network disconnected once loaded", async ({ page, context }) => {
+    // "Once loaded" includes the workers' scripts; wait for them before cutting the network.
+    await page.waitForSelector('html[data-workers-ready="true"]', { state: "attached" });
     await context.setOffline(true);
     await setSize(page, 320, 240);
     await addPhotos(page, await makeImages(page, SIX.slice(0, 3)));

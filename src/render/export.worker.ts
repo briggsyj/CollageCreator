@@ -2,7 +2,7 @@
 // Copyright (C) 2026 briggsyj and contributors
 
 import { downscale } from "./downscale";
-import type { WorkerRequest, WorkerResponse } from "./protocol";
+import type { WorkerReady, WorkerRequest, WorkerResponse } from "./protocol";
 
 const scope = self as unknown as DedicatedWorkerGlobalScope;
 
@@ -68,3 +68,5 @@ scope.onmessage = (event: MessageEvent<WorkerRequest>) => {
       } satisfies WorkerResponse),
   );
 };
+
+scope.postMessage({ kind: "ready" } satisfies WorkerReady);

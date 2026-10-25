@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2026 briggsyj and contributors
 
-import type { WorkerRequest, WorkerResponse } from "./protocol";
+import type { WorkerReady, WorkerRequest, WorkerResponse } from "./protocol";
 
 type Distribute<T> = T extends unknown ? Omit<T, "id"> : never;
 type Job = {
@@ -18,11 +18,23 @@ export class WorkerPool {
   private running = new Map<Worker, { id: number; job: Job }>();
   private nextId = 1;
   private terminated = false;
+  private readyCount = 0;
+  private resolveReady: () => void = () => {};
+  /** Resolves when every worker has loaded its script, so the pool no longer needs the network. */
+  readonly ready: Promise<void> = new Promise((resolve) => {
+    this.resolveReady = resolve;
+  });
 
   constructor(readonly size: number = defaultPoolSize()) {
     for (let i = 0; i < size; i++) {
       const worker = new Worker(new URL("./export.worker.ts", import.meta.url), { type: "module" });
-      worker.onmessage = (e: MessageEvent<WorkerResponse>) => this.onDone(worker, e.data);
+      worker.onmessage = (e: MessageEvent<WorkerResponse | WorkerReady>) => {
+        if (e.data.kind === "ready") {
+          if (++this.readyCount === size) this.resolveReady();
+        } else {
+          this.onDone(worker, e.data);
+        }
+      };
       worker.onerror = (e) => this.onCrash(worker, e.message);
       this.workers.push(worker);
       this.idle.push(worker);

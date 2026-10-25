@@ -573,6 +573,11 @@ export function startApp(): void {
     ui.aboutClose.addEventListener("click", () => ui.aboutDialog.close());
   }
 
+  // Once every worker script is loaded the app needs no more network. Exposed for tests.
+  void Promise.all([state.importPool.ready, state.exportPool.ready]).then(() => {
+    document.documentElement.dataset["workersReady"] = "true";
+  });
+
   initLanguages();
   initSettings();
   initPreview();
