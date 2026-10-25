@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+import { normaliseSplit } from "../core/split";
 import { NO_SPAN, type PhotoSpan, type PosterSettings } from "../core/types";
 
 /**
@@ -106,6 +107,14 @@ export function isSpan(value: unknown): value is PhotoSpan {
   );
 }
 
+/** A stored split count, kept only if it still matches the stored size (width = count × height). */
+function splitOf(count: unknown, width: unknown, height: unknown): number {
+  const n = normaliseSplit(typeof count === "number" ? count : undefined);
+  return n > 0 && typeof width === "number" && typeof height === "number" && width === n * height
+    ? n
+    : 0;
+}
+
 /** Accept only values of the right type and range from storage; anything else keeps its default. */
 export function checkSettings(raw: unknown, defaults: PosterSettings): PosterSettings {
   const r = (typeof raw === "object" && raw !== null ? raw : {}) as Record<string, unknown>;
@@ -124,6 +133,7 @@ export function checkSettings(raw: unknown, defaults: PosterSettings): PosterSet
         ? r.cornerStyle
         : "none",
     outerBorder: typeof r.outerBorder === "boolean" ? r.outerBorder : defaults.outerBorder,
+    splitImages: splitOf(r.splitImages, r.width, r.height),
     format: r.format === "jpeg" ? "jpeg" : "png",
     jpegQuality: num(r.jpegQuality, 0.1, 1, defaults.jpegQuality),
   };

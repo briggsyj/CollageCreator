@@ -309,3 +309,62 @@ export const SIX = [
   { name: "magenta.png", w: 300, h: 700, color: "magenta" as const },
   { name: "cyan.png", w: 640, h: 480, color: "cyan" as const },
 ];
+
+/** The files in a ZIP archive, in the order they are listed (stored or deflated entries are read as stored). */
+export function readZip(zip: Buffer): { name: string; data: Buffer }[] {
+  const end = zip.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+  if (end < 0) throw new Error("not a zip file");
+  const count = zip.readUInt16LE(end + 10);
+  let at = zip.readUInt32LE(end + 16);
+  const files: { name: string; data: Buffer }[] = [];
+  for (let i = 0; i < count; i++) {
+    if (zip.readUInt32LE(at) !== 0x02014b50) throw new Error("bad central directory");
+    const method = zip.readUInt16LE(at + 10);
+    if (method !== 0) throw new Error("only stored entries are read here");
+    const size = zip.readUInt32LE(at + 24);
+    const nameLength = zip.readUInt16LE(at + 28);
+    const extraLength = zip.readUInt16LE(at + 30);
+    const commentLength = zip.readUInt16LE(at + 32);
+    const local = zip.readUInt32LE(at + 42);
+    const name = zip.subarray(at + 46, at + 46 + nameLength).toString("utf8");
+    const start = local + 30 + zip.readUInt16LE(local + 26) + zip.readUInt16LE(local + 28);
+    files.push({ name, data: zip.subarray(start, start + size) });
+    at += 46 + nameLength + extraLength + commentLength;
+  }
+  return files;
+}
+
+/** Put images side by side, in order, into one PNG (to compare with the preview). */
+export async function stitch(page: Page, images: Buffer[]): Promise<Buffer> {
+  const url = await page.evaluate(
+    async (all) => {
+      const bitmaps = await Promise.all(
+        all.map((base64) =>
+          createImageBitmap(new Blob([Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))])),
+        ),
+      );
+      const canvas = new OffscreenCanvas(
+        bitmaps.reduce((sum, b) => sum + b.width, 0),
+        Math.max(...bitmaps.map((b) => b.height)),
+      );
+      const ctx = canvas.getContext("2d") as OffscreenCanvasRenderingContext2D;
+      let x = 0;
+      for (const b of bitmaps) {
+        ctx.drawImage(b, x, 0);
+        x += b.width;
+      }
+      const blob = await canvas.convertToBlob({ type: "image/png" });
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      let binary = "";
+      for (const byte of bytes) binary += String.fromCharCode(byte);
+      return btoa(binary);
+    },
+    images.map((b) => b.toString("base64")),
+  );
+  return Buffer.from(url, "base64");
+}
+
+/** Width and height from a PNG's header. */
+export function pngSize(png: Buffer): { width: number; height: number } {
+  return { width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
+}

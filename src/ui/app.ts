@@ -25,6 +25,14 @@ import { generateLayout, MAX_COLUMNS, normaliseColumns, type Page } from "../cor
 import { randomSeed, seededRng } from "../core/rng";
 import { generateBest, scoreLayout } from "../core/search";
 import {
+  normaliseSplit,
+  SPLIT_DEFAULT,
+  SPLIT_MAX,
+  SPLIT_MIN,
+  SPLIT_SIDE_DEFAULT,
+  SPLIT_SIDE_MIN,
+} from "../core/split";
+import {
   type Layout,
   NO_SPAN,
   type PhotoSpan,
@@ -46,6 +54,7 @@ import { drawPhotoCover } from "../render/draw";
 import { exportCollage } from "../render/export";
 import { WorkerPool } from "../render/pool";
 import { drawCollage, drawSelection, fitSize } from "../render/preview";
+import { drawSplitMarks, SPLIT_MARGIN } from "../render/splitmarks";
 import {
   FIT_VIEW,
   isFit,
@@ -121,6 +130,13 @@ export function startApp(): void {
     heightTaller: el<HTMLButtonElement>("span-h-taller"),
     heightTallest: el<HTMLButtonElement>("span-h-tallest"),
     presets: el<HTMLElement>("presets"),
+    splitControls: el<HTMLElement>("split-controls"),
+    splitCount: el<HTMLInputElement>("split-count"),
+    splitLess: el<HTMLButtonElement>("split-less"),
+    splitMore: el<HTMLButtonElement>("split-more"),
+    splitSize: el<HTMLInputElement>("split-size"),
+    splitHint: el<HTMLElement>("split-hint"),
+    splitNote: el<HTMLElement>("split-note"),
     columnsAuto: el<HTMLButtonElement>("columns-auto"),
     columnsCustom: el<HTMLButtonElement>("columns-custom"),
     columnsLess: el<HTMLButtonElement>("columns-less"),
@@ -176,6 +192,7 @@ export function startApp(): void {
       borderColor: "#ffffff",
       cornerStyle: "none",
       outerBorder: true,
+      splitImages: 0,
       format: "png",
       jpegQuality: 0.92,
     } as PosterSettings,
@@ -374,6 +391,7 @@ export function startApp(): void {
     ui.outerBorder.checked = s.outerBorder;
     ui.quality.value = String(Math.round(s.jpegQuality * 100));
     ui.columns.value = state.columns === undefined ? "" : String(state.columns);
+    syncSizeFields();
     syncBorder();
     syncCorners();
     syncFormat();
@@ -405,9 +423,17 @@ export function startApp(): void {
     ui.formatPng.setAttribute("aria-pressed", String(!jpeg));
     ui.formatJpeg.setAttribute("aria-pressed", String(jpeg));
     ui.qualityField.hidden = !jpeg;
+    const kind = jpeg ? "JPEG" : "PNG";
+    const n = state.settings.splitImages;
     setText(
       ui.outputSummary,
-      `${jpeg ? "JPEG" : "PNG"}, ${state.settings.width} × ${state.settings.height} px`,
+      n > 1
+        ? t("ZIP of %(n)s %(kind)s images, %(px)s × %(px)s px each", {
+            n,
+            kind,
+            px: state.settings.height,
+          })
+        : `${kind}, ${state.settings.width} × ${state.settings.height} px`,
     );
   }
 
@@ -485,11 +511,13 @@ export function startApp(): void {
 
   /** The poster's size on screen when the view is "fit", in CSS pixels. */
   function fitPoster(viewport: Size): Size {
+    // A collage for a multi-image post keeps room above and below for the cut marks.
+    const marks = state.settings.splitImages > 1 ? 2 * SPLIT_MARGIN : 0;
     const fit = fitSize(
       state.settings.width,
       state.settings.height,
       Math.max(160, viewport.w - 24),
-      Math.max(160, viewport.h - 24),
+      Math.max(160, viewport.h - 24 - marks),
     );
     return { w: fit.width, h: fit.height };
   }
@@ -592,6 +620,20 @@ export function startApp(): void {
       }
     }
     ctx.restore();
+    if (state.settings.splitImages > 1) {
+      const colour =
+        getComputedStyle(document.documentElement).getPropertyValue("--muted").trim() || "#5d5d58";
+      drawSplitMarks(
+        ctx,
+        { x: ox, y: oy, w: pw, h: ph },
+        state.settings.splitImages,
+        dpr,
+        colour,
+        t("Cut along the dashed lines: the collage is split into %(n)s images for the post.", {
+          n: state.settings.splitImages,
+        }),
+      );
+    }
     updateControls();
   }
 
@@ -802,14 +844,95 @@ export function startApp(): void {
   function syncSizeFields(): void {
     ui.width.value = String(state.settings.width);
     ui.height.value = String(state.settings.height);
-    const index = findPreset(state.settings.width, state.settings.height);
+    const split = state.settings.splitImages > 1;
+    const index = split ? -1 : findPreset(state.settings.width, state.settings.height);
     Array.from(ui.presets.children).forEach((chip, i) => {
       chip.setAttribute("aria-pressed", String(i === index));
     });
+    instagramChip?.setAttribute("aria-pressed", String(split));
+    syncSplit();
     syncFormat();
   }
 
+  /** The "Instagram post" size button, added with the other presets. */
+  let instagramChip: HTMLButtonElement | null = null;
+
+  /** Show or hide the controls for a multi-image post, and lock the size fields they set. */
+  function syncSplit(): void {
+    const n = state.settings.splitImages;
+    const on = n > 1;
+    ui.splitControls.hidden = !on;
+    ui.splitNote.hidden = !on;
+    ui.width.disabled = on;
+    ui.height.disabled = on;
+    if (!on) return;
+    const side = state.settings.height;
+    if (Number(ui.splitCount.value) !== n) ui.splitCount.value = String(n);
+    if (Number(ui.splitSize.value) !== side) ui.splitSize.value = String(side);
+    ui.splitLess.disabled = n <= SPLIT_MIN;
+    ui.splitMore.disabled = n >= SPLIT_MAX;
+    setText(
+      ui.splitHint,
+      t(
+        "The collage is made as one wide picture and cut into %(n)s squares when you save. Use Columns to change how it is arranged.",
+        { n },
+      ),
+    );
+    setText(
+      ui.splitNote,
+      t(
+        "Dashed lines mark where the collage is split into %(n)s images of %(px)s × %(px)s pixels. They are saved as a zip, numbered _1 to _%(n)s from left to right.",
+        { n, px: side },
+      ),
+    );
+  }
+
+  /**
+   * Make the collage for a post of `count` square images of `side` pixels. The shape of the
+   * collage changes with the number of images, so changing it makes a new arrangement.
+   */
+  function setSplit(count: number, side: number, arrange: boolean): void {
+    const n = normaliseSplit(count) || SPLIT_DEFAULT;
+    let px = Math.max(
+      SPLIT_SIDE_MIN,
+      Math.round(Number.isFinite(side) ? side : SPLIT_SIDE_DEFAULT),
+    );
+    const fit = clampSize(n * px, px, state.limits);
+    if (fit.clamped) px = Math.max(SPLIT_SIDE_MIN, Math.floor(Math.min(fit.height, fit.width / n)));
+    ui.sizeNote.textContent = fit.clamped
+      ? t("This browser can only make images up to %(w)s × %(h)s pixels here; using that size.", {
+          w: n * px,
+          h: px,
+        })
+      : "";
+    const changed = n !== state.settings.splitImages;
+    state.settings.splitImages = n;
+    state.settings.width = n * px;
+    state.settings.height = px;
+    ui.width.value = String(state.settings.width);
+    ui.height.value = String(state.settings.height);
+    syncSizeFields();
+    if (arrange && (changed || !state.page)) {
+      relayout("search");
+    } else {
+      state.page?.setTargetRatio(ratio());
+      persist();
+      draw();
+    }
+  }
+
+  /** Choose an ordinary poster size (leaving any multi-image post). */
+  function chooseSize(width: number, height: number): void {
+    state.settings.splitImages = 0;
+    applySize(width, height);
+  }
+
   function applySize(width: number, height: number): void {
+    if (state.settings.splitImages > 1) {
+      // The size of a multi-image post follows from its image count and image size.
+      setSplit(state.settings.splitImages, state.settings.height, false);
+      return;
+    }
     if (!Number.isFinite(width) || !Number.isFinite(height) || width < 1 || height < 1) {
       syncSizeFields();
       return;
@@ -867,8 +990,39 @@ export function startApp(): void {
         dims.textContent = `${p.width} × ${p.height} px`;
         chip.append(dims);
       }
-      chip.addEventListener("click", () => applySize(p.width, p.height));
+      chip.addEventListener("click", () => chooseSize(p.width, p.height));
       ui.presets.append(chip);
+    });
+    instagramChip = document.createElement("button");
+    instagramChip.type = "button";
+    instagramChip.className = "chip";
+    instagramChip.setAttribute("aria-pressed", "false");
+    instagramChip.append(t("Instagram post"));
+    const several = document.createElement("small");
+    several.textContent = t("Several square images");
+    instagramChip.append(several);
+    instagramChip.addEventListener("click", () =>
+      setSplit(SPLIT_DEFAULT, SPLIT_SIDE_DEFAULT, true),
+    );
+    ui.presets.append(instagramChip);
+    ui.splitLess.addEventListener("click", () =>
+      setSplit(state.settings.splitImages - 1, state.settings.height, true),
+    );
+    ui.splitMore.addEventListener("click", () =>
+      setSplit(state.settings.splitImages + 1, state.settings.height, true),
+    );
+    ui.splitCount.addEventListener("change", () => {
+      const n = normaliseSplit(Number(ui.splitCount.value));
+      if (n === 0) ui.splitCount.value = String(state.settings.splitImages);
+      else setSplit(n, state.settings.height, true);
+    });
+    ui.splitSize.addEventListener("change", () => {
+      const side = Number(ui.splitSize.value);
+      if (Number.isFinite(side) && side >= SPLIT_SIDE_MIN) {
+        setSplit(state.settings.splitImages, side, true);
+      } else {
+        ui.splitSize.value = String(state.settings.height);
+      }
     });
     syncSizeFields();
     ui.borderWidth.value = String(state.settings.borderWidth * 100);
@@ -1223,13 +1377,20 @@ export function startApp(): void {
         layout,
         photos: state.photos,
         settings,
+        baseName: `collage-${state.seed}`,
         pool: state.exportPool,
         signal: controller.signal,
         onProgress: (done, total) => {
           ui.progress.value = total ? (done / total) * 100 : 100;
         },
       });
-      download(blob, `collage-${state.seed}.${settings.format === "jpeg" ? "jpg" : "png"}`);
+      const stem = `collage-${state.seed}`;
+      download(
+        blob,
+        settings.splitImages > 1
+          ? `${stem}.zip`
+          : `${stem}.${settings.format === "jpeg" ? "jpg" : "png"}`,
+      );
     } catch (err) {
       if (!(err instanceof DOMException && err.name === "AbortError")) {
         addMessage({

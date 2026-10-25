@@ -55,6 +55,7 @@ general information, not legal advice.
 - Border colour, thickness (0.5 % white by default), corner style (none, slightly rounded, rounded or circle), and an option to leave out the border around the whole collage
 - Swap two photos by clicking or from the keyboard; remove photos from the collage (Delete), all at once, with undo
 - Zoom the preview by scrolling over it; hold Space and drag to move it
+- An **Instagram post** size: one wide collage, previewed whole with dashed cut marks, saved as a zip of square images numbered `_1`, `_2`, … from left to right
 - Photos are shown the right way up (EXIF orientation)
 - Save as PNG or JPEG, with progress and cancel; decoding runs in web workers
 - Starts in your browser's language when it is one of the translations, otherwise English. Translations from the original: Bulgarian, Czech, German, Spanish, French, Italian, Dutch, Polish, Brazilian Portuguese, Russian, Ukrainian

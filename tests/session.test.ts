@@ -11,6 +11,7 @@ const DEFAULTS: PosterSettings = {
   borderColor: "#ffffff",
   cornerStyle: "none",
   outerBorder: true,
+  splitImages: 0,
   format: "png",
   jpegQuality: 0.92,
 };
@@ -24,6 +25,7 @@ describe("checkSettings", () => {
       borderColor: "#112233",
       cornerStyle: "circle",
       outerBorder: false,
+      splitImages: 0,
       format: "jpeg",
       jpegQuality: 0.5,
     };
@@ -44,6 +46,20 @@ describe("checkSettings", () => {
     expect(checkSettings(bad, DEFAULTS)).toEqual(DEFAULTS);
     expect(checkSettings(undefined, DEFAULTS)).toEqual(DEFAULTS);
     expect(checkSettings("nope", DEFAULTS)).toEqual(DEFAULTS);
+  });
+});
+
+describe("checkSettings: split collage", () => {
+  const split = { ...DEFAULTS, width: 3240, height: 1080, splitImages: 3 };
+
+  it("keeps a split that matches its size", () => {
+    expect(checkSettings(split, DEFAULTS)).toEqual(split);
+  });
+
+  it("drops a split that no longer matches its size, or is out of range", () => {
+    expect(checkSettings({ ...split, width: 3000 }, DEFAULTS).splitImages).toBe(0);
+    expect(checkSettings({ ...split, splitImages: 1 }, DEFAULTS).splitImages).toBe(0);
+    expect(checkSettings({ ...split, splitImages: "3" }, DEFAULTS).splitImages).toBe(0);
   });
 });
 

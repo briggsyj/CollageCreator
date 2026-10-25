@@ -526,6 +526,22 @@ progress {
   justify-content: center;
 }
 
+.split-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.split-controls[hidden],
+#split-note[hidden] {
+  display: none;
+}
+
+.size-row input:disabled {
+  opacity: 0.6;
+}
+
 /* Photos */
 
 .photo-grid {

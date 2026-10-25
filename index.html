@@ -130,6 +130,71 @@
             <section aria-labelledby="size-heading">
               <h2 id="size-heading" data-i18n="Size">Size</h2>
               <div id="presets" class="chips" role="group" aria-labelledby="size-heading"></div>
+              <div id="split-controls" class="split-controls" hidden>
+                <div class="field">
+                  <span id="split-count-label" data-i18n="Images in the post"
+                    >Images in the post</span
+                  >
+                  <div class="stepper">
+                    <button
+                      type="button"
+                      id="split-less"
+                      class="square"
+                      aria-label="Fewer images"
+                      data-i18n-label="Fewer images"
+                    >
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M5 12h14" />
+                      </svg>
+                    </button>
+                    <input
+                      id="split-count"
+                      type="number"
+                      min="2"
+                      max="20"
+                      step="1"
+                      inputmode="numeric"
+                      aria-labelledby="split-count-label"
+                    />
+                    <button
+                      type="button"
+                      id="split-more"
+                      class="square"
+                      aria-label="More images"
+                      data-i18n-label="More images"
+                    >
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M12 5v14M5 12h14" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                <label class="field">
+                  <span data-i18n="Size of each square image (pixels)"
+                    >Size of each square image (pixels)</span
+                  >
+                  <input id="split-size" type="number" min="16" step="1" inputmode="numeric" />
+                </label>
+                <p id="split-hint" class="hint"></p>
+              </div>
               <div class="size-row">
                 <label class="field">
                   <span data-i18n="Width">Width</span>
@@ -458,6 +523,7 @@
         </div>
         <div id="messages" class="messages" role="status" aria-live="polite"></div>
         <p id="size-note" class="hint"></p>
+        <p id="split-note" class="hint" hidden></p>
       </section>
     </main>
 
