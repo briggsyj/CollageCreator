@@ -1356,6 +1356,7 @@ test.describe("Collage Creator: layout, modes, sizes and notices", () => {
   test("in Pan mode a drag moves the collage and a click selects a photo", async ({ page }) => {
     await addPhotos(page, await makeImages(page, TWO));
     await page.click("#zoom-in");
+    await expect(page.locator("#view-zoom")).toContainText("Zoom:");
     const start = await posterRect(page);
     const from = await posterPoint(page, 0.5, 0.5);
     await page.mouse.move(from.x, from.y);
@@ -1373,6 +1374,7 @@ test.describe("Collage Creator: layout, modes, sizes and notices", () => {
     await addPhotos(page, await makeImages(page, TWO));
     await swapMode(page);
     await page.click("#zoom-in");
+    await expect(page.locator("#view-zoom")).toContainText("Zoom:");
     const start = await posterRect(page);
     const from = await posterPoint(page, 0.5, 0.5);
     await page.mouse.move(from.x, from.y);
