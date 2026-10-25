@@ -21,7 +21,7 @@
 // with this program; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-import { generateLayout, type Page } from "../core/layout";
+import { generateLayout, MAX_COLUMNS, normaliseColumns, type Page } from "../core/layout";
 import { randomSeed, seededRng } from "../core/rng";
 import type { Layout, PosterSettings, Rect } from "../core/types";
 import { getLanguage, languages, resolveLanguage, setLanguage, t } from "../i18n";
@@ -63,6 +63,8 @@ export function startApp(): void {
     fileInput: el<HTMLInputElement>("file-input"),
     regenerate: el<HTMLButtonElement>("regenerate"),
     seed: el<HTMLInputElement>("seed"),
+    columns: el<HTMLInputElement>("columns"),
+    columnsNote: el<HTMLElement>("columns-note"),
     preset: el<HTMLSelectElement>("preset"),
     width: el<HTMLInputElement>("width"),
     height: el<HTMLInputElement>("height"),
@@ -90,6 +92,8 @@ export function startApp(): void {
   const state = {
     photos: [] as ImportedPhoto[],
     seed: randomSeed(),
+    /** Chosen number of columns; undefined lets the original heuristic decide. */
+    columns: undefined as number | undefined,
     page: null as Page | null,
     settings: {
       width: 1600,
@@ -143,6 +147,7 @@ export function startApp(): void {
       if (key) node.textContent = t(key);
     }
     renderPhotoList();
+    updateColumnsNote();
   }
 
   function initLanguages(): void {
@@ -184,11 +189,22 @@ export function startApp(): void {
     state.page =
       state.photos.length === 0
         ? null
-        : generateLayout(state.photos, ratio(), seededRng(state.seed));
+        : generateLayout(state.photos, ratio(), seededRng(state.seed), {
+            columns: state.columns,
+          });
     ui.seed.value = String(state.seed);
+    updateColumnsNote();
     ui.save.disabled = state.photos.length === 0;
     ui.emptyHint.hidden = state.photos.length > 0;
     draw();
+  }
+
+  /** Say how many columns the current layout really has (empty ones are dropped). */
+  function updateColumnsNote(): void {
+    ui.columns.placeholder = t("Auto");
+    ui.columnsNote.textContent = state.page
+      ? t("Columns in use: %(n)s", { n: state.page.noCols })
+      : "";
   }
 
   function currentLayout(): Layout | null {
@@ -405,6 +421,18 @@ export function startApp(): void {
         ui.seed.value = String(state.seed);
       }
     });
+    ui.columns.max = String(MAX_COLUMNS);
+    // Empty means automatic. Apply while typing; tidy the field once the edit is done.
+    const applyColumns = (tidy: boolean) => {
+      const raw = ui.columns.value.trim();
+      const columns = raw === "" ? undefined : normaliseColumns(Number(raw));
+      if (tidy) ui.columns.value = columns === undefined ? "" : String(columns);
+      if (columns === state.columns) return;
+      state.columns = columns;
+      relayout();
+    };
+    ui.columns.addEventListener("input", () => applyColumns(false));
+    ui.columns.addEventListener("change", () => applyColumns(true));
     ui.regenerate.addEventListener("click", () => {
       state.seed = randomSeed();
       relayout();

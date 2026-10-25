@@ -395,3 +395,127 @@ test.describe("Progress, cancel, offline and language", () => {
     );
   });
 });
+
+test.describe("Choosing the number of columns", () => {
+  const FOUR = [
+    { name: "r.png", w: 400, h: 400, color: "red" as const },
+    { name: "g.png", w: 400, h: 400, color: "green" as const },
+    { name: "b.png", w: 400, h: 400, color: "blue" as const },
+    { name: "y.png", w: 400, h: 400, color: "yellow" as const },
+  ];
+  const BANDS = [0.12, 0.37, 0.62, 0.87];
+
+  /** Colours down the left and right edges of the preview, at the middle of four equal bands. */
+  async function bandColours(page: import("@playwright/test").Page) {
+    const left = await Promise.all(BANDS.map((y) => previewColor(page, 0.1, y)));
+    const right = await Promise.all(BANDS.map((y) => previewColor(page, 0.9, y)));
+    return { left, right };
+  }
+
+  test("starts on automatic", async ({ page }) => {
+    await expect(page.locator("#columns")).toHaveValue("");
+    await expect(page.locator("#columns")).toHaveAttribute("placeholder", "Auto");
+  });
+
+  test("one column stacks the photos full width, in the preview and the saved image", async ({
+    page,
+  }) => {
+    await setSize(page, 400, 400);
+    await page.fill("#border-width", "0");
+    await addPhotos(page, await makeImages(page, FOUR));
+
+    await page.fill("#columns", "1");
+    await expect(page.locator("#columns-note")).toContainText("1");
+
+    // A single column means the same colour at the left and the right of every band,
+    // and four different bands from top to bottom.
+    const { left, right } = await bandColours(page);
+    for (let i = 0; i < left.length; i++) {
+      expect(near(left[i] as number[], right[i] as number[], 30)).toBe(true);
+    }
+    for (let i = 0; i < left.length; i++) {
+      for (let j = i + 1; j < left.length; j++) {
+        expect(near(left[i] as number[], left[j] as number[], 40)).toBe(false);
+      }
+    }
+
+    const png = await saveAndRead(page);
+    expect(await previewDifference(page, png)).toBeLessThan(6);
+    const saved = await analyse(page, png, [
+      [0.1, 0.12],
+      [0.9, 0.12],
+      [0.1, 0.87],
+      [0.9, 0.87],
+    ]);
+    expect(near(saved.colors[0] as number[], saved.colors[1] as number[], 30)).toBe(true);
+    expect(near(saved.colors[2] as number[], saved.colors[3] as number[], 30)).toBe(true);
+  });
+
+  test("the choice is kept when generating a new arrangement", async ({ page }) => {
+    await setSize(page, 400, 400);
+    await page.fill("#border-width", "0");
+    await addPhotos(page, await makeImages(page, FOUR));
+    await page.fill("#columns", "1");
+    for (let i = 0; i < 3; i++) {
+      await page.click("#regenerate");
+      const { left, right } = await bandColours(page);
+      for (let k = 0; k < left.length; k++) {
+        expect(near(left[k] as number[], right[k] as number[], 30)).toBe(true);
+      }
+    }
+    await expect(page.locator("#columns")).toHaveValue("1");
+  });
+
+  test("shows how many columns are in use, and returns to automatic when cleared", async ({
+    page,
+  }) => {
+    await addPhotos(page, await makeImages(page, SIX));
+    await page.fill("#columns", "2");
+    await expect(page.locator("#columns-note")).toHaveText(/Columns in use: [12]$/);
+    const forced = await page.locator("#columns-note").textContent();
+
+    await page.fill("#columns", "");
+    await expect(page.locator("#columns-note")).toHaveText(/Columns in use: \d+$/);
+    // Automatic picks more than two columns for six photos on a 4:3 poster.
+    expect(await page.locator("#columns-note").textContent()).not.toBe(forced);
+  });
+
+  test("the same seed with the same columns gives the same layout", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, SIX));
+    const grid = async () => {
+      const out: number[][] = [];
+      for (const y of [0.15, 0.5, 0.85]) {
+        for (const x of [0.15, 0.5, 0.85]) out.push(await previewColor(page, x, y));
+      }
+      return JSON.stringify(out);
+    };
+    await setSeed(page, 21);
+    await page.fill("#columns", "3");
+    const first = await grid();
+    await page.fill("#columns", "2");
+    const other = await grid();
+    await page.fill("#columns", "3");
+    expect(await grid()).toBe(first);
+    expect(other).not.toBe(first);
+  });
+
+  test("out-of-range values are tidied to the allowed range", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, SIX));
+    await page.fill("#columns", "500");
+    await page.locator("#columns").press("Tab");
+    await expect(page.locator("#columns")).toHaveValue("100");
+    await page.fill("#columns", "0");
+    await page.locator("#columns").press("Tab");
+    await expect(page.locator("#columns")).toHaveValue("1");
+    await page.fill("#columns", "3.9");
+    await page.locator("#columns").press("Tab");
+    await expect(page.locator("#columns")).toHaveValue("3");
+  });
+
+  test("works before any photos are added", async ({ page }) => {
+    await page.fill("#columns", "4");
+    await expect(page.locator("#columns-note")).toHaveText("");
+    await addPhotos(page, await makeImages(page, SIX));
+    await expect(page.locator("#columns-note")).toContainText("Columns in use");
+  });
+});
