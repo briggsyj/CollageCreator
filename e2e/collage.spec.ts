@@ -9,6 +9,9 @@ import {
   makeImages,
   makeOrientedJpeg,
   near,
+  openTechnical,
+  posterPoint,
+  posterRect,
   previewColor,
   previewDifference,
   SIX,
@@ -248,8 +251,6 @@ test.describe("Collage editing: borders and swapping", () => {
     await setSeed(page, 1);
 
     // Find two points in different cells.
-    const canvas = page.locator("#preview");
-    const box = (await canvas.boundingBox())!;
     const candidates: [number, number][] = [
       [0.1, 0.1],
       [0.9, 0.1],
@@ -263,11 +264,10 @@ test.describe("Collage editing: borders and swapping", () => {
     const a = 0;
     const b = before.findIndex((c, i) => i > a && !near(c, before[a]!, 40));
     expect(b).toBeGreaterThan(0);
-    const click = async (i: number) =>
-      page.mouse.click(
-        box.x + candidates[i]![0] * box.width,
-        box.y + candidates[i]![1] * box.height,
-      );
+    const click = async (i: number) => {
+      const point = await posterPoint(page, candidates[i]![0], candidates[i]![1]);
+      await page.mouse.click(point.x, point.y);
+    };
     await click(a);
     await click(b);
     await expect(page.locator("#messages")).toContainText("Swapped");
@@ -517,5 +517,801 @@ test.describe("Choosing the number of columns", () => {
     await expect(page.locator("#columns-note")).toHaveText("");
     await addPhotos(page, await makeImages(page, SIX));
     await expect(page.locator("#columns-note")).toContainText("Columns in use");
+  });
+});
+
+test.describe("Privacy note at the upload controls", () => {
+  const NOTE = /never uploaded/;
+
+  test("is shown next to Add images before any photo is added", async ({ page }) => {
+    const note = page.locator("#privacy-note");
+    await expect(note).toBeVisible();
+    await expect(note).toContainText("Everything runs in your browser");
+    await expect(note).toContainText("never uploaded");
+  });
+
+  test("is announced with the Add images button", async ({ page }) => {
+    await expect(page.locator("#add")).toHaveAccessibleDescription(NOTE);
+  });
+
+  test("stays visible after photos are added", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, SIX.slice(0, 2)));
+    await expect(page.locator("#privacy-note")).toBeVisible();
+  });
+
+  test("is true: adding and saving photos sends nothing anywhere", async ({ page }) => {
+    const sent: string[] = [];
+    page.on("request", (request) => {
+      const url = new URL(request.url());
+      const sameOrigin = url.origin === new URL(page.url()).origin;
+      // Loading the app's own files (GET) is fine; nothing may be posted, and nothing may leave.
+      if (request.method() !== "GET" || !sameOrigin || request.postData()) {
+        sent.push(`${request.method()} ${request.url()}`);
+      }
+    });
+    await setSize(page, 320, 240);
+    await addPhotos(page, await makeImages(page, SIX));
+    await saveAndRead(page);
+    expect(sent).toEqual([]);
+  });
+
+  test("is translated when the language has the text, otherwise shown in English", async ({
+    page,
+  }) => {
+    await page.selectOption("#language", "fr");
+    // No translation exists yet for this new sentence, so the English text is kept.
+    await expect(page.locator("#privacy-note")).toContainText("never uploaded");
+  });
+});
+
+test.describe("Preview area, zoom and pan", () => {
+  const FOUR = [
+    { name: "r.png", w: 400, h: 400, color: "red" as const },
+    { name: "g.png", w: 400, h: 400, color: "green" as const },
+    { name: "b.png", w: 400, h: 400, color: "blue" as const },
+    { name: "y.png", w: 400, h: 400, color: "yellow" as const },
+  ];
+
+  /** Put the mouse at a fraction of the poster. */
+  async function hover(page: import("@playwright/test").Page, fx: number, fy: number) {
+    const p = await posterPoint(page, fx, fy);
+    await page.mouse.move(p.x, p.y);
+    return p;
+  }
+
+  test("has a plain background, not a checkerboard", async ({ page }) => {
+    const style = await page.locator("#canvas-box").evaluate((el) => {
+      const s = getComputedStyle(el);
+      return { image: s.backgroundImage, colour: s.backgroundColor };
+    });
+    expect(style.image).toBe("none");
+    expect(style.colour).not.toBe("rgba(0, 0, 0, 0)");
+  });
+
+  test("scrolling zooms in and out, and Fit to window brings it back", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, FOUR));
+    const fit = await posterRect(page);
+    await expect(page.locator("#reset-view")).toBeHidden();
+
+    await hover(page, 0.5, 0.5);
+    await page.mouse.wheel(0, -400);
+    await expect.poll(async () => (await posterRect(page)).w).toBeGreaterThan(fit.w * 1.2);
+    await expect(page.locator("#reset-view")).toBeVisible();
+    await expect(page.locator("#view-zoom")).toContainText("Zoom:");
+
+    await page.mouse.wheel(0, 1200);
+    await expect.poll(async () => (await posterRect(page)).w).toBeLessThan(fit.w);
+
+    await page.click("#reset-view");
+    await expect.poll(async () => (await posterRect(page)).w).toBeCloseTo(fit.w, 0);
+    await expect(page.locator("#reset-view")).toBeHidden();
+    await expect(page.locator("#view-zoom")).toHaveText("");
+  });
+
+  test("zooming keeps the point under the mouse in place", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, FOUR));
+    const before = await hover(page, 0.25, 0.3);
+    const start = await posterRect(page);
+    await page.mouse.wheel(0, -500);
+    await expect.poll(async () => (await posterRect(page)).w).toBeGreaterThan(start.w * 1.3);
+    const after = await posterRect(page);
+    const box = (await page.locator("#preview").boundingBox()) as { x: number; y: number };
+    // The poster point that was under the mouse is still under it.
+    expect((before.x - box.x - after.x) / after.w).toBeCloseTo(0.25, 1);
+    expect((before.y - box.y - after.y) / after.h).toBeCloseTo(0.3, 1);
+  });
+
+  test("zoom stops at 800 %", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, FOUR));
+    await hover(page, 0.5, 0.5);
+    for (let i = 0; i < 12; i++) await page.mouse.wheel(0, -600);
+    await expect(page.locator("#view-zoom")).toHaveText("Zoom: 800%");
+  });
+
+  test("holding Space and dragging moves the collage", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, FOUR));
+    const start = await posterRect(page);
+    const from = await hover(page, 0.5, 0.5);
+
+    await page.keyboard.down("Space");
+    await page.mouse.down();
+    await page.mouse.move(from.x + 80, from.y + 40, { steps: 4 });
+    await page.mouse.up();
+    await page.keyboard.up("Space");
+
+    await expect.poll(async () => (await posterRect(page)).x).toBeCloseTo(start.x + 80, 0);
+    expect((await posterRect(page)).y).toBeCloseTo(start.y + 40, 0);
+    // The size is unchanged and no photo got picked by the drag.
+    expect((await posterRect(page)).w).toBeCloseTo(start.w, 0);
+    await expect(page.locator("#messages")).not.toContainText("Selected");
+  });
+
+  test("dragging without Space does not move the collage", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, FOUR));
+    const start = await posterRect(page);
+    const from = await hover(page, 0.5, 0.5);
+    await page.mouse.down();
+    await page.mouse.move(from.x + 80, from.y + 40, { steps: 4 });
+    await page.mouse.up();
+    expect(await posterRect(page)).toEqual(start);
+  });
+
+  test("Space no longer picks a photo from the keyboard; Enter does", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, FOUR));
+    await page.locator("#preview").focus();
+    await page.keyboard.press("Space");
+    await expect(page.locator("#messages")).not.toContainText("Selected");
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#messages")).toContainText("Selected");
+  });
+
+  test("works from the keyboard: plus and minus zoom, shift and arrows pan, zero fits", async ({
+    page,
+  }) => {
+    await addPhotos(page, await makeImages(page, FOUR));
+    const fit = await posterRect(page);
+    await page.locator("#preview").focus();
+
+    await page.keyboard.press("+");
+    await expect.poll(async () => (await posterRect(page)).w).toBeGreaterThan(fit.w * 1.2);
+    await page.keyboard.press("-");
+    await expect.poll(async () => (await posterRect(page)).w).toBeCloseTo(fit.w, 0);
+
+    const before = await posterRect(page);
+    await page.keyboard.press("Shift+ArrowLeft");
+    await expect.poll(async () => (await posterRect(page)).x).toBeCloseTo(before.x + 40, 0);
+
+    await page.keyboard.press("0");
+    await expect.poll(async () => (await posterRect(page)).x).toBeCloseTo(fit.x, 0);
+  });
+
+  test("photos can still be picked and swapped while zoomed in", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, FOUR));
+    await hover(page, 0.5, 0.5);
+    await page.mouse.wheel(0, -300);
+    await expect(page.locator("#reset-view")).toBeVisible();
+    const p = await posterPoint(page, 0.5, 0.5);
+    await page.mouse.click(p.x, p.y);
+    await expect(page.locator("#messages")).toContainText("Selected");
+  });
+
+  test("zooming the preview does not change the saved image", async ({ page }) => {
+    await setSize(page, 320, 240);
+    await addPhotos(page, await makeImages(page, FOUR));
+    await hover(page, 0.5, 0.5);
+    await page.mouse.wheel(0, -500);
+    await expect(page.locator("#reset-view")).toBeVisible();
+    const png = await saveAndRead(page);
+    const result = await analyse(page, png);
+    expect([result.width, result.height]).toEqual([320, 240]);
+  });
+});
+
+test.describe("Border default and corner style", () => {
+  const RED = [{ name: "a.png", w: 400, h: 300, color: "red" as const }];
+
+  test("defaults to a 0.5 % white border and square corners", async ({ page }) => {
+    await expect(page.locator("#border-width")).toHaveValue("0.5");
+    await expect(page.locator("#border-color")).toHaveValue("#ffffff");
+    await expect(page.locator("#corner-style")).toHaveValue("none");
+  });
+
+  test("offers none, slightly rounded, rounded and circle", async ({ page }) => {
+    const options = await page.locator("#corner-style option").allTextContents();
+    expect(options).toEqual(["None", "Slightly rounded", "Rounded", "Circle"]);
+  });
+
+  test("circle: the photo is an ellipse, corners show the background", async ({ page }) => {
+    await setSize(page, 400, 300);
+    await page.fill("#border-width", "0");
+    await addPhotos(page, await makeImages(page, RED));
+    await page.selectOption("#corner-style", "circle");
+
+    const corner = await previewColor(page, 0.02, 0.02);
+    const centre = await previewColor(page, 0.5, 0.5);
+    expect(near(corner, [255, 255, 255], 10)).toBe(true);
+    expect(near(centre, COLORS.red, 30)).toBe(true);
+
+    const png = await saveAndRead(page);
+    const saved = await analyse(page, png, [
+      [0.02, 0.02],
+      [0.5, 0.5],
+    ]);
+    expect(near(saved.colors[0] as number[], [255, 255, 255], 10)).toBe(true);
+    expect(near(saved.colors[1] as number[], COLORS.red, 30)).toBe(true);
+  });
+
+  test("with a border, rounded corners are cut out of each photo and filled with the border colour", async ({
+    page,
+  }) => {
+    await setSize(page, 400, 300);
+    await page.fill("#border-width", "5");
+    await page.locator("#border-color").fill("#00ff00");
+    await addPhotos(page, await makeImages(page, RED));
+
+    // Just inside the corner of the area the photo occupies (5 % of 400 px is 20 px in).
+    const point: [number, number] = [0.055, 0.0733];
+
+    // Square: the border is drawn over the photo's edge only, so this spot is still photo.
+    expect(near(await previewColor(page, ...point), COLORS.red, 30)).toBe(true);
+
+    for (const style of ["slight", "rounded", "circle"]) {
+      await page.selectOption("#corner-style", style);
+      expect(near(await previewColor(page, ...point), [0, 255, 0], 30), style).toBe(true);
+      // The middle is still the photo, and the outer edge is still the border.
+      expect(near(await previewColor(page, 0.5, 0.5), COLORS.red, 30), style).toBe(true);
+      expect(near(await previewColor(page, 0.005, 0.5), [0, 255, 0], 20), style).toBe(true);
+    }
+
+    const png = await saveAndRead(page);
+    const saved = await analyse(page, png, [point, [0.5, 0.5]]);
+    expect(near(saved.colors[0] as number[], [0, 255, 0], 30)).toBe(true);
+    expect(near(saved.colors[1] as number[], COLORS.red, 30)).toBe(true);
+  });
+
+  test("the saved image matches the preview for every corner style", async ({ page }) => {
+    await setSize(page, 480, 360);
+    await page.fill("#border-width", "2");
+    await page.locator("#border-color").fill("#202020");
+    await addPhotos(page, await makeImages(page, SIX));
+    for (const style of ["none", "slight", "rounded", "circle"]) {
+      await page.selectOption("#corner-style", style);
+      const png = await saveAndRead(page);
+      expect(await previewDifference(page, png), style).toBeLessThan(8);
+    }
+  });
+});
+
+test.describe("Removing photos", () => {
+  const names = async (page: import("@playwright/test").Page) =>
+    page.locator("#photo-list .name").allTextContents();
+
+  test("the Remove button in the list takes a photo out, and Undo remove brings it back in place", async ({
+    page,
+  }) => {
+    await addPhotos(page, await makeImages(page, SIX));
+    const all = await names(page);
+    await expect(page.locator("#undo-remove")).toBeDisabled();
+
+    await page.locator("#photo-list li").nth(2).getByRole("button").click();
+    await expect(page.locator("#photo-list li")).toHaveCount(5);
+    await expect(page.locator("#messages")).toContainText("Removed");
+    expect(await names(page)).toEqual(all.filter((_, i) => i !== 2));
+
+    await page.click("#undo-remove");
+    await expect(page.locator("#photo-list li")).toHaveCount(6);
+    expect(await names(page)).toEqual(all);
+    await expect(page.locator("#undo-remove")).toBeDisabled();
+  });
+
+  test("Delete on the preview removes the photo with the focus ring", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, SIX));
+    await page.locator("#preview").focus();
+    await page.keyboard.press("Delete");
+    await expect(page.locator("#photo-list li")).toHaveCount(5);
+    await expect(page.locator("#messages")).toContainText("Removed");
+    // The focus stays on the preview, so the next Delete works too.
+    await page.keyboard.press("Backspace");
+    await expect(page.locator("#photo-list li")).toHaveCount(4);
+  });
+
+  test("a photo picked by clicking can be removed with the Remove selected photo button", async ({
+    page,
+  }) => {
+    await addPhotos(page, await makeImages(page, SIX));
+    await expect(page.locator("#remove-selected")).toBeHidden();
+    const p = await posterPoint(page, 0.5, 0.5);
+    await page.mouse.click(p.x, p.y);
+    await expect(page.locator("#remove-selected")).toBeVisible();
+    const picked = /Selected (.+)\. Choose another/.exec(
+      (await page.locator("#messages").textContent()) ?? "",
+    )?.[1];
+    expect(picked).toBeTruthy();
+
+    await page.click("#remove-selected");
+    await expect(page.locator("#photo-list li")).toHaveCount(5);
+    expect(await names(page)).not.toContain(picked);
+    await expect(page.locator("#remove-selected")).toBeHidden();
+  });
+
+  test("Delete removes the clicked photo rather than the focused one", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, SIX));
+    const p = await posterPoint(page, 0.5, 0.5);
+    await page.mouse.click(p.x, p.y);
+    const picked = /Selected (.+)\. Choose another/.exec(
+      (await page.locator("#messages").textContent()) ?? "",
+    )?.[1];
+    await page.keyboard.press("Delete");
+    await expect(page.locator("#photo-list li")).toHaveCount(5);
+    expect(await names(page)).not.toContain(picked);
+  });
+
+  test("Remove all clears the collage, disables Save, and Undo remove restores everything", async ({
+    page,
+  }) => {
+    await addPhotos(page, await makeImages(page, SIX));
+    const all = await names(page);
+    await page.click("#remove-all");
+    await expect(page.locator("#photo-list li")).toHaveCount(0);
+    await expect(page.locator("#save")).toBeDisabled();
+    await expect(page.locator("#remove-all")).toBeDisabled();
+
+    await page.click("#undo-remove");
+    await expect(page.locator("#photo-list li")).toHaveCount(6);
+    expect(await names(page)).toEqual(all);
+    await expect(page.locator("#save")).toBeEnabled();
+  });
+
+  test("Ctrl+Z on the preview undoes a removal", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, SIX));
+    await page.locator("#preview").focus();
+    await page.keyboard.press("Delete");
+    await expect(page.locator("#photo-list li")).toHaveCount(5);
+    await page.keyboard.press("Control+z");
+    await expect(page.locator("#photo-list li")).toHaveCount(6);
+  });
+
+  test("undoing does not duplicate a photo that was added again meanwhile", async ({
+    page,
+  }, testInfo) => {
+    const [one] = await makeImages(page, [{ name: "again.png", w: 100, h: 100, color: "blue" }]);
+    const path = testInfo.outputPath("again.png");
+    await writeFile(path, one!.buffer);
+    await addPhotos(page, [path]);
+    await page.locator("#photo-list li").getByRole("button").click();
+    await expect(page.locator("#photo-list li")).toHaveCount(0);
+    await addPhotos(page, [path]);
+    await page.click("#undo-remove");
+    await expect(page.locator("#photo-list li")).toHaveCount(1);
+  });
+
+  test("a new removal replaces what Undo remove would restore", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, SIX));
+    const all = await names(page);
+    await page.locator("#photo-list li").nth(0).getByRole("button").click();
+    await page.locator("#photo-list li").nth(0).getByRole("button").click();
+    await page.click("#undo-remove");
+    // Only the second removal comes back.
+    await expect(page.locator("#photo-list li")).toHaveCount(5);
+    expect(await names(page)).toEqual(all.slice(1));
+  });
+});
+
+test.describe("The poster's edge", () => {
+  test("border seams stay inside the poster", async ({ page }) => {
+    await setSize(page, 480, 360);
+    await page.fill("#border-width", "5");
+    await page.locator("#border-color").fill("#000000");
+    await addPhotos(page, await makeImages(page, SIX));
+
+    // Look at a thin strip all around, just outside the poster. The page shows through there
+    // (transparent) with a faint shadow, so an opaque dark pixel can only be a stray border seam.
+    const strayPixels = await page.evaluate(() => {
+      const c = document.getElementById("preview") as HTMLCanvasElement;
+      const scale = c.width / c.clientWidth;
+      const [px, py, pw, ph] = (c.dataset.poster ?? "0,0,1,1").split(",").map(Number);
+      const x0 = Math.round((px as number) * scale);
+      const y0 = Math.round((py as number) * scale);
+      const w = Math.round((pw as number) * scale);
+      const h = Math.round((ph as number) * scale);
+      const ctx = c.getContext("2d") as CanvasRenderingContext2D;
+      const ring = 5;
+      const strips: [number, number, number, number][] = [
+        [x0, y0 - ring, w, ring],
+        [x0, y0 + h, w, ring],
+        [x0 - ring, y0, ring, h],
+        [x0 + w, y0, ring, h],
+      ];
+      let count = 0;
+      for (const [x, y, sw, sh] of strips) {
+        const data = ctx.getImageData(x, y, sw, sh).data;
+        for (let i = 0; i < data.length; i += 4) {
+          if ((data[i + 3] as number) > 128 && (data[i] as number) < 60) count++;
+        }
+      }
+      return count;
+    });
+    expect(strayPixels).toBe(0);
+  });
+});
+
+test.describe("Technical configuration", () => {
+  test("the seed is tucked away in a collapsed section", async ({ page }) => {
+    await expect(page.locator("#technical summary")).toHaveText("Technical configuration");
+    await expect(page.locator("#technical")).not.toHaveAttribute("open", "");
+    await expect(page.locator("#seed")).toBeHidden();
+    await page.locator("#technical summary").click();
+    await expect(page.locator("#seed")).toBeVisible();
+    await page.locator("#technical summary").click();
+    await expect(page.locator("#seed")).toBeHidden();
+  });
+
+  test("the first arrangement is the best of 30 tries, and its seed gives the same layout again", async ({
+    page,
+  }) => {
+    await addPhotos(page, await makeImages(page, SIX));
+    await openTechnical(page);
+    const grid = async () => {
+      const out: number[][] = [];
+      for (const y of [0.12, 0.38, 0.62, 0.88]) {
+        for (const x of [0.12, 0.38, 0.62, 0.88]) out.push(await previewColor(page, x, y));
+      }
+      return JSON.stringify(out);
+    };
+    const seed = await page.inputValue("#seed");
+    expect(seed).toMatch(/^\d+$/);
+    const first = await grid();
+    const note = await page.locator("#crop-note").textContent();
+    expect(note).toMatch(/^Cropped on average: \d+%$/);
+
+    // Another seed gives another arrangement; the first one's seed brings the first one back.
+    await setSeed(page, Number(seed) === 5 ? 6 : 5);
+    expect(await grid()).not.toBe(first);
+    await setSeed(page, Number(seed));
+    expect(await grid()).toBe(first);
+    expect(await page.locator("#crop-note").textContent()).toBe(note);
+  });
+
+  test("Regenerate makes one new arrangement with a new seed", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, SIX));
+    await openTechnical(page);
+    const before = await page.inputValue("#seed");
+    await page.click("#regenerate");
+    await expect(page.locator("#seed")).not.toHaveValue(before);
+    // One generation: the shown seed is simply the new one, and typing it back changes nothing.
+    const after = await page.inputValue("#seed");
+    const crop = await page.locator("#crop-note").textContent();
+    await setSeed(page, Number(after));
+    expect(await page.locator("#crop-note").textContent()).toBe(crop);
+  });
+
+  test("adding photos picks the best arrangement for the new set", async ({ page }) => {
+    const all = await makeImages(page, SIX);
+    await addPhotos(page, all.slice(0, 3));
+    await openTechnical(page);
+    const first = await page.inputValue("#seed");
+    await addPhotos(page, all.slice(3));
+    expect(await page.inputValue("#seed")).not.toBe(first);
+    await expect(page.locator("#crop-note")).toContainText("Cropped on average");
+  });
+});
+
+test.describe("Sidebar fits its bounds", () => {
+  for (const width of [1280, 1000, 820, 760, 420, 340]) {
+    test(`nothing sticks out of the sidebar at ${width}px wide`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("./");
+      await openTechnical(page);
+      const longName = `${"a-very-long-photo-file-name-".repeat(3)}.png`;
+      await addPhotos(
+        page,
+        await makeImages(page, [{ name: longName, w: 100, h: 100, color: "red" }]),
+      );
+
+      const overflow = await page.evaluate(() => {
+        const panel = document.querySelector("aside.panel") as HTMLElement;
+        const box = panel.getBoundingClientRect();
+        const outside: string[] = [];
+        for (const el of panel.querySelectorAll<HTMLElement>("*")) {
+          const r = el.getBoundingClientRect();
+          if (r.width === 0 || r.height === 0) continue;
+          if (r.right > box.right + 1 || r.left < box.left - 1) {
+            outside.push(`${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ""}`);
+          }
+        }
+        return { outside, scrolls: panel.scrollWidth > panel.clientWidth + 1 };
+      });
+      expect(overflow.outside).toEqual([]);
+      expect(overflow.scrolls).toBe(false);
+      // And the page itself does not scroll sideways.
+      const pageScrolls = await page.evaluate(
+        () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+      );
+      expect(pageScrolls).toBe(false);
+    });
+  }
+
+  test("the width and height fields share the row evenly and stay inside it", async ({ page }) => {
+    const [w, h, panel] = await Promise.all([
+      page.locator("#width").boundingBox(),
+      page.locator("#height").boundingBox(),
+      page.locator("aside.panel").boundingBox(),
+    ]);
+    expect(w && h && panel).toBeTruthy();
+    expect(h!.x + h!.width).toBeLessThanOrEqual(panel!.x + panel!.width);
+    expect(Math.abs(w!.width - h!.width)).toBeLessThan(2);
+  });
+});
+
+test.describe("Border around the whole collage", () => {
+  const TWO = [
+    { name: "r.png", w: 400, h: 400, color: "red" as const },
+    { name: "b.png", w: 400, h: 400, color: "blue" as const },
+  ];
+
+  test("is on by default", async ({ page }) => {
+    await expect(page.locator("#outer-border")).toBeChecked();
+  });
+
+  test("off: the border stays between photos but not around the collage", async ({ page }) => {
+    await setSize(page, 400, 800);
+    await page.fill("#border-width", "5");
+    await page.locator("#border-color").fill("#00ff00");
+    await page.fill("#columns", "1");
+    await addPhotos(page, await makeImages(page, TWO));
+    await page.fill("#columns", "1");
+
+    // Whichever photo is on top, its edge and its middle are the same colour once the frame is off.
+    const edge = () => previewColor(page, 0.004, 0.25);
+    const middle = () => previewColor(page, 0.5, 0.25);
+    const seam = () => previewColor(page, 0.5, 0.5);
+    // On: green all round and between.
+    expect(near(await edge(), [0, 255, 0], 30)).toBe(true);
+    expect(near(await seam(), [0, 255, 0], 30)).toBe(true);
+
+    await page.uncheck("#outer-border");
+    // Off: the photo reaches the edge, and the line between the two photos is still there.
+    expect(near(await edge(), [0, 255, 0], 60)).toBe(false);
+    expect(near(await edge(), await middle(), 30)).toBe(true);
+    expect(near(await seam(), [0, 255, 0], 30)).toBe(true);
+
+    const png = await saveAndRead(page);
+    const saved = await analyse(page, png, [
+      [0.004, 0.25],
+      [0.5, 0.25],
+      [0.5, 0.5],
+    ]);
+    expect(near(saved.colors[0] as number[], [0, 255, 0], 60)).toBe(false);
+    expect(near(saved.colors[0] as number[], saved.colors[1] as number[], 30)).toBe(true);
+    expect(near(saved.colors[2] as number[], [0, 255, 0], 30)).toBe(true);
+  });
+
+  test("off, with rounded photos: gaps between them keep the colour, the outer corners do not", async ({
+    page,
+  }) => {
+    await setSize(page, 400, 800);
+    await page.fill("#border-width", "5");
+    await page.locator("#border-color").fill("#00ff00");
+    await addPhotos(page, await makeImages(page, TWO));
+    await page.fill("#columns", "1");
+    await page.selectOption("#corner-style", "circle");
+
+    // On: the whole poster behind the photos is the border colour.
+    expect(near(await previewColor(page, 0.003, 0.003), [0, 255, 0], 30)).toBe(true);
+    await page.uncheck("#outer-border");
+    // Off: the poster's corner is plain white, but the gap between the two photos is still green.
+    expect(near(await previewColor(page, 0.003, 0.003), [255, 255, 255], 15)).toBe(true);
+    expect(near(await previewColor(page, 0.5, 0.5), [0, 255, 0], 30)).toBe(true);
+  });
+
+  test("the saved image matches the preview with it off, for every corner style", async ({
+    page,
+  }) => {
+    await setSize(page, 480, 360);
+    await page.fill("#border-width", "2");
+    await page.locator("#border-color").fill("#202020");
+    await addPhotos(page, await makeImages(page, SIX));
+    await page.uncheck("#outer-border");
+    for (const style of ["none", "slight", "rounded", "circle"]) {
+      await page.selectOption("#corner-style", style);
+      const png = await saveAndRead(page);
+      expect(await previewDifference(page, png), style).toBeLessThan(8);
+    }
+  });
+});
+
+test.describe("Asking for a photo to be bigger", () => {
+  const THREE = [
+    { name: "r.png", w: 400, h: 400, color: "red" as const },
+    { name: "g.png", w: 400, h: 400, color: "green" as const },
+    { name: "b.png", w: 400, h: 400, color: "blue" as const },
+  ];
+
+  /** Click the photo whose colour is `rgb` (found by scanning the preview). */
+  async function selectPhoto(page: import("@playwright/test").Page, rgb: readonly number[]) {
+    for (let y = 0.05; y < 1; y += 0.1) {
+      for (let x = 0.05; x < 1; x += 0.1) {
+        if (near(await previewColor(page, x, y), rgb, 40)) {
+          const p = await posterPoint(page, x, y);
+          await page.mouse.click(p.x, p.y);
+          await expect(page.locator("#span-group")).toBeVisible();
+          return;
+        }
+      }
+    }
+    throw new Error("no photo of that colour on the poster");
+  }
+
+  /** The share of the poster's height, down its middle, that is `rgb`. */
+  async function shareDown(page: import("@playwright/test").Page, rgb: readonly number[]) {
+    let hits = 0;
+    const n = 40;
+    for (let i = 0; i < n; i++) {
+      if (near(await previewColor(page, 0.5, (i + 0.5) / n), rgb, 40)) hits++;
+    }
+    return hits / n;
+  }
+
+  test("the size buttons appear only while a photo is selected", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, THREE));
+    await expect(page.locator("#span-group")).toBeHidden();
+    await selectPhoto(page, COLORS.red);
+    await expect(page.getByRole("button", { name: "Wider" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Taller" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Normal size" })).toBeDisabled();
+    await page.keyboard.press("Escape");
+    await page.locator("#preview").focus();
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#span-group")).toBeHidden();
+  });
+
+  test("Taller gives a photo more of the height, in steps, and Normal size takes it back", async ({
+    page,
+  }) => {
+    await setSize(page, 400, 400);
+    await page.fill("#border-width", "0");
+    await addPhotos(page, await makeImages(page, THREE));
+    await page.fill("#columns", "1");
+    const normal = await shareDown(page, COLORS.red);
+    expect(normal).toBeGreaterThan(0.25);
+    expect(normal).toBeLessThan(0.42);
+
+    await selectPhoto(page, COLORS.red);
+    await page.getByRole("button", { name: "Taller" }).click();
+    await expect(page.locator("#span-taller")).toHaveText("Taller ×2");
+    const two = await shareDown(page, COLORS.red);
+    expect(two).toBeGreaterThan(normal + 0.1);
+    await expect(page.locator("#photo-list li").first()).toContainText("taller ×2");
+
+    await page.locator("#span-taller").click();
+    await expect(page.locator("#span-taller")).toHaveText("Taller ×3");
+    expect(await shareDown(page, COLORS.red)).toBeGreaterThan(two + 0.05);
+
+    // A third press goes back round to normal.
+    await page.locator("#span-taller").click();
+    await expect(page.locator("#span-taller")).toHaveText("Taller");
+    expect(await shareDown(page, COLORS.red)).toBeCloseTo(normal, 1);
+
+    await page.locator("#span-taller").click();
+    await page.getByRole("button", { name: "Normal size" }).click();
+    await expect(page.locator("#span-taller")).toHaveText("Taller");
+    await expect(page.locator("#photo-list li").first()).not.toContainText("taller");
+    expect(await shareDown(page, COLORS.red)).toBeCloseTo(normal, 1);
+  });
+
+  test("Wider makes a photo span two columns, and the photo stays selected", async ({ page }) => {
+    await setSize(page, 400, 300);
+    await page.fill("#border-width", "0");
+    await addPhotos(page, await makeImages(page, THREE));
+    await page.fill("#columns", "2");
+
+    await selectPhoto(page, COLORS.red);
+    await page.getByRole("button", { name: "Wider" }).click();
+    await expect(page.locator("#span-wider")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("#photo-list li").first()).toContainText("wider");
+    // Still selected, so the buttons are still there.
+    await expect(page.locator("#span-group")).toBeVisible();
+
+    // Somewhere down the poster the red photo covers both the left and the right edge.
+    const bothSides = async () => {
+      for (let y = 0.04; y < 1; y += 0.04) {
+        const left = await previewColor(page, 0.05, y);
+        const right = await previewColor(page, 0.95, y);
+        if (near(left, COLORS.red, 40) && near(right, COLORS.red, 40)) return true;
+      }
+      return false;
+    };
+    expect(await bothSides()).toBe(true);
+
+    await page.getByRole("button", { name: "Wider" }).click();
+    await expect(page.locator("#span-wider")).toHaveAttribute("aria-pressed", "false");
+    await expect(page.locator("#photo-list li").first()).not.toContainText("wider");
+  });
+
+  test("a requested size is kept when the collage is regenerated, resized or changed", async ({
+    page,
+  }) => {
+    await addPhotos(page, await makeImages(page, SIX));
+    await page.fill("#columns", "3");
+    await selectPhoto(page, COLORS.red);
+    await page.getByRole("button", { name: "Wider" }).click();
+    await page.locator("#span-taller").click();
+    const tag = page.locator("#photo-list li").first();
+    await expect(tag).toContainText("wider · taller ×2");
+
+    for (let i = 0; i < 3; i++) await page.click("#regenerate");
+    await expect(tag).toContainText("wider · taller ×2");
+
+    await setSize(page, 300, 400);
+    await expect(tag).toContainText("wider · taller ×2");
+
+    // Removing a different photo (a search for a new arrangement) keeps it too.
+    await page.locator("#photo-list li").nth(3).getByRole("button").click();
+    await expect(page.locator("#photo-list li").first()).toContainText("wider · taller ×2");
+    await page.click("#undo-remove");
+    await expect(page.locator("#photo-list li").first()).toContainText("wider · taller ×2");
+  });
+
+  test("redrawing does not replace the Taller button's text while it is pressed", async ({
+    page,
+  }) => {
+    // WebKit drops a click when the button's text node is replaced between press and release,
+    // and the preview redraws (and refreshes this label) when it loses focus on that press.
+    await addPhotos(page, await makeImages(page, SIX));
+    await selectPhoto(page, COLORS.red);
+    const kept = await page.evaluate(() => {
+      const button = document.getElementById("span-taller") as HTMLButtonElement;
+      const before = button.firstChild;
+      const canvas = document.getElementById("preview") as HTMLCanvasElement;
+      canvas.focus();
+      canvas.blur();
+      return button.firstChild === before;
+    });
+    expect(kept).toBe(true);
+  });
+
+  test("several photos can each keep their own size", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, SIX));
+    await selectPhoto(page, COLORS.red);
+    await page.getByRole("button", { name: "Wider" }).click();
+    await page.keyboard.press("Escape");
+    await page.locator("#preview").focus();
+    await page.keyboard.press("Escape");
+    await selectPhoto(page, COLORS.blue);
+    await page.locator("#span-taller").click();
+
+    await expect(page.locator("#photo-list li", { hasText: "red.png" })).toContainText("wider");
+    await expect(page.locator("#photo-list li", { hasText: "blue.png" })).toContainText(
+      "taller ×2",
+    );
+    await expect(page.locator("#photo-list li", { hasText: "blue.png" })).not.toContainText(
+      "wider",
+    );
+  });
+
+  test("the saved image shows the same arrangement as the preview", async ({ page }) => {
+    await setSize(page, 480, 360);
+    await addPhotos(page, await makeImages(page, SIX));
+    await selectPhoto(page, COLORS.green);
+    await page.getByRole("button", { name: "Wider" }).click();
+    await page.locator("#span-taller").click();
+    const png = await saveAndRead(page);
+    expect(await previewDifference(page, png)).toBeLessThan(6);
+  });
+});
+
+test.describe("Small text styles", () => {
+  test("only the privacy note has the accent bar and background; the pixels label is plain hint text", async ({
+    page,
+  }) => {
+    const style = (selector: string) =>
+      page.locator(selector).evaluate((el) => {
+        const s = getComputedStyle(el);
+        return { bar: s.borderLeftWidth, background: s.backgroundColor };
+      });
+    expect((await style("#privacy-note")).bar).toBe("3px");
+    const unit = await style(".size-row .unit");
+    expect(unit.bar).toBe("0px");
+    expect(unit.background).toBe("rgba(0, 0, 0, 0)");
   });
 });

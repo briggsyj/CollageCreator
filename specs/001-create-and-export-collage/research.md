@@ -14,7 +14,7 @@ Source read: `photocollage/collage.py`, `photocollage/render.py`, `photocollage/
 
 **Cost**: dominated by recomputing `Cell.y` by walking the column, so O(cells per column squared) per query. Measured (`benchmarks/layout.json`): under 1 ms for 100 photos, about 12 ms for 500.
 
-**Rendering rules** (ported to `src/render/draw.ts`): each photo is scaled to cover its cell and cropped, centred (the original keeps `offset_w` and `offset_h` at 0.5; dragging them was never exposed, so not ported). Borders: width is a fraction of the longer side (default 1%, black), drawn as a frame and seams on cell edges. The background is white.
+**Rendering rules** (ported to `src/render/draw.ts`): each photo is scaled to cover its cell and cropped, centred (the original keeps `offset_w` and `offset_h` at 0.5; dragging them was never exposed, so not ported). Borders: width is a fraction of the longer side (the original defaulted to 1%, black; this version defaults to 0.5%, white), drawn as a frame and seams on cell edges. The background is white.
 
 **New or changed relative to the original**
 

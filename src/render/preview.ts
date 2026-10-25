@@ -7,14 +7,15 @@ import {
   cellPixelRects,
   drawBackground,
   drawBorders,
-  drawPhotoCover,
+  drawPhoto,
+  type Frame,
 } from "./draw";
 
 export interface PreviewInput {
   layout: Layout;
   /** Thumbnails indexed like `layout.placements[].photoIndex`. */
   thumbs: readonly (ImageBitmap | undefined)[];
-  settings: Pick<PosterSettings, "borderWidth" | "borderColor">;
+  settings: Pick<PosterSettings, "borderWidth" | "borderColor" | "cornerStyle" | "outerBorder">;
 }
 
 /** Fit the poster inside a box, keeping its shape. */
@@ -41,21 +42,20 @@ export function drawCollage(
   height: number,
   { layout, thumbs, settings }: PreviewInput,
 ): Rect[] {
-  drawBackground(ctx, width, height);
+  const frame: Frame = {
+    corners: settings.cornerStyle,
+    border: borderPixels(settings.borderWidth, width, height),
+    color: settings.borderColor,
+    outer: settings.outerBorder,
+  };
   const rects = cellPixelRects(layout, width, height);
+  drawBackground(ctx, width, height, frame, rects);
   layout.placements.forEach((placement, i) => {
     const thumb = thumbs[placement.photoIndex];
     const rect = rects[i];
-    if (thumb && rect) drawPhotoCover(ctx, thumb, thumb.width, thumb.height, rect);
+    if (thumb && rect) drawPhoto(ctx, thumb, thumb.width, thumb.height, rect, width, height, frame);
   });
-  drawBorders(
-    ctx,
-    rects,
-    width,
-    height,
-    borderPixels(settings.borderWidth, width, height),
-    settings.borderColor,
-  );
+  drawBorders(ctx, rects, width, height, frame);
   return rects;
 }
 

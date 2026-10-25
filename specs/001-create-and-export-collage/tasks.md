@@ -13,6 +13,7 @@
 - [x] T010 Worker protocol, pool, worker: probe (upright size + thumbnail)
 - [x] T011 Import: file picker, drag and drop, type check, duplicates, messages naming files
 - [x] T012 Photo list UI
+- [x] T013 Privacy note at the upload controls (nothing is uploaded; linked to the Add images button for screen readers)
 
 ## US2 Auto layout (P1)
 
