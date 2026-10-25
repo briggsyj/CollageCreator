@@ -82,6 +82,8 @@ for (const d of [...seen.values()].sort((a, b) => a.name.localeCompare(b.name)))
 
 mkdirSync(join(root, "public"), { recursive: true });
 writeFileSync(join(root, "public", "THIRD-PARTY-LICENSES.txt"), out.join("\n"));
-copyFileSync(join(root, "LICENSE"), join(root, "public", "LICENSE"));
-copyFileSync(join(root, "NOTICE.md"), join(root, "public", "NOTICE.md"));
+// Copied as .txt so every static host (GitHub Pages included) serves them as plain text
+// instead of offering a download.
+copyFileSync(join(root, "LICENSE"), join(root, "public", "LICENSE.txt"));
+copyFileSync(join(root, "NOTICE.md"), join(root, "public", "NOTICE.txt"));
 console.log(`Wrote licences for ${seen.size} package(s): ${[...seen.keys()].join(", ")}`);

@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/briggsyj/PhotoCollage/actions/workflows/ci.yaml/badge.svg)](https://github.com/briggsyj/PhotoCollage/actions/workflows/ci.yaml)
 [![Docker build](https://github.com/briggsyj/PhotoCollage/actions/workflows/docker.yaml/badge.svg)](https://github.com/briggsyj/PhotoCollage/actions/workflows/docker.yaml)
+[![GitHub Pages](https://github.com/briggsyj/PhotoCollage/actions/workflows/pages.yaml/badge.svg)](https://github.com/briggsyj/PhotoCollage/actions/workflows/pages.yaml)
 [![License: GPL v2 or later](https://img.shields.io/badge/license-GPL--2.0--or--later-blue.svg)](LICENSE)
 [![Derived from PhotoCollage](https://img.shields.io/badge/derived%20from-adrienverge%2FPhotoCollage-informational.svg)](https://github.com/adrienverge/PhotoCollage)
 
@@ -60,6 +61,18 @@ general information, not legal advice.
 | Layouts      | New random layout each time | Same algorithm, reproducible from a seed                        |
 | Maximum size | Limited by memory           | Limited by what the browser can allocate (detected at run time) |
 | Packaging    | pip / distro packages       | Docker (nginx) or any static host                               |
+
+## Use it online
+
+The `master` branch is published to GitHub Pages by the
+[GitHub Pages workflow](.github/workflows/pages.yaml):
+**<https://briggsyj.github.io/PhotoCollage/>**. It is the same static build as the Docker
+image, and your photos still never leave your browser: the page carries a Content Security Policy
+that only allows its own files.
+
+To publish your own copy of the fork, enable it once under **Settings → Pages → Build and
+deployment → Source: GitHub Actions**; later pushes to `master` deploy automatically. The build
+uses relative paths, so it works under any `/<repo>/` sub-path.
 
 ## Run with Docker
 

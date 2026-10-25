@@ -5,5 +5,5 @@ playwright-report
 test-results
 *.tsbuildinfo
 public/THIRD-PARTY-LICENSES.txt
-public/LICENSE
-public/NOTICE.md
+public/LICENSE.txt
+public/NOTICE.txt

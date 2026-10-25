@@ -19,7 +19,8 @@ import {
 } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
-  await page.goto("/");
+  // Relative, so the suite also works against a site served under a sub-path (GitHub Pages).
+  await page.goto("./");
 });
 
 test.describe("User story: add photos, see a collage, save it", () => {
