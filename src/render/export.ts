@@ -7,7 +7,8 @@ import {
   coverSize,
   drawBackground,
   drawBorders,
-  drawPhotoCover,
+  drawPhoto,
+  type Frame,
 } from "./draw";
 import type { WorkerPool } from "./pool";
 
@@ -39,7 +40,12 @@ export async function exportCollage(input: ExportInput): Promise<Blob> {
   const canvas = new OffscreenCanvas(width, height);
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("2D canvas is not available");
-  drawBackground(ctx, width, height);
+  const frame: Frame = {
+    corners: settings.cornerStyle,
+    border: borderPixels(settings.borderWidth, width, height),
+    color: settings.borderColor,
+  };
+  drawBackground(ctx, width, height, frame);
 
   const rects = cellPixelRects(layout, width, height);
   const abort = () => pool.terminate();
@@ -60,7 +66,16 @@ export async function exportCollage(input: ExportInput): Promise<Blob> {
           throw new Error(res.ok ? "unexpected response" : res.error);
         }
         try {
-          drawPhotoCover(ctx, res.bitmap, res.bitmap.width, res.bitmap.height, rect);
+          drawPhoto(
+            ctx,
+            res.bitmap,
+            res.bitmap.width,
+            res.bitmap.height,
+            rect,
+            width,
+            height,
+            frame,
+          );
         } finally {
           res.bitmap.close();
         }
@@ -68,14 +83,7 @@ export async function exportCollage(input: ExportInput): Promise<Blob> {
       }),
     );
     if (signal?.aborted) throw new DOMException("Cancelled", "AbortError");
-    drawBorders(
-      ctx,
-      rects,
-      width,
-      height,
-      borderPixels(settings.borderWidth, width, height),
-      settings.borderColor,
-    );
+    drawBorders(ctx, rects, width, height, frame);
     return await canvas.convertToBlob({
       type: mimeType(settings.format),
       quality: settings.format === "jpeg" ? settings.jpegQuality : undefined,

@@ -10,7 +10,7 @@
 
 ## Requirements
 
-- The border is a frame around the poster plus a line between neighbouring photos, in the chosen colour; thickness is a percentage of the longer poster side (default 1%, black, as in the original). 0 removes it.
+- The border is a frame around the poster plus a line between neighbouring photos, in the chosen colour; thickness is a percentage of the longer poster side (default 0.5%, white, with square corners; the original defaulted to 1%, black). 0 removes it.
 - Swapping exchanges the two photos; each is re-cropped to its new cell.
 - The keyboard can reach every photo (arrow keys), pick one (Enter or Space), and swap with another (Enter), or cancel (Escape).
 - Changing the poster size keeps which photo is where; only the cells' shapes change.

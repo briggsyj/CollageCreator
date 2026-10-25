@@ -94,7 +94,16 @@
           </label>
           <label class="field">
             <span data-i18n="Color:">Color:</span>
-            <input id="border-color" type="color" value="#000000" />
+            <input id="border-color" type="color" value="#ffffff" />
+          </label>
+          <label class="field">
+            <span data-i18n="Corner style">Corner style</span>
+            <select id="corner-style">
+              <option value="none" data-i18n="None">None</option>
+              <option value="slight" data-i18n="Slightly rounded">Slightly rounded</option>
+              <option value="rounded" data-i18n="Rounded">Rounded</option>
+              <option value="circle" data-i18n="Circle">Circle</option>
+            </select>
           </label>
         </section>
 
@@ -118,6 +127,14 @@
 
         <section>
           <h2 data-i18n="Photos">Photos</h2>
+          <div class="button-row">
+            <button type="button" id="undo-remove" disabled data-i18n="Undo remove">
+              Undo remove
+            </button>
+            <button type="button" id="remove-all" disabled data-i18n="Remove all">
+              Remove all
+            </button>
+          </div>
           <p
             id="empty-hint"
             class="hint"
@@ -130,16 +147,28 @@
       </aside>
 
       <section class="stage" aria-label="Preview">
-        <div id="messages" class="messages" role="status" aria-live="polite"></div>
         <div id="canvas-box" class="canvas-box">
           <!-- biome-ignore lint/a11y/noInteractiveElementToNoninteractiveRole: the canvas handles its own arrow-key navigation, so screen readers must pass keys through (application role) -->
           <canvas
             id="preview"
             tabindex="0"
             role="application"
-            aria-label="Collage preview. Use arrow keys to move between photos, Enter to pick one and Enter on another to swap them, Escape to cancel."
+            aria-label="Collage preview. Use arrow keys to move between photos, Enter to pick one and Enter on another to swap them, Delete to remove the photo, Escape to cancel. Plus and minus zoom, Shift and arrow keys pan, zero fits the window. With a mouse, scroll to zoom and hold Space while dragging to pan."
           ></canvas>
         </div>
+        <div class="view-bar">
+          <span class="hint" data-i18n="Scroll to zoom. Hold Space and drag to pan."
+            >Scroll to zoom. Hold Space and drag to pan.</span
+          >
+          <span id="view-zoom" class="hint"></span>
+          <button type="button" id="reset-view" hidden data-i18n="Fit to window">
+            Fit to window
+          </button>
+          <button type="button" id="remove-selected" hidden data-i18n="Remove selected photo">
+            Remove selected photo
+          </button>
+        </div>
+        <div id="messages" class="messages" role="status" aria-live="polite"></div>
         <p id="size-note" class="hint"></p>
       </section>
     </main>

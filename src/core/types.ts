@@ -15,15 +15,20 @@ export interface Photo extends PhotoSize {
 
 export type ImageFormat = "png" | "jpeg";
 
+/** Shape of each photo's corners: square, slightly rounded, rounded, or an ellipse touching all four sides. */
+export type CornerStyle = "none" | "slight" | "rounded" | "circle";
+
 export interface PosterSettings {
   /** Output width in pixels. */
   width: number;
   /** Output height in pixels. */
   height: number;
-  /** Border thickness as a fraction of the longer poster side (0.01 = 1 %). */
+  /** Border thickness as a fraction of the longer poster side (0.005 = 0.5 %). */
   borderWidth: number;
   /** Any CSS colour. */
   borderColor: string;
+  /** How the photos' corners are shaped. "none" keeps square photos with the border drawn over them. */
+  cornerStyle: CornerStyle;
   format: ImageFormat;
   /** 0..1, used for JPEG only. */
   jpegQuality: number;

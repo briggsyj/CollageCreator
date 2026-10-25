@@ -181,19 +181,53 @@ export async function analyse(
   );
 }
 
-/** Mean absolute RGB difference (0..255) between the on-screen preview and an exported image. */
+/** Where the poster is inside the preview canvas, in CSS pixels from the canvas's top-left. */
+export async function posterRect(
+  page: Page,
+): Promise<{ x: number; y: number; w: number; h: number }> {
+  return page.evaluate(() => {
+    const c = document.getElementById("preview") as HTMLCanvasElement;
+    const [x, y, w, h] = (c.dataset.poster ?? "0,0,1,1").split(",").map(Number);
+    return { x: x as number, y: y as number, w: w as number, h: h as number };
+  });
+}
+
+/** A point on the poster (fractions 0..1) as page coordinates, for mouse clicks. */
+export async function posterPoint(
+  page: Page,
+  fx: number,
+  fy: number,
+): Promise<{ x: number; y: number }> {
+  const box = await page.locator("#preview").boundingBox();
+  const poster = await posterRect(page);
+  if (!box) throw new Error("preview is not visible");
+  return { x: box.x + poster.x + fx * poster.w, y: box.y + poster.y + fy * poster.h };
+}
+
+/** Mean absolute RGB difference (0..255) between the poster in the preview and an exported image. */
 export async function previewDifference(page: Page, image: Buffer): Promise<number> {
   return page.evaluate(async (base64) => {
     const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
     const bmp = await createImageBitmap(new Blob([bytes]));
     const preview = document.getElementById("preview") as HTMLCanvasElement;
-    const a = preview.getContext("2d") as CanvasRenderingContext2D;
-    const b = new OffscreenCanvas(preview.width, preview.height);
+    const scale = preview.width / preview.clientWidth;
+    const [px, py, pw, ph] = (preview.dataset.poster ?? "0,0,1,1").split(",").map(Number);
+    // Compare the inside of the poster, leaving out a thin strip at its edge where the shadow starts.
+    const inset = 2;
+    const x = Math.round((px as number) * scale) + inset;
+    const y = Math.round((py as number) * scale) + inset;
+    const w = Math.round((pw as number) * scale) - 2 * inset;
+    const h = Math.round((ph as number) * scale) - 2 * inset;
+    const b = new OffscreenCanvas(
+      Math.round((pw as number) * scale),
+      Math.round((ph as number) * scale),
+    );
     const bctx = b.getContext("2d") as OffscreenCanvasRenderingContext2D;
     bctx.imageSmoothingQuality = "high";
-    bctx.drawImage(bmp, 0, 0, preview.width, preview.height);
-    const da = a.getImageData(0, 0, preview.width, preview.height).data;
-    const db = bctx.getImageData(0, 0, preview.width, preview.height).data;
+    bctx.drawImage(bmp, 0, 0, b.width, b.height);
+    const a = preview.getContext("2d") as CanvasRenderingContext2D;
+    const da = a.getImageData(x, y, w, h).data;
+    const db = bctx.getImageData(inset, inset, w, h).data;
     let sum = 0;
     for (let i = 0; i < da.length; i += 4) {
       sum += Math.abs((da[i] as number) - (db[i] as number));
@@ -204,7 +238,7 @@ export async function previewDifference(page: Page, image: Buffer): Promise<numb
   }, image.toString("base64"));
 }
 
-/** Preview colour at a fractional point of the canvas. */
+/** Preview colour at a fractional point of the poster. */
 export async function previewColor(
   page: Page,
   fx: number,
@@ -213,12 +247,11 @@ export async function previewColor(
   return page.evaluate(
     ([fx, fy]) => {
       const c = document.getElementById("preview") as HTMLCanvasElement;
-      const d = (c.getContext("2d") as CanvasRenderingContext2D).getImageData(
-        Math.floor((fx as number) * (c.width - 1)),
-        Math.floor((fy as number) * (c.height - 1)),
-        1,
-        1,
-      ).data;
+      const scale = c.width / c.clientWidth;
+      const [px, py, pw, ph] = (c.dataset.poster ?? "0,0,1,1").split(",").map(Number);
+      const x = Math.floor(((px as number) + (fx as number) * ((pw as number) - 1)) * scale);
+      const y = Math.floor(((py as number) + (fy as number) * ((ph as number) - 1)) * scale);
+      const d = (c.getContext("2d") as CanvasRenderingContext2D).getImageData(x, y, 1, 1).data;
       return [d[0], d[1], d[2]] as [number, number, number];
     },
     [fx, fy],

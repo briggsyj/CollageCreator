@@ -49,7 +49,9 @@ general information, not legal advice.
 - Every layout has a **seed**: the same seed and photos give the same layout
 - Choose the **number of columns**, or leave it on automatic (the original's choice)
 - Poster size in pixels, with A4, A3 and A2 presets at 300 DPI; sizes your browser cannot produce are reduced to the largest available
-- Border colour and thickness; swap two photos by clicking or from the keyboard
+- Border colour, thickness (0.5 % white by default) and corner style: none, slightly rounded, rounded or circle
+- Swap two photos by clicking or from the keyboard; remove photos from the collage (Delete), all at once, with undo
+- Zoom the preview by scrolling over it; hold Space and drag to move it
 - Photos are shown the right way up (EXIF orientation)
 - Save as PNG or JPEG, with progress and cancel; decoding runs in web workers
 - Translations from the original: Bulgarian, Czech, German, Spanish, French, Italian, Dutch, Polish, Brazilian Portuguese, Russian, Ukrainian
