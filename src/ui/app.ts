@@ -86,6 +86,14 @@ function browserLanguages(): readonly string[] {
   }
 }
 
+/**
+ * Set a node's text only when it changed. Redrawing runs while a button is being pressed (the
+ * preview losing focus), and WebKit drops the click if the button's text node was replaced.
+ */
+function setText(node: HTMLElement, text: string): void {
+  if (node.textContent !== text) node.textContent = text;
+}
+
 function storeLanguage(code: string): void {
   try {
     localStorage.setItem(LANG_KEY, code);
@@ -104,17 +112,33 @@ export function startApp(): void {
     columnsNote: el<HTMLElement>("columns-note"),
     cropNote: el<HTMLElement>("crop-note"),
     outerBorder: el<HTMLInputElement>("outer-border"),
-    spanGroup: el<HTMLElement>("span-group"),
-    spanWider: el<HTMLButtonElement>("span-wider"),
-    spanTaller: el<HTMLButtonElement>("span-taller"),
-    spanReset: el<HTMLButtonElement>("span-reset"),
-    preset: el<HTMLSelectElement>("preset"),
+    dock: el<HTMLElement>("selection-dock"),
+    selectionName: el<HTMLElement>("selection-name"),
+    selectionDone: el<HTMLButtonElement>("selection-done"),
+    widthNormal: el<HTMLButtonElement>("span-w-normal"),
+    widthWider: el<HTMLButtonElement>("span-w-wider"),
+    heightNormal: el<HTMLButtonElement>("span-h-normal"),
+    heightTaller: el<HTMLButtonElement>("span-h-taller"),
+    heightTallest: el<HTMLButtonElement>("span-h-tallest"),
+    presets: el<HTMLElement>("presets"),
+    columnsAuto: el<HTMLButtonElement>("columns-auto"),
+    columnsCustom: el<HTMLButtonElement>("columns-custom"),
+    columnsLess: el<HTMLButtonElement>("columns-less"),
+    columnsMore: el<HTMLButtonElement>("columns-more"),
+    borderWidthOut: el<HTMLElement>("border-width-out"),
+    swatches: el<HTMLElement>("swatches"),
+    customColour: el<HTMLElement>("custom-colour"),
+    corners: el<HTMLElement>("corners"),
+    formatPng: el<HTMLButtonElement>("format-png"),
+    formatJpeg: el<HTMLButtonElement>("format-jpeg"),
+    exportToggle: el<HTMLButtonElement>("export-toggle"),
+    exportOptions: el<HTMLElement>("export-options"),
+    outputSummary: el<HTMLElement>("output-summary"),
+    photoCount: el<HTMLElement>("photo-count"),
     width: el<HTMLInputElement>("width"),
     height: el<HTMLInputElement>("height"),
     borderWidth: el<HTMLInputElement>("border-width"),
     borderColor: el<HTMLInputElement>("border-color"),
-    cornerStyle: el<HTMLSelectElement>("corner-style"),
-    format: el<HTMLSelectElement>("format"),
     qualityField: el<HTMLElement>("quality-field"),
     quality: el<HTMLInputElement>("quality"),
     save: el<HTMLButtonElement>("save"),
@@ -203,6 +227,10 @@ export function startApp(): void {
     for (const node of document.querySelectorAll<HTMLElement>("[data-i18n]")) {
       const key = node.dataset.i18n;
       if (key) node.textContent = t(key);
+    }
+    for (const node of document.querySelectorAll<HTMLElement>("[data-i18n-label]")) {
+      const key = node.dataset.i18nLabel;
+      if (key) node.setAttribute("aria-label", t(key));
     }
     renderPhotoList();
     updateNotes(currentLayout());
@@ -343,12 +371,53 @@ export function startApp(): void {
     const s = state.settings;
     ui.borderWidth.value = String(Math.round(s.borderWidth * 1000) / 10);
     ui.borderColor.value = s.borderColor;
-    ui.cornerStyle.value = s.cornerStyle;
     ui.outerBorder.checked = s.outerBorder;
-    ui.format.value = s.format;
-    ui.qualityField.hidden = s.format !== "jpeg";
     ui.quality.value = String(Math.round(s.jpegQuality * 100));
     ui.columns.value = state.columns === undefined ? "" : String(state.columns);
+    syncBorder();
+    syncCorners();
+    syncFormat();
+    syncColumns();
+  }
+
+  /** Reflect the border thickness and colour in the slider's value and the swatches. */
+  function syncBorder(): void {
+    setText(ui.borderWidthOut, `${Math.round(state.settings.borderWidth * 1000) / 10}%`);
+    const colour = state.settings.borderColor.toLowerCase();
+    let known = false;
+    for (const swatch of ui.swatches.querySelectorAll<HTMLButtonElement>("[data-colour]")) {
+      const on = swatch.dataset.colour === colour;
+      known = known || on;
+      swatch.setAttribute("aria-pressed", String(on));
+    }
+    ui.customColour.classList.toggle("active", !known);
+  }
+
+  function syncCorners(): void {
+    for (const tile of ui.corners.querySelectorAll<HTMLButtonElement>("[data-corner]")) {
+      tile.setAttribute("aria-pressed", String(tile.dataset.corner === state.settings.cornerStyle));
+    }
+  }
+
+  /** The file type buttons, the quality slider (JPEG only) and the one-line summary by Save. */
+  function syncFormat(): void {
+    const jpeg = state.settings.format === "jpeg";
+    ui.formatPng.setAttribute("aria-pressed", String(!jpeg));
+    ui.formatJpeg.setAttribute("aria-pressed", String(jpeg));
+    ui.qualityField.hidden = !jpeg;
+    setText(
+      ui.outputSummary,
+      `${jpeg ? "JPEG" : "PNG"}, ${state.settings.width} × ${state.settings.height} px`,
+    );
+  }
+
+  /** Automatic or a chosen number; the stepper only works on a chosen number. */
+  function syncColumns(): void {
+    const chosen = state.columns;
+    ui.columnsAuto.setAttribute("aria-pressed", String(chosen === undefined));
+    ui.columnsCustom.setAttribute("aria-pressed", String(chosen !== undefined));
+    ui.columnsLess.disabled = chosen === undefined || chosen <= 1;
+    ui.columnsMore.disabled = chosen === undefined || chosen >= MAX_COLUMNS;
   }
 
   /** Bring back the photos and settings kept by an earlier visit. */
@@ -444,20 +513,27 @@ export function startApp(): void {
   function updateControls(): void {
     const fit = isFit(state.view);
     ui.resetView.hidden = fit;
-    ui.viewZoom.textContent = fit ? "" : t("Zoom: %(pct)s%", { pct: zoomPercent(state.view) });
-    ui.removeSelected.hidden = state.selected === null;
+    setText(ui.viewZoom, fit ? "" : t("Zoom: %(pct)s%", { pct: zoomPercent(state.view) }));
     const selected = state.selected === null ? undefined : state.photos[state.selected];
-    ui.spanGroup.hidden = selected === undefined;
+    ui.dock.hidden = selected === undefined;
+    if (selected) setText(ui.selectionName, selected.name);
     const span = selected?.span ?? NO_SPAN;
-    ui.spanWider.setAttribute("aria-pressed", String(span.columns === 2));
-    // Only touch the label when it changes: redrawing on the canvas losing focus runs this in
-    // the middle of a press on this very button, and WebKit drops the click if the button's
-    // text node is replaced by then.
-    const taller = span.rows > 1 ? `${t("Taller")} ×${span.rows}` : t("Taller");
-    if (ui.spanTaller.textContent !== taller) ui.spanTaller.textContent = taller;
-    ui.spanReset.disabled = span.columns === 1 && span.rows === 1;
+    const press = (button: HTMLButtonElement, on: boolean) =>
+      button.setAttribute("aria-pressed", String(on));
+    press(ui.widthNormal, span.columns === 1);
+    press(ui.widthWider, span.columns === 2);
+    press(ui.heightNormal, span.rows === 1);
+    press(ui.heightTaller, span.rows === 2);
+    press(ui.heightTallest, span.rows === 3);
     ui.removeAll.disabled = state.photos.length === 0;
     ui.undoRemove.disabled = state.removed === null;
+    setText(
+      ui.photoCount,
+      state.photos.length === 0 ? "" : t("%(n)s photo(s)", { n: state.photos.length }),
+    );
+    photoTiles.forEach((tile, i) => {
+      tile.setAttribute("aria-pressed", String(i === state.selected));
+    });
   }
 
   function draw(): void {
@@ -521,47 +597,64 @@ export function startApp(): void {
 
   // ------------------------------------------------------------------ photos
 
+  /** The tiles in the photo grid, in photo order (to show which one is selected). */
+  let photoTiles: HTMLButtonElement[] = [];
+
   function renderPhotoList(): void {
     ui.photoList.replaceChildren();
-    for (const photo of state.photos) {
+    photoTiles = [];
+    state.photos.forEach((photo, index) => {
       const li = document.createElement("li");
+      const tile = document.createElement("button");
+      tile.type = "button";
+      tile.className = "tile";
+      tile.title = photo.name;
       const thumb = document.createElement("canvas");
-      thumb.width = 80;
-      thumb.height = 80;
+      thumb.width = 160;
+      thumb.height = 160;
       thumb.setAttribute("aria-hidden", "true");
       const tctx = thumb.getContext("2d");
       if (tctx) {
         drawPhotoCover(tctx, photo.thumb, photo.thumb.width, photo.thumb.height, {
           x: 0,
           y: 0,
-          w: 80,
-          h: 80,
+          w: 160,
+          h: 160,
         });
       }
-      const info = document.createElement("div");
-      info.className = "info";
       const name = document.createElement("span");
-      name.className = "name";
+      name.className = "name sr-only";
       name.textContent = photo.name;
-      name.title = photo.name;
-      info.append(name);
+      tile.append(thumb, name);
       const wanted = describeSpan(photo.span);
       if (wanted) {
         const tag = document.createElement("span");
-        tag.className = "tag";
+        tag.className = "badge";
         tag.textContent = wanted;
-        info.append(tag);
+        tile.append(tag);
       }
-      const remove = document.createElement("button");
-      remove.type = "button";
-      remove.textContent = t("Remove");
-      remove.setAttribute("aria-label", `${t("Remove")}: ${photo.name}`);
-      remove.addEventListener("click", () => {
-        removePhotos(new Set([photo.id]), t("Removed %(name)s.", { name: photo.name }));
-      });
-      li.append(thumb, info, remove);
+      tile.addEventListener("click", () => selectPhoto(index));
+      li.append(tile);
+      photoTiles.push(tile);
       ui.photoList.append(li);
+    });
+    updateControls();
+  }
+
+  /** Select a photo from the grid (again to unselect); the collage shows it outlined. */
+  function selectPhoto(index: number): void {
+    if (state.selected === index) {
+      state.selected = null;
+      setStatus("");
+    } else {
+      state.selected = index;
+      setStatus(
+        t("Selected %(name)s. Choose another photo to swap, or press Escape.", {
+          name: state.photos[index]?.name ?? "",
+        }),
+      );
     }
+    draw();
   }
 
   async function addFiles(files: File[]): Promise<void> {
@@ -636,10 +729,12 @@ export function startApp(): void {
    * request through new arrangements, resizing and adding photos; the rest of the
    * collage is recalculated around it from the same seed.
    */
-  function setSpan(photoIndex: number, change: Partial<PhotoSpan> | "reset"): void {
+  function setSpan(photoIndex: number, change: Partial<PhotoSpan>): void {
     const photo = state.photos[photoIndex];
     if (!photo) return;
-    photo.span = change === "reset" ? { ...NO_SPAN } : { ...(photo.span ?? NO_SPAN), ...change };
+    const next = { ...(photo.span ?? NO_SPAN), ...change };
+    if (next.columns === photo.span?.columns && next.rows === photo.span?.rows) return;
+    photo.span = next;
     relayout("single", true);
     renderPhotoList();
     const description = describeSpan(photo.span);
@@ -651,22 +746,54 @@ export function startApp(): void {
   }
 
   function initSpan(): void {
-    const selectedIndex = () => state.selected;
-    ui.spanWider.addEventListener("click", () => {
-      const index = selectedIndex();
-      if (index === null) return;
-      const wide = state.photos[index]?.span?.columns === 2;
-      setSpan(index, { columns: wide ? 1 : 2 });
+    const apply = (button: HTMLButtonElement, change: Partial<PhotoSpan>) =>
+      button.addEventListener("click", () => {
+        if (state.selected !== null) setSpan(state.selected, change);
+      });
+    apply(ui.widthNormal, { columns: 1 });
+    apply(ui.widthWider, { columns: 2 });
+    apply(ui.heightNormal, { rows: 1 });
+    apply(ui.heightTaller, { rows: 2 });
+    apply(ui.heightTallest, { rows: 3 });
+    ui.selectionDone.addEventListener("click", () => {
+      state.selected = null;
+      setStatus("");
+      draw();
     });
-    ui.spanTaller.addEventListener("click", () => {
-      const index = selectedIndex();
-      if (index === null) return;
-      const rows = state.photos[index]?.span?.rows ?? 1;
-      setSpan(index, { rows: rows === 1 ? 2 : rows === 2 ? 3 : 1 });
-    });
-    ui.spanReset.addEventListener("click", () => {
-      const index = selectedIndex();
-      if (index !== null) setSpan(index, "reset");
+  }
+
+  // -------------------------------------------------------------------- tabs
+
+  /** The sidebar's tabs: one panel at a time; arrow keys move between tabs. */
+  function initTabs(): void {
+    const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+    const show = (active: HTMLButtonElement, focus = false) => {
+      for (const tab of tabs) {
+        const on = tab === active;
+        tab.setAttribute("aria-selected", String(on));
+        tab.tabIndex = on ? 0 : -1;
+        const panel = document.getElementById(tab.getAttribute("aria-controls") ?? "");
+        if (panel) panel.hidden = !on;
+      }
+      if (focus) active.focus();
+    };
+    tabs.forEach((tab, i) => {
+      tab.addEventListener("click", () => show(tab));
+      tab.addEventListener("keydown", (e) => {
+        const to =
+          e.key === "ArrowRight"
+            ? tabs[(i + 1) % tabs.length]
+            : e.key === "ArrowLeft"
+              ? tabs[(i - 1 + tabs.length) % tabs.length]
+              : e.key === "Home"
+                ? tabs[0]
+                : e.key === "End"
+                  ? tabs[tabs.length - 1]
+                  : undefined;
+        if (!to) return;
+        e.preventDefault();
+        show(to, true);
+      });
     });
   }
 
@@ -676,7 +803,10 @@ export function startApp(): void {
     ui.width.value = String(state.settings.width);
     ui.height.value = String(state.settings.height);
     const index = findPreset(state.settings.width, state.settings.height);
-    ui.preset.value = index >= 0 ? String(index) : "custom";
+    Array.from(ui.presets.children).forEach((chip, i) => {
+      chip.setAttribute("aria-pressed", String(i === index));
+    });
+    syncFormat();
   }
 
   function applySize(width: number, height: number): void {
@@ -726,24 +856,27 @@ export function startApp(): void {
   }
 
   function initSettings(): void {
-    PRESETS.forEach((p, i) => {
-      const option = document.createElement("option");
-      option.value = String(i);
-      option.textContent = p.label;
-      ui.preset.append(option);
+    PRESETS.forEach((p) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "chip";
+      chip.setAttribute("aria-pressed", "false");
+      chip.append(p.label);
+      if (!p.label.includes("×")) {
+        const dims = document.createElement("small");
+        dims.textContent = `${p.width} × ${p.height} px`;
+        chip.append(dims);
+      }
+      chip.addEventListener("click", () => applySize(p.width, p.height));
+      ui.presets.append(chip);
     });
-    const custom = document.createElement("option");
-    custom.value = "custom";
-    custom.textContent = "—";
-    ui.preset.append(custom);
     syncSizeFields();
     ui.borderWidth.value = String(state.settings.borderWidth * 100);
     ui.borderColor.value = state.settings.borderColor;
+    syncBorder();
+    syncCorners();
+    syncColumns();
 
-    ui.preset.addEventListener("change", () => {
-      const p = PRESETS[Number(ui.preset.value)];
-      if (p) applySize(p.width, p.height);
-    });
     for (const field of [ui.width, ui.height]) {
       field.addEventListener("input", commitSize);
       field.addEventListener("change", commitSize);
@@ -751,6 +884,7 @@ export function startApp(): void {
     ui.borderWidth.addEventListener("input", () => {
       const pct = Number(ui.borderWidth.value);
       state.settings.borderWidth = Number.isFinite(pct) ? Math.min(20, Math.max(0, pct)) / 100 : 0;
+      syncBorder();
       persist();
       draw();
     });
@@ -759,22 +893,42 @@ export function startApp(): void {
       persist();
       draw();
     });
-    ui.cornerStyle.addEventListener("change", () => {
-      const value = ui.cornerStyle.value;
-      state.settings.cornerStyle =
-        value === "slight" || value === "rounded" || value === "circle" ? value : "none";
-      persist();
-      draw();
-    });
+    for (const tile of ui.corners.querySelectorAll<HTMLButtonElement>("[data-corner]")) {
+      tile.addEventListener("click", () => {
+        const value = tile.dataset.corner;
+        state.settings.cornerStyle =
+          value === "slight" || value === "rounded" || value === "circle" ? value : "none";
+        syncCorners();
+        persist();
+        draw();
+      });
+    }
     ui.borderColor.addEventListener("input", () => {
       state.settings.borderColor = ui.borderColor.value;
+      syncBorder();
       persist();
       draw();
     });
-    ui.format.addEventListener("change", () => {
-      state.settings.format = ui.format.value === "jpeg" ? "jpeg" : "png";
-      ui.qualityField.hidden = state.settings.format !== "jpeg";
+    for (const swatch of ui.swatches.querySelectorAll<HTMLButtonElement>("[data-colour]")) {
+      swatch.addEventListener("click", () => {
+        ui.borderColor.value = swatch.dataset.colour ?? "#ffffff";
+        state.settings.borderColor = ui.borderColor.value;
+        syncBorder();
+        persist();
+        draw();
+      });
+    }
+    const setFormat = (format: "png" | "jpeg") => {
+      state.settings.format = format;
+      syncFormat();
       persist();
+    };
+    ui.formatPng.addEventListener("click", () => setFormat("png"));
+    ui.formatJpeg.addEventListener("click", () => setFormat("jpeg"));
+    ui.exportToggle.addEventListener("click", () => {
+      const open = ui.exportOptions.hidden;
+      ui.exportOptions.hidden = !open;
+      ui.exportToggle.setAttribute("aria-expanded", String(open));
     });
     ui.quality.addEventListener("input", () => {
       state.settings.jpegQuality = Number(ui.quality.value) / 100;
@@ -797,8 +951,23 @@ export function startApp(): void {
       if (tidy) ui.columns.value = columns === undefined ? "" : String(columns);
       if (columns === state.columns) return;
       state.columns = columns;
+      syncColumns();
       relayout();
     };
+    ui.columnsAuto.addEventListener("click", () => {
+      ui.columns.value = "";
+      applyColumns(true);
+    });
+    ui.columnsCustom.addEventListener("click", () => {
+      ui.columns.value = String(state.columns ?? state.page?.noCols ?? 1);
+      applyColumns(true);
+    });
+    const step = (by: number) => {
+      ui.columns.value = String(Math.min(MAX_COLUMNS, Math.max(1, (state.columns ?? 1) + by)));
+      applyColumns(true);
+    };
+    ui.columnsLess.addEventListener("click", () => step(-1));
+    ui.columnsMore.addEventListener("click", () => step(1));
     ui.columns.addEventListener("input", () => applyColumns(false));
     ui.columns.addEventListener("change", () => applyColumns(true));
     ui.shuffle.addEventListener("click", () => {
@@ -1112,6 +1281,7 @@ export function startApp(): void {
 
   initLanguages();
   initSettings();
+  initTabs();
   initPreview();
   initSpan();
   initInput();

@@ -127,7 +127,34 @@ export async function addPhotos(
   });
 }
 
+export type TabName = "photos" | "poster" | "style";
+
+/** Switch the sidebar to a tab, as a user would to reach its controls. */
+export async function showTab(page: Page, name: TabName): Promise<void> {
+  const tab = page.locator(`#tab-${name}`);
+  if ((await tab.getAttribute("aria-selected")) !== "true") await tab.click();
+}
+
+export async function setCorner(page: Page, style: string): Promise<void> {
+  await showTab(page, "style");
+  await page.locator(`[data-corner="${style}"]`).click();
+}
+
+/** Open "Export & save" if it is closed, then pick the file type. */
+export async function setFormat(page: Page, format: "png" | "jpeg"): Promise<void> {
+  if (await page.locator("#export-options").isHidden()) await page.click("#export-toggle");
+  await page.click(`#format-${format}`);
+}
+
+/** Select the nth photo in the grid and remove it with "Remove this photo". */
+export async function removePhoto(page: Page, index: number): Promise<void> {
+  await showTab(page, "photos");
+  await page.locator("#photo-list li").nth(index).getByRole("button").click();
+  await page.click("#remove-selected");
+}
+
 export async function setSize(page: Page, width: number, height: number): Promise<void> {
+  await showTab(page, "poster");
   await page.fill("#width", String(width));
   await page.fill("#height", String(height));
   await page.locator("#height").press("Tab");
@@ -135,6 +162,7 @@ export async function setSize(page: Page, width: number, height: number): Promis
 
 /** Open the "Technical configuration" section, as a user would to reach the seed. */
 export async function openTechnical(page: Page): Promise<void> {
+  await showTab(page, "poster");
   const open = await page.locator("#technical").evaluate((el) => (el as HTMLDetailsElement).open);
   if (!open) await page.locator("#technical summary").click();
 }

@@ -26,149 +26,414 @@
     </header>
 
     <main class="layout">
-      <aside class="panel" aria-label="Controls">
-        <section>
-          <div class="button-row">
+      <aside class="side" aria-label="Controls">
+        <div class="tabs" role="tablist" aria-label="Settings">
+          <button
+            type="button"
+            role="tab"
+            id="tab-photos"
+            data-tab="photos"
+            aria-controls="panel-photos"
+            aria-selected="true"
+            data-i18n="Photos"
+          >
+            Photos
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="tab-poster"
+            data-tab="poster"
+            aria-controls="panel-poster"
+            aria-selected="false"
+            tabindex="-1"
+            data-i18n="Poster"
+          >
+            Poster
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="tab-style"
+            data-tab="style"
+            aria-controls="panel-style"
+            aria-selected="false"
+            tabindex="-1"
+            data-i18n="Style"
+          >
+            Style
+          </button>
+        </div>
+
+        <div class="panels">
+          <div id="panel-photos" class="tab-panel" role="tabpanel" aria-labelledby="tab-photos">
             <button
               type="button"
               id="add"
-              class="primary"
+              class="primary wide"
               aria-describedby="privacy-note"
               data-i18n="Add images..."
             >
               Add images...
             </button>
-            <button type="button" id="shuffle" data-i18n="Shuffle layout">Shuffle layout</button>
+            <p
+              id="privacy-note"
+              class="privacy"
+              data-i18n="Everything runs in your browser. Your photos are never uploaded; they stay on your device, saved in this browser until you remove them."
+            >
+              Everything runs in your browser. Your photos are never uploaded; they stay on your
+              device, saved in this browser until you remove them.
+            </p>
+            <input id="file-input" type="file" accept="image/*" multiple hidden />
+            <div class="rowhead">
+              <!-- biome-ignore lint/a11y/useHeadingContent: the script fills in the count -->
+              <h2 id="photo-count" aria-live="polite"></h2>
+              <div class="rowhead-actions">
+                <button
+                  type="button"
+                  id="undo-remove"
+                  class="quiet"
+                  disabled
+                  data-i18n="Undo remove"
+                >
+                  Undo remove
+                </button>
+                <button type="button" id="remove-all" class="quiet" disabled data-i18n="Remove all">
+                  Remove all
+                </button>
+              </div>
+            </div>
+            <p
+              id="empty-hint"
+              class="hint"
+              data-i18n="Drop photos anywhere on this page, or use Add images."
+            >
+              Drop photos anywhere on this page, or use Add images.
+            </p>
+            <ul id="photo-list" class="photo-grid"></ul>
+            <p
+              id="select-hint"
+              class="hint"
+              data-i18n="Select a photo to make it wider or taller, or to remove it."
+            >
+              Select a photo to make it wider or taller, or to remove it.
+            </p>
           </div>
-          <p
-            id="privacy-note"
-            class="privacy"
-            data-i18n="Everything runs in your browser. Your photos are never uploaded; they stay on your device, saved in this browser until you remove them."
+
+          <div
+            id="panel-poster"
+            class="tab-panel"
+            role="tabpanel"
+            aria-labelledby="tab-poster"
+            hidden
           >
-            Everything runs in your browser. Your photos are never uploaded; they stay on your
-            device, saved in this browser until you remove them.
-          </p>
-          <input id="file-input" type="file" accept="image/*" multiple hidden />
-          <label class="field">
-            <span data-i18n="Columns">Columns</span>
-            <input
-              id="columns"
-              type="number"
-              min="1"
-              step="1"
-              inputmode="numeric"
-              placeholder="Auto"
-            />
-          </label>
-          <p id="columns-note" class="hint"></p>
-          <p id="crop-note" class="hint"></p>
-        </section>
+            <section aria-labelledby="size-heading">
+              <h2 id="size-heading" data-i18n="Size">Size</h2>
+              <div id="presets" class="chips" role="group" aria-labelledby="size-heading"></div>
+              <div class="size-row">
+                <label class="field">
+                  <span data-i18n="Width">Width</span>
+                  <input id="width" type="number" min="1" step="1" inputmode="numeric" />
+                </label>
+                <label class="field">
+                  <span data-i18n="Height">Height</span>
+                  <input id="height" type="number" min="1" step="1" inputmode="numeric" />
+                </label>
+                <span class="unit" data-i18n="pixels">pixels</span>
+              </div>
+            </section>
 
-        <section>
-          <h2 data-i18n="Output image size">Output image size</h2>
-          <label class="field">
-            <span data-i18n="Apply a template:">Apply a template:</span>
-            <select id="preset"></select>
-          </label>
-          <div class="size-row">
-            <label class="field">
-              <span data-i18n="Width">Width</span>
-              <input id="width" type="number" min="1" step="1" inputmode="numeric" />
-            </label>
-            <label class="field">
-              <span data-i18n="Height">Height</span>
-              <input id="height" type="number" min="1" step="1" inputmode="numeric" />
-            </label>
-            <span class="unit" data-i18n="pixels">pixels</span>
+            <section aria-labelledby="columns-heading">
+              <h2 id="columns-heading" data-i18n="Columns">Columns</h2>
+              <div class="seg" role="group" aria-labelledby="columns-heading">
+                <button type="button" id="columns-auto" aria-pressed="true" data-i18n="Automatic">
+                  Automatic
+                </button>
+                <button
+                  type="button"
+                  id="columns-custom"
+                  aria-pressed="false"
+                  data-i18n="Choose a number"
+                >
+                  Choose a number
+                </button>
+              </div>
+              <div class="stepper" role="group" aria-labelledby="columns-heading">
+                <button
+                  type="button"
+                  id="columns-less"
+                  class="square"
+                  aria-label="Fewer columns"
+                  data-i18n-label="Fewer columns"
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M5 12h14" />
+                  </svg>
+                </button>
+                <input
+                  id="columns"
+                  type="number"
+                  min="1"
+                  step="1"
+                  inputmode="numeric"
+                  placeholder="Auto"
+                  aria-labelledby="columns-heading"
+                />
+                <button
+                  type="button"
+                  id="columns-more"
+                  class="square"
+                  aria-label="More columns"
+                  data-i18n-label="More columns"
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                </button>
+              </div>
+              <p id="columns-note" class="hint"></p>
+              <p id="crop-note" class="hint"></p>
+            </section>
+
+            <details id="technical" class="technical">
+              <summary data-i18n="Technical configuration">Technical configuration</summary>
+              <label class="field">
+                <span data-i18n="Seed">Seed</span>
+                <input
+                  id="seed"
+                  type="number"
+                  min="0"
+                  max="4294967295"
+                  step="1"
+                  inputmode="numeric"
+                />
+              </label>
+              <p
+                class="hint"
+                data-i18n="The same photos, seed and number of columns always give the same layout. When photos are added, the seed of the best of 30 tries is shown here."
+              >
+                The same photos, seed and number of columns always give the same layout. When photos
+                are added, the seed of the best of 30 tries is shown here.
+              </p>
+            </details>
           </div>
-        </section>
 
-        <section>
-          <h2 data-i18n="Border">Border</h2>
-          <label class="field">
-            <span><span data-i18n="Thickness:">Thickness:</span> %</span>
-            <input id="border-width" type="number" min="0" max="20" step="0.1" />
-          </label>
-          <label class="field">
-            <span data-i18n="Color:">Color:</span>
-            <input id="border-color" type="color" value="#ffffff" />
-          </label>
-          <label class="field">
-            <span data-i18n="Corner style">Corner style</span>
-            <select id="corner-style">
-              <option value="none" data-i18n="None">None</option>
-              <option value="slight" data-i18n="Slightly rounded">Slightly rounded</option>
-              <option value="rounded" data-i18n="Rounded">Rounded</option>
-              <option value="circle" data-i18n="Circle">Circle</option>
-            </select>
-          </label>
-          <label class="check">
-            <input id="outer-border" type="checkbox" checked />
-            <span data-i18n="Border around the whole collage">Border around the whole collage</span>
-          </label>
-        </section>
+          <div
+            id="panel-style"
+            class="tab-panel"
+            role="tabpanel"
+            aria-labelledby="tab-style"
+            hidden
+          >
+            <section aria-labelledby="thickness-heading">
+              <div class="rowhead">
+                <h2 id="thickness-heading" data-i18n="Border thickness">Border thickness</h2>
+                <output id="border-width-out" for="border-width"></output>
+              </div>
+              <input
+                id="border-width"
+                type="range"
+                min="0"
+                max="10"
+                step="0.1"
+                aria-labelledby="thickness-heading"
+              />
+              <p
+                class="hint"
+                data-i18n="A share of the poster's longer side. 0 removes the border."
+              >
+                A share of the poster's longer side. 0 removes the border.
+              </p>
+            </section>
 
-        <section>
-          <h2 data-i18n="Save image">Save image</h2>
-          <label class="field">
-            <span data-i18n="Format">Format</span>
-            <select id="format">
-              <option value="png">PNG</option>
-              <option value="jpeg">JPEG</option>
-            </select>
-          </label>
-          <label class="field" id="quality-field" hidden>
-            <span data-i18n="JPEG quality">JPEG quality</span>
-            <input id="quality" type="range" min="10" max="100" step="1" value="92" />
-          </label>
-          <button type="button" id="save" class="primary" data-i18n="Save poster..." disabled>
-            Save poster...
+            <section aria-labelledby="colour-heading">
+              <h2 id="colour-heading" data-i18n="Border colour">Border colour</h2>
+              <div id="swatches" class="swatches" role="group" aria-labelledby="colour-heading">
+                <button
+                  type="button"
+                  class="swatch"
+                  data-colour="#ffffff"
+                  aria-label="White"
+                  data-i18n-label="White"
+                  aria-pressed="false"
+                  style="background: #ffffff"
+                ></button>
+                <button
+                  type="button"
+                  class="swatch"
+                  data-colour="#111111"
+                  aria-label="Black"
+                  data-i18n-label="Black"
+                  aria-pressed="false"
+                  style="background: #111111"
+                ></button>
+                <button
+                  type="button"
+                  class="swatch"
+                  data-colour="#bdb8ad"
+                  aria-label="Warm grey"
+                  data-i18n-label="Warm grey"
+                  aria-pressed="false"
+                  style="background: #bdb8ad"
+                ></button>
+                <button
+                  type="button"
+                  class="swatch"
+                  data-colour="#f1e7d0"
+                  aria-label="Cream"
+                  data-i18n-label="Cream"
+                  aria-pressed="false"
+                  style="background: #f1e7d0"
+                ></button>
+                <button
+                  type="button"
+                  class="swatch"
+                  data-colour="#1d2b4a"
+                  aria-label="Navy"
+                  data-i18n-label="Navy"
+                  aria-pressed="false"
+                  style="background: #1d2b4a"
+                ></button>
+                <label class="custom-colour" id="custom-colour">
+                  <span data-i18n="Custom...">Custom...</span>
+                  <input id="border-color" type="color" value="#ffffff" />
+                </label>
+              </div>
+            </section>
+
+            <section aria-labelledby="corners-heading">
+              <h2 id="corners-heading" data-i18n="Photo corners">Photo corners</h2>
+              <div id="corners" class="corner-tiles" role="group" aria-labelledby="corners-heading">
+                <button type="button" class="corner" data-corner="none" aria-pressed="true">
+                  <span class="shape" aria-hidden="true"></span
+                  ><span data-i18n="Square">Square</span>
+                </button>
+                <button type="button" class="corner" data-corner="slight" aria-pressed="false">
+                  <span class="shape" aria-hidden="true"></span
+                  ><span data-i18n="Slight">Slight</span>
+                </button>
+                <button type="button" class="corner" data-corner="rounded" aria-pressed="false">
+                  <span class="shape" aria-hidden="true"></span
+                  ><span data-i18n="Rounded">Rounded</span>
+                </button>
+                <button type="button" class="corner" data-corner="circle" aria-pressed="false">
+                  <span class="shape" aria-hidden="true"></span
+                  ><span data-i18n="Circle">Circle</span>
+                </button>
+              </div>
+            </section>
+
+            <section aria-labelledby="edges-heading">
+              <h2 id="edges-heading" data-i18n="Edges">Edges</h2>
+              <label class="check">
+                <input id="outer-border" type="checkbox" checked />
+                <span data-i18n="Border around the whole collage"
+                  >Border around the whole collage</span
+                >
+              </label>
+              <p class="hint" data-i18n="Turn off to keep the border only between photos.">
+                Turn off to keep the border only between photos.
+              </p>
+            </section>
+          </div>
+        </div>
+
+        <section id="selection-dock" class="dock" aria-labelledby="selection-name" hidden>
+          <div class="rowhead">
+            <!-- biome-ignore lint/a11y/useHeadingContent: the script fills in the photo name -->
+            <h2 id="selection-name"></h2>
+            <button type="button" id="selection-done" class="quiet" data-i18n="Done">Done</button>
+          </div>
+          <div role="group" aria-labelledby="width-label" class="dock-group">
+            <p id="width-label" class="label" data-i18n="Width in the collage">
+              Width in the collage
+            </p>
+            <div class="seg">
+              <button type="button" id="span-w-normal" aria-pressed="true" data-i18n="Normal">
+                Normal
+              </button>
+              <button
+                type="button"
+                id="span-w-wider"
+                aria-pressed="false"
+                data-i18n="Wider (2 columns)"
+              >
+                Wider (2 columns)
+              </button>
+            </div>
+          </div>
+          <div role="group" aria-labelledby="height-label" class="dock-group">
+            <p id="height-label" class="label" data-i18n="Height in the collage">
+              Height in the collage
+            </p>
+            <div class="seg">
+              <button type="button" id="span-h-normal" aria-pressed="true" data-i18n="Normal">
+                Normal
+              </button>
+              <button type="button" id="span-h-taller" aria-pressed="false" data-i18n="Taller">
+                Taller
+              </button>
+              <button type="button" id="span-h-tallest" aria-pressed="false" data-i18n="Tallest">
+                Tallest
+              </button>
+            </div>
+          </div>
+          <button
+            type="button"
+            id="remove-selected"
+            class="danger wide"
+            data-i18n="Remove this photo"
+          >
+            Remove this photo
           </button>
         </section>
 
-        <section>
-          <details id="technical" class="technical">
-            <summary data-i18n="Technical configuration">Technical configuration</summary>
-            <label class="field">
-              <span data-i18n="Seed">Seed</span>
-              <input
-                id="seed"
-                type="number"
-                min="0"
-                max="4294967295"
-                step="1"
-                inputmode="numeric"
-              />
-            </label>
-            <p
-              class="hint"
-              data-i18n="The same photos, seed and number of columns always give the same layout. When photos are added, the seed of the best of 30 tries is shown here."
+        <div class="foot">
+          <div class="foot-meta">
+            <span id="output-summary"></span>
+            <button
+              type="button"
+              id="export-toggle"
+              class="quiet"
+              aria-expanded="false"
+              aria-controls="export-options"
+              data-i18n="Export &amp; save"
             >
-              The same photos, seed and number of columns always give the same layout. When photos
-              are added, the seed of the best of 30 tries is shown here.
-            </p>
-          </details>
-        </section>
-
-        <section>
-          <h2 data-i18n="Photos">Photos</h2>
-          <div class="button-row">
-            <button type="button" id="undo-remove" disabled data-i18n="Undo remove">
-              Undo remove
-            </button>
-            <button type="button" id="remove-all" disabled data-i18n="Remove all">
-              Remove all
+              Export &amp; save
             </button>
           </div>
-          <p
-            id="empty-hint"
-            class="hint"
-            data-i18n="Drop photos anywhere on this page, or use Add images."
-          >
-            Drop photos anywhere on this page, or use Add images.
-          </p>
-          <ul id="photo-list" class="photo-list"></ul>
-        </section>
+          <div id="export-options" class="export-options" hidden>
+            <div class="seg" role="group" aria-label="Format" data-i18n-label="Format">
+              <button type="button" id="format-png" aria-pressed="true">PNG</button>
+              <button type="button" id="format-jpeg" aria-pressed="false">JPEG</button>
+            </div>
+            <label class="field" id="quality-field" hidden>
+              <span data-i18n="JPEG quality">JPEG quality</span>
+              <input id="quality" type="range" min="10" max="100" step="1" value="92" />
+            </label>
+          </div>
+          <button type="button" id="save" class="primary wide" data-i18n="Save poster..." disabled>
+            Save poster...
+          </button>
+        </div>
       </aside>
 
       <section class="stage" aria-label="Preview">
@@ -182,25 +447,13 @@
           ></canvas>
         </div>
         <div class="view-bar">
+          <button type="button" id="shuffle" data-i18n="Shuffle layout">Shuffle layout</button>
           <span class="hint" data-i18n="Scroll to zoom. Hold Space and drag to pan."
             >Scroll to zoom. Hold Space and drag to pan.</span
           >
           <span id="view-zoom" class="hint"></span>
           <button type="button" id="reset-view" hidden data-i18n="Fit to window">
             Fit to window
-          </button>
-          <fieldset id="span-group" class="span-group" hidden>
-            <legend class="sr-only" data-i18n="Size of the selected photo">
-              Size of the selected photo
-            </legend>
-            <button type="button" id="span-wider" aria-pressed="false" data-i18n="Wider">
-              Wider
-            </button>
-            <button type="button" id="span-taller">Taller</button>
-            <button type="button" id="span-reset" data-i18n="Normal size">Normal size</button>
-          </fieldset>
-          <button type="button" id="remove-selected" hidden data-i18n="Remove selected photo">
-            Remove selected photo
           </button>
         </div>
         <div id="messages" class="messages" role="status" aria-live="polite"></div>
