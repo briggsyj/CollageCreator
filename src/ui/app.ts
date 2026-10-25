@@ -320,7 +320,11 @@ export function startApp(): void {
     ui.spanGroup.hidden = selected === undefined;
     const span = selected?.span ?? NO_SPAN;
     ui.spanWider.setAttribute("aria-pressed", String(span.columns === 2));
-    ui.spanTaller.textContent = span.rows > 1 ? `${t("Taller")} ×${span.rows}` : t("Taller");
+    // Only touch the label when it changes: redrawing on the canvas losing focus runs this in
+    // the middle of a press on this very button, and WebKit drops the click if the button's
+    // text node is replaced by then.
+    const taller = span.rows > 1 ? `${t("Taller")} ×${span.rows}` : t("Taller");
+    if (ui.spanTaller.textContent !== taller) ui.spanTaller.textContent = taller;
     ui.spanReset.disabled = span.columns === 1 && span.rows === 1;
     ui.removeAll.disabled = state.photos.length === 0;
     ui.undoRemove.disabled = state.removed === null;

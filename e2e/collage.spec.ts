@@ -1252,6 +1252,24 @@ test.describe("Asking for a photo to be bigger", () => {
     await expect(page.locator("#photo-list li").first()).toContainText("wider · taller ×2");
   });
 
+  test("redrawing does not replace the Taller button's text while it is pressed", async ({
+    page,
+  }) => {
+    // WebKit drops a click when the button's text node is replaced between press and release,
+    // and the preview redraws (and refreshes this label) when it loses focus on that press.
+    await addPhotos(page, await makeImages(page, SIX));
+    await selectPhoto(page, COLORS.red);
+    const kept = await page.evaluate(() => {
+      const button = document.getElementById("span-taller") as HTMLButtonElement;
+      const before = button.firstChild;
+      const canvas = document.getElementById("preview") as HTMLCanvasElement;
+      canvas.focus();
+      canvas.blur();
+      return button.firstChild === before;
+    });
+    expect(kept).toBe(true);
+  });
+
   test("several photos can each keep their own size", async ({ page }) => {
     await addPhotos(page, await makeImages(page, SIX));
     await selectPhoto(page, COLORS.red);
