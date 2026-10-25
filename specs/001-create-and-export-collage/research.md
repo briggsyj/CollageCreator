@@ -2,7 +2,7 @@
 
 ## 1. How the original's layout works (and what was ported)
 
-Source read: `photocollage/collage.py`, `photocollage/render.py`, `photocollage/gtkgui.py` at PhotoCollage 1.5.0. **The last commit that still contains the original Python/GTK code is `3289328` ("PhotoCollage 1.5.0").**
+Source read: `photocollage/collage.py`, `photocollage/render.py`, `photocollage/gtkgui.py` at PhotoCollage 1.5.0. **The original Python/GTK code was removed from the tree after the port; it is preserved in git history, for example at `3289328` ("PhotoCollage 1.5.0", the upstream release this port was made from).**
 
 **Algorithm** (ported to `src/core/layout.ts`):
 

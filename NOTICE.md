@@ -33,8 +33,8 @@ general information, not legal advice.
 
 The original Python/GTK implementation (`photocollage/`, `tests/test_collage.py`,
 `pyproject.toml`, `data/`, ...) was removed from this repository once the port
-existed. It remains in the git history, and the last commit that contains it
-is recorded in `specs/001-create-and-export-collage/research.md`.
+existed. It remains in the git history, for example at commit `3289328`
+(PhotoCollage 1.5.0, the upstream release this port was made from).
 
 ## Original authors and contributors
 
