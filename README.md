@@ -47,6 +47,7 @@ general information, not legal advice.
 - Add photos by file picker or drag and drop; works with 100+ photos
 - Automatic layouts that fill the poster, using the original's layout algorithm
 - Every layout has a **seed**: the same seed and photos give the same layout
+- Choose the **number of columns**, or leave it on automatic (the original's choice)
 - Poster size in pixels, with A4, A3 and A2 presets at 300 DPI; sizes your browser cannot produce are reduced to the largest available
 - Border colour and thickness; swap two photos by clicking or from the keyboard
 - Photos are shown the right way up (EXIF orientation)

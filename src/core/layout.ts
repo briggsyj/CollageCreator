@@ -472,26 +472,58 @@ export class Page {
   }
 }
 
-/**
- * Build a collage page for the given photos (sizes after EXIF orientation).
- * `posterRatio` is poster height / width. The same photos, ratio and rng
- * sequence always give the same page.
- */
-export function generateLayout(photos: readonly PhotoSize[], posterRatio: number, rng: Rng): Page {
-  const n = photos.length;
-  if (n === 0) return new Page(1, posterRatio, 1, rng);
+/** The most columns a layout may be asked for. */
+export const MAX_COLUMNS = 100;
 
-  // Compute a good number of columns. It depends on the ratio, the number of
-  // images and the average ratio of these images: inversely proportional to
-  // the square root of the output image ratio, and proportional to the square
-  // root of the average input images ratio.
-  const ratios = photos.map((p) => p.height / p.width);
-  const avgRatio = ratios.reduce((sum, r) => sum + r, 0) / n;
+/**
+ * The original's heuristic for how many columns suit these photos and this
+ * poster shape: inversely proportional to the square root of the poster ratio
+ * and proportional to the square root of the average photo ratio and of the
+ * number of photos. (Ported from UserCollage.make_page.)
+ */
+export function autoColumns(photos: readonly PhotoSize[], posterRatio: number): number {
+  const n = photos.length;
+  if (n === 0) return 1;
+  const avgRatio = photos.reduce((sum, p) => sum + p.height / p.width, 0) / n;
   // Virtual number of images: since ~ 1 image over 3 is in a multi-cell (i.e.
   // takes two columns), it takes the space of 4 images. So it's equivalent to
   // 1/3 * 4 + 2/3 = 2 times the number of images.
   const virtualNoImgs = 2 * n;
-  const noCols = Math.max(1, roundHalfEven(Math.sqrt((avgRatio / posterRatio) * virtualNoImgs)));
+  return Math.max(1, roundHalfEven(Math.sqrt((avgRatio / posterRatio) * virtualNoImgs)));
+}
+
+/** Whole number of columns in 1..MAX_COLUMNS, or undefined (automatic) if `value` is not a usable number. */
+export function normaliseColumns(value: number | undefined | null): number | undefined {
+  if (value === undefined || value === null || !Number.isFinite(value)) return undefined;
+  return Math.min(MAX_COLUMNS, Math.max(1, Math.floor(value)));
+}
+
+export interface LayoutOptions {
+  /**
+   * Number of columns to use instead of the automatic choice. Fewer columns
+   * give larger photos in tall stacks, more give a finer grid. Columns that end
+   * up empty are dropped, so the result can have fewer (a photo may also span
+   * two columns). Values are rounded down and kept within 1..MAX_COLUMNS.
+   */
+  columns?: number;
+}
+
+/**
+ * Build a collage page for the given photos (sizes after EXIF orientation).
+ * `posterRatio` is poster height / width. The same photos, ratio, options and
+ * rng sequence always give the same page.
+ */
+export function generateLayout(
+  photos: readonly PhotoSize[],
+  posterRatio: number,
+  rng: Rng,
+  options: LayoutOptions = {},
+): Page {
+  const n = photos.length;
+  if (n === 0) return new Page(1, posterRatio, 1, rng);
+
+  const noCols = normaliseColumns(options.columns) ?? autoColumns(photos, posterRatio);
+  const ratios = photos.map((p) => p.height / p.width);
 
   const page = new Page(1, posterRatio, noCols, rng);
   const order = ratios.map((_, i) => i);
