@@ -31,8 +31,16 @@ import {
   type PosterSettings,
   type Rect,
 } from "../core/types";
-import { getLanguage, languages, resolveLanguage, setLanguage, t } from "../i18n";
+import {
+  getLanguage,
+  languages,
+  preferredLanguage,
+  resolveLanguage,
+  setLanguage,
+  t,
+} from "../i18n";
 import { fileKey, type ImportedPhoto, type ImportMessage, importFiles } from "../io/import";
+import { loadSession, saveSession } from "../io/session";
 import { type CanvasLimits, clampSize, detectLimits, FALLBACK_LIMITS } from "../platform/limits";
 import { drawPhotoCover } from "../render/draw";
 import { exportCollage } from "../render/export";
@@ -50,6 +58,7 @@ import {
   zoomPercent,
 } from "../render/view";
 import { findPreset, PRESETS } from "./presets";
+import { parseSeed, withSeed } from "./url";
 
 function el<T extends HTMLElement>(id: string): T {
   const found = document.getElementById(id);
@@ -67,6 +76,16 @@ function readStoredLanguage(): string | null {
   }
 }
 
+/** The browser's language preferences, most preferred first; empty if it does not say. */
+function browserLanguages(): readonly string[] {
+  try {
+    const list = navigator.languages;
+    return list?.length ? list : navigator.language ? [navigator.language] : [];
+  } catch {
+    return [];
+  }
+}
+
 function storeLanguage(code: string): void {
   try {
     localStorage.setItem(LANG_KEY, code);
@@ -79,7 +98,7 @@ export function startApp(): void {
   const ui = {
     add: el<HTMLButtonElement>("add"),
     fileInput: el<HTMLInputElement>("file-input"),
-    regenerate: el<HTMLButtonElement>("regenerate"),
+    shuffle: el<HTMLButtonElement>("shuffle"),
     seed: el<HTMLInputElement>("seed"),
     columns: el<HTMLInputElement>("columns"),
     columnsNote: el<HTMLElement>("columns-note"),
@@ -121,7 +140,8 @@ export function startApp(): void {
 
   const state = {
     photos: [] as ImportedPhoto[],
-    seed: randomSeed(),
+    // A seed in the address (a shared link, or back/forward) decides the first arrangement.
+    seed: parseSeed(location.search) ?? randomSeed(),
     /** Chosen number of columns; undefined lets the original heuristic decide. */
     columns: undefined as number | undefined,
     page: null as Page | null,
@@ -204,7 +224,9 @@ export function startApp(): void {
       option.textContent = name;
       ui.language.append(option);
     }
-    const initial = resolveLanguage(readStoredLanguage() ?? navigator.language);
+    // A language chosen earlier wins; otherwise the browser's own preferences, then English.
+    const stored = readStoredLanguage();
+    const initial = stored ? resolveLanguage(stored) : preferredLanguage(browserLanguages());
     setLanguage(initial);
     ui.language.value = initial;
     ui.language.addEventListener("change", () => {
@@ -226,7 +248,7 @@ export function startApp(): void {
    * - "search": try several and keep the one that crops the photos least. Used when the
    *   set of photos changes, so the first thing shown is the best we can do. The seed
    *   shown is the winner's, so typing it back gives the same layout in one generation.
-   * - "single": one generation from the current seed. Used for Regenerate, a typed
+   * - "single": one generation from the current seed. Used for Shuffle layout, a typed
    *   seed, the number of columns and a photo's size.
    * `keepSelection` leaves the selected photo selected (its place in the list is unchanged).
    */
@@ -247,7 +269,115 @@ export function startApp(): void {
     ui.seed.value = String(state.seed);
     ui.save.disabled = state.photos.length === 0;
     ui.emptyHint.hidden = state.photos.length > 0;
+    syncUrl();
+    persist();
     draw();
+  }
+
+  // ------------------------------------------------------- address and storage
+
+  /** True while the address may be rewritten in place instead of adding a history entry. */
+  let replaceUrl = true;
+
+  /**
+   * Keep the seed in the address, so the browser's back and forward buttons step through
+   * earlier arrangements. A new arrangement adds a history entry; startup and restoring
+   * saved work rewrite the current one.
+   */
+  function syncUrl(): void {
+    try {
+      const next = withSeed(location.href, state.seed);
+      if (next === location.href) return;
+      if (replaceUrl) history.replaceState(null, "", next);
+      else history.pushState(null, "", next);
+    } catch {
+      // history can be unavailable (sandboxed frames); the seed field still works
+    }
+  }
+
+  window.addEventListener("popstate", () => {
+    const seed = parseSeed(location.search);
+    if (seed === undefined || seed === state.seed) return;
+    state.seed = seed;
+    relayout();
+  });
+
+  /** Nothing is saved until saved work has been restored, or it would overwrite it. */
+  let persistReady = false;
+  let persistWarned = false;
+  let persistTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /** Save the photos and settings in this browser shortly after the last change. */
+  function persist(): void {
+    if (!persistReady) return;
+    clearTimeout(persistTimer);
+    persistTimer = setTimeout(() => {
+      const files = new Map(state.photos.map((p) => [fileKey(p.file), p.file]));
+      saveSession(
+        {
+          v: 1,
+          photos: state.photos.map((p) => ({
+            key: fileKey(p.file),
+            span: p.span ?? { ...NO_SPAN },
+          })),
+          seed: state.seed,
+          columns: state.columns,
+          settings: { ...state.settings },
+        },
+        files,
+      ).catch(() => {
+        if (persistWarned) return;
+        persistWarned = true;
+        addMessage({
+          kind: "error",
+          text: t(
+            "Your work could not be kept for next time: browser storage is unavailable or full.",
+          ),
+        });
+      });
+    }, 250);
+  }
+
+  /** Show the stored settings in the controls. */
+  function showSettings(): void {
+    const s = state.settings;
+    ui.borderWidth.value = String(Math.round(s.borderWidth * 1000) / 10);
+    ui.borderColor.value = s.borderColor;
+    ui.cornerStyle.value = s.cornerStyle;
+    ui.outerBorder.checked = s.outerBorder;
+    ui.format.value = s.format;
+    ui.qualityField.hidden = s.format !== "jpeg";
+    ui.quality.value = String(Math.round(s.jpegQuality * 100));
+    ui.columns.value = state.columns === undefined ? "" : String(state.columns);
+  }
+
+  /** Bring back the photos and settings kept by an earlier visit. */
+  async function restore(): Promise<void> {
+    try {
+      const saved = await loadSession(state.settings);
+      if (saved) {
+        Object.assign(state.settings, saved.session.settings);
+        state.columns = saved.session.columns;
+        showSettings();
+        const files = saved.session.photos
+          .map((p) => saved.files.get(p.key))
+          .filter((f): f is File => f !== undefined);
+        const photos = await importFiles(files, [], state.importPool, addMessage);
+        const spans = new Map(saved.session.photos.map((p) => [p.key, p.span]));
+        for (const photo of photos) photo.span = { ...(spans.get(fileKey(photo.file)) ?? NO_SPAN) };
+        state.photos = photos;
+        // An address with a seed wins over the stored one.
+        state.seed = parseSeed(location.search) ?? saved.session.seed;
+        applySize(state.settings.width, state.settings.height);
+        relayout();
+        renderPhotoList();
+      }
+    } catch {
+      // nothing usable stored (or storage is unavailable): start empty
+    } finally {
+      persistReady = true;
+      replaceUrl = false;
+    }
   }
 
   /** The notes under the layout controls: how many columns are in use and how much is cropped. */
@@ -436,6 +566,7 @@ export function startApp(): void {
 
   async function addFiles(files: File[]): Promise<void> {
     if (files.length === 0) return;
+    await restoring;
     clearMessages();
     setStatus(t("Please wait"));
     const added = await importFiles(files, state.photos, state.importPool, addMessage);
@@ -564,6 +695,7 @@ export function startApp(): void {
       : "";
     syncSizeFields();
     state.page?.setTargetRatio(ratio());
+    persist();
     draw();
   }
 
@@ -619,28 +751,34 @@ export function startApp(): void {
     ui.borderWidth.addEventListener("input", () => {
       const pct = Number(ui.borderWidth.value);
       state.settings.borderWidth = Number.isFinite(pct) ? Math.min(20, Math.max(0, pct)) / 100 : 0;
+      persist();
       draw();
     });
     ui.outerBorder.addEventListener("change", () => {
       state.settings.outerBorder = ui.outerBorder.checked;
+      persist();
       draw();
     });
     ui.cornerStyle.addEventListener("change", () => {
       const value = ui.cornerStyle.value;
       state.settings.cornerStyle =
         value === "slight" || value === "rounded" || value === "circle" ? value : "none";
+      persist();
       draw();
     });
     ui.borderColor.addEventListener("input", () => {
       state.settings.borderColor = ui.borderColor.value;
+      persist();
       draw();
     });
     ui.format.addEventListener("change", () => {
       state.settings.format = ui.format.value === "jpeg" ? "jpeg" : "png";
       ui.qualityField.hidden = state.settings.format !== "jpeg";
+      persist();
     });
     ui.quality.addEventListener("input", () => {
       state.settings.jpegQuality = Number(ui.quality.value) / 100;
+      persist();
     });
     ui.seed.addEventListener("change", () => {
       const seed = Math.floor(Number(ui.seed.value));
@@ -663,7 +801,7 @@ export function startApp(): void {
     };
     ui.columns.addEventListener("input", () => applyColumns(false));
     ui.columns.addEventListener("change", () => applyColumns(true));
-    ui.regenerate.addEventListener("click", () => {
+    ui.shuffle.addEventListener("click", () => {
       state.seed = randomSeed();
       relayout();
     });
@@ -970,12 +1108,15 @@ export function startApp(): void {
     document.documentElement.dataset.workersReady = "true";
   });
 
+  let restoring: Promise<void> = Promise.resolve();
+
   initLanguages();
   initSettings();
   initPreview();
   initSpan();
   initInput();
   relayout();
+  restoring = restore();
   void detectLimits().then((limits) => {
     state.limits = limits;
     applySize(state.settings.width, state.settings.height);

@@ -47,7 +47,8 @@ general information, not legal advice.
 - Add photos by file picker or drag and drop; works with 100+ photos
 - Automatic layouts that fill the poster, using the original's layout algorithm; the first one shown is the best of 30 tries (the one that crops the photos least)
 - Ask for a photo to be **wider** or **taller**; the rest of the collage is worked out around it
-- Every layout has a **seed** (under Technical configuration): the same seed and photos give the same layout
+- Every layout has a **seed** (under Technical configuration), also in the address (`?seed=…`): the same seed and photos give the same layout, and the browser's back and forward buttons step through earlier arrangements
+- A refresh keeps your photos, sizes and settings (saved in this browser only; removing photos deletes them)
 - Choose the **number of columns**, or leave it on automatic (the original's choice)
 - Poster size in pixels, with A4, A3 and A2 presets at 300 DPI; sizes your browser cannot produce are reduced to the largest available
 - Border colour, thickness (0.5 % white by default), corner style (none, slightly rounded, rounded or circle), and an option to leave out the border around the whole collage
@@ -55,7 +56,7 @@ general information, not legal advice.
 - Zoom the preview by scrolling over it; hold Space and drag to move it
 - Photos are shown the right way up (EXIF orientation)
 - Save as PNG or JPEG, with progress and cancel; decoding runs in web workers
-- Translations from the original: Bulgarian, Czech, German, Spanish, French, Italian, Dutch, Polish, Brazilian Portuguese, Russian, Ukrainian
+- Starts in your browser's language when it is one of the translations, otherwise English. Translations from the original: Bulgarian, Czech, German, Spanish, French, Italian, Dutch, Polish, Brazilian Portuguese, Russian, Ukrainian
 
 ## What is different from the original
 

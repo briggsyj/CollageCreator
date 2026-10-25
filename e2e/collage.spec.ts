@@ -126,10 +126,10 @@ test.describe("User story: try different arrangements", () => {
     expect(b).not.toBe(a1);
   });
 
-  test("Regenerate picks a new seed", async ({ page }) => {
+  test("Shuffle layout picks a new seed", async ({ page }) => {
     await addPhotos(page, await makeImages(page, SIX));
     await setSeed(page, 5);
-    await page.click("#regenerate");
+    await page.click("#shuffle");
     await expect(page.locator("#seed")).not.toHaveValue("5");
   });
 
@@ -378,7 +378,8 @@ test.describe("Progress, cancel, offline and language", () => {
   test("can be shown in another language", async ({ page }) => {
     await page.selectOption("#language", "fr");
     await expect(page.locator("#add")).toHaveText("Ajouter des images...");
-    await expect(page.locator("#regenerate")).toHaveText("Regénérer");
+    await expect(page.locator("#shuffle")).toHaveText("Shuffle layout");
+    await expect(page.locator("#save")).toHaveText("Enregistrer le poster...");
     await expect(page.locator("html")).toHaveAttribute("lang", "fr");
   });
 
@@ -457,7 +458,7 @@ test.describe("Choosing the number of columns", () => {
     await addPhotos(page, await makeImages(page, FOUR));
     await page.fill("#columns", "1");
     for (let i = 0; i < 3; i++) {
-      await page.click("#regenerate");
+      await page.click("#shuffle");
       const { left, right } = await bandColours(page);
       for (let k = 0; k < left.length; k++) {
         expect(near(left[k] as number[], right[k] as number[], 30)).toBe(true);
@@ -972,11 +973,11 @@ test.describe("Technical configuration", () => {
     expect(await page.locator("#crop-note").textContent()).toBe(note);
   });
 
-  test("Regenerate makes one new arrangement with a new seed", async ({ page }) => {
+  test("Shuffle layout makes one new arrangement with a new seed", async ({ page }) => {
     await addPhotos(page, await makeImages(page, SIX));
     await openTechnical(page);
     const before = await page.inputValue("#seed");
-    await page.click("#regenerate");
+    await page.click("#shuffle");
     await expect(page.locator("#seed")).not.toHaveValue(before);
     // One generation: the shown seed is simply the new one, and typing it back changes nothing.
     const after = await page.inputValue("#seed");
@@ -1239,7 +1240,7 @@ test.describe("Asking for a photo to be bigger", () => {
     const tag = page.locator("#photo-list li").first();
     await expect(tag).toContainText("wider · taller ×2");
 
-    for (let i = 0; i < 3; i++) await page.click("#regenerate");
+    for (let i = 0; i < 3; i++) await page.click("#shuffle");
     await expect(tag).toContainText("wider · taller ×2");
 
     await setSize(page, 300, 400);
@@ -1313,5 +1314,109 @@ test.describe("Small text styles", () => {
     const unit = await style(".size-row .unit");
     expect(unit.bar).toBe("0px");
     expect(unit.background).toBe("rgba(0, 0, 0, 0)");
+  });
+});
+
+test.describe("Address, saved work and language", () => {
+  test("the seed is in the address and back/forward step through arrangements", async ({
+    page,
+  }) => {
+    await addPhotos(page, await makeImages(page, SIX));
+    await setSeed(page, 101);
+    await setSeed(page, 202);
+    expect(new URL(page.url()).searchParams.get("seed")).toBe("202");
+    await page.goBack();
+    await expect(page.locator("#seed")).toHaveValue("101");
+    expect(new URL(page.url()).searchParams.get("seed")).toBe("101");
+    await page.goForward();
+    await expect(page.locator("#seed")).toHaveValue("202");
+  });
+
+  test("going back gives the same arrangement as before", async ({ page }) => {
+    await setSize(page, 480, 360);
+    await addPhotos(page, await makeImages(page, SIX));
+    const grid = () =>
+      page.evaluate(() => (document.getElementById("preview") as HTMLCanvasElement).toDataURL());
+    await setSeed(page, 31);
+    const first = await grid();
+    await setSeed(page, 32);
+    expect(await grid()).not.toBe(first);
+    await page.goBack();
+    await expect(page.locator("#seed")).toHaveValue("31");
+    expect(await grid()).toBe(first);
+  });
+
+  test("an address with a seed opens with that seed", async ({ page }) => {
+    await page.goto("./?seed=777");
+    await openTechnical(page);
+    await expect(page.locator("#seed")).toHaveValue("777");
+  });
+
+  test("a refresh keeps the photos, their sizes, the seed and the settings", async ({ page }) => {
+    await setSize(page, 480, 360);
+    await addPhotos(page, await makeImages(page, SIX));
+    await page.locator("#photo-list li button").first().click();
+    await page.fill("#border-width", "3");
+    await page.selectOption("#corner-style", "rounded");
+    await page.fill("#columns", "3");
+    await setSeed(page, 4242);
+    // Saving waits a moment after the last change.
+    await page.waitForTimeout(700);
+    await page.reload();
+    await expect(page.locator("#photo-list li")).toHaveCount(5);
+    await openTechnical(page);
+    await expect(page.locator("#seed")).toHaveValue("4242");
+    await expect(page.locator("#width")).toHaveValue("480");
+    await expect(page.locator("#border-width")).toHaveValue("3");
+    await expect(page.locator("#corner-style")).toHaveValue("rounded");
+    await expect(page.locator("#columns")).toHaveValue("3");
+    await expect(page.locator("#save")).toBeEnabled();
+  });
+
+  test("a refresh gives back the same picture", async ({ page }) => {
+    await setSize(page, 480, 360);
+    await addPhotos(page, await makeImages(page, SIX));
+    await setSeed(page, 9);
+    const grid = () =>
+      page.evaluate(() => (document.getElementById("preview") as HTMLCanvasElement).toDataURL());
+    const before = await grid();
+    await page.waitForTimeout(700);
+    await page.reload();
+    await expect(page.locator("#photo-list li")).toHaveCount(6);
+    await expect(page.locator("#preview")).toHaveAttribute("data-poster", /.+/);
+    expect(await grid()).toBe(before);
+  });
+
+  test("Remove all clears what is kept", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, SIX.slice(0, 3)));
+    await page.click("#remove-all");
+    await page.waitForTimeout(700);
+    await page.reload();
+    await expect(page.locator("#photo-list li")).toHaveCount(0);
+    await expect(page.locator("#save")).toBeDisabled();
+  });
+
+  test("starts in the browser's language when it is supported", async ({ browser }) => {
+    const context = await browser.newContext({ locale: "fr-CA" });
+    const page = await context.newPage();
+    await page.goto("./");
+    await expect(page.locator("#add")).toHaveText("Ajouter des images...");
+    await expect(page.locator("html")).toHaveAttribute("lang", "fr");
+    await context.close();
+  });
+
+  test("starts in English when the browser's language is not supported", async ({ browser }) => {
+    const context = await browser.newContext({ locale: "ja-JP" });
+    const page = await context.newPage();
+    await page.goto("./");
+    await expect(page.locator("#add")).toHaveText("Add images...");
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    await context.close();
+  });
+
+  test("a language chosen in the page is remembered over the browser's", async ({ page }) => {
+    await page.selectOption("#language", "de");
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("lang", "de");
   });
 });

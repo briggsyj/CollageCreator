@@ -1,0 +1,151 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+import { NO_SPAN, type PhotoSpan, type PosterSettings } from "../core/types";
+
+/**
+ * Keeps the editor's state in this browser (IndexedDB), so a refresh brings back the
+ * photos, their requested sizes and the settings. Nothing leaves the device. Photos are
+ * stored as files, which `localStorage` (about 5 MB, text only) cannot hold.
+ */
+
+export interface SavedPhoto {
+  /** `fileKey()` of the stored file. */
+  key: string;
+  span: PhotoSpan;
+}
+
+export interface SavedSession {
+  v: 1;
+  /** In the order they were added, which the layout depends on. */
+  photos: SavedPhoto[];
+  seed: number;
+  columns: number | undefined;
+  settings: PosterSettings;
+}
+
+const DB_NAME = "collage-web";
+const FILES = "files";
+const META = "meta";
+const SESSION_KEY = "session";
+
+function open(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      request.result.createObjectStore(FILES);
+      request.result.createObjectStore(META);
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error ?? new Error("could not open storage"));
+  });
+}
+
+function wait<T>(request: IDBRequest<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error ?? new Error("storage request failed"));
+  });
+}
+
+function finished(tx: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error ?? new Error("storage transaction failed"));
+    tx.onabort = () => reject(tx.error ?? new Error("storage transaction aborted"));
+  });
+}
+
+/** Store the session. Files already stored are left alone; files no longer used are deleted. */
+export async function saveSession(
+  session: SavedSession,
+  files: ReadonlyMap<string, File>,
+): Promise<void> {
+  const db = await open();
+  try {
+    const tx = db.transaction([FILES, META], "readwrite");
+    const store = tx.objectStore(FILES);
+    const stored = new Set((await wait(store.getAllKeys())).map(String));
+    for (const key of stored) if (!files.has(key)) store.delete(key);
+    for (const [key, file] of files) if (!stored.has(key)) store.put(file, key);
+    tx.objectStore(META).put(session, SESSION_KEY);
+    await finished(tx);
+  } finally {
+    db.close();
+  }
+}
+
+/** The stored session and its files, or null if there is none. */
+export async function loadSession(defaults: PosterSettings): Promise<{
+  session: SavedSession;
+  files: Map<string, File>;
+} | null> {
+  const db = await open();
+  try {
+    const tx = db.transaction([FILES, META], "readonly");
+    const raw = await wait(tx.objectStore(META).get(SESSION_KEY));
+    const session = checkSession(raw, defaults);
+    if (!session) return null;
+    const files = new Map<string, File>();
+    for (const { key } of session.photos) {
+      const file = await wait(tx.objectStore(FILES).get(key));
+      if (file instanceof Blob) files.set(key, file as File);
+    }
+    return { session, files };
+  } finally {
+    db.close();
+  }
+}
+
+export function isSpan(value: unknown): value is PhotoSpan {
+  const s = value as Partial<PhotoSpan> | null;
+  return (
+    typeof s === "object" &&
+    s !== null &&
+    (s.columns === 1 || s.columns === 2) &&
+    (s.rows === 1 || s.rows === 2 || s.rows === 3)
+  );
+}
+
+/** Accept only values of the right type and range from storage; anything else keeps its default. */
+export function checkSettings(raw: unknown, defaults: PosterSettings): PosterSettings {
+  const r = (typeof raw === "object" && raw !== null ? raw : {}) as Record<string, unknown>;
+  const num = (v: unknown, min: number, max: number, fallback: number): number =>
+    typeof v === "number" && Number.isFinite(v) && v >= min && v <= max ? v : fallback;
+  return {
+    width: Math.round(num(r.width, 1, 1e6, defaults.width)),
+    height: Math.round(num(r.height, 1, 1e6, defaults.height)),
+    borderWidth: num(r.borderWidth, 0, 0.2, defaults.borderWidth),
+    borderColor:
+      typeof r.borderColor === "string" && /^#[0-9a-f]{6}$/i.test(r.borderColor)
+        ? r.borderColor
+        : defaults.borderColor,
+    cornerStyle:
+      r.cornerStyle === "slight" || r.cornerStyle === "rounded" || r.cornerStyle === "circle"
+        ? r.cornerStyle
+        : "none",
+    outerBorder: typeof r.outerBorder === "boolean" ? r.outerBorder : defaults.outerBorder,
+    format: r.format === "jpeg" ? "jpeg" : "png",
+    jpegQuality: num(r.jpegQuality, 0.1, 1, defaults.jpegQuality),
+  };
+}
+
+export function checkSession(raw: unknown, defaults: PosterSettings): SavedSession | null {
+  const r = raw as Partial<SavedSession> | null;
+  if (typeof r !== "object" || r === null || r.v !== 1 || !Array.isArray(r.photos)) return null;
+  const photos: SavedPhoto[] = [];
+  for (const p of r.photos as Partial<SavedPhoto>[]) {
+    if (typeof p?.key !== "string") continue;
+    photos.push({ key: p.key, span: isSpan(p.span) ? p.span : { ...NO_SPAN } });
+  }
+  const seed = r.seed;
+  return {
+    v: 1,
+    photos,
+    seed:
+      typeof seed === "number" && Number.isInteger(seed) && seed >= 0 && seed <= 0xffffffff
+        ? seed
+        : 0,
+    columns: typeof r.columns === "number" && r.columns >= 1 ? Math.floor(r.columns) : undefined,
+    settings: checkSettings(r.settings, defaults),
+  };
+}
