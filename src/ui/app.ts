@@ -23,7 +23,14 @@
 
 import { generateLayout, MAX_COLUMNS, normaliseColumns, type Page } from "../core/layout";
 import { randomSeed, seededRng } from "../core/rng";
-import type { Layout, PosterSettings, Rect } from "../core/types";
+import { generateBest, scoreLayout } from "../core/search";
+import {
+  type Layout,
+  NO_SPAN,
+  type PhotoSpan,
+  type PosterSettings,
+  type Rect,
+} from "../core/types";
 import { getLanguage, languages, resolveLanguage, setLanguage, t } from "../i18n";
 import { fileKey, type ImportedPhoto, type ImportMessage, importFiles } from "../io/import";
 import { type CanvasLimits, clampSize, detectLimits, FALLBACK_LIMITS } from "../platform/limits";
@@ -76,6 +83,12 @@ export function startApp(): void {
     seed: el<HTMLInputElement>("seed"),
     columns: el<HTMLInputElement>("columns"),
     columnsNote: el<HTMLElement>("columns-note"),
+    cropNote: el<HTMLElement>("crop-note"),
+    outerBorder: el<HTMLInputElement>("outer-border"),
+    spanGroup: el<HTMLElement>("span-group"),
+    spanWider: el<HTMLButtonElement>("span-wider"),
+    spanTaller: el<HTMLButtonElement>("span-taller"),
+    spanReset: el<HTMLButtonElement>("span-reset"),
     preset: el<HTMLSelectElement>("preset"),
     width: el<HTMLInputElement>("width"),
     height: el<HTMLInputElement>("height"),
@@ -118,6 +131,7 @@ export function startApp(): void {
       borderWidth: 0.005,
       borderColor: "#ffffff",
       cornerStyle: "none",
+      outerBorder: true,
       format: "png",
       jpegQuality: 0.92,
     } as PosterSettings,
@@ -171,7 +185,7 @@ export function startApp(): void {
       if (key) node.textContent = t(key);
     }
     renderPhotoList();
-    updateColumnsNote();
+    updateNotes(currentLayout());
   }
 
   function initLanguages(): void {
@@ -207,27 +221,45 @@ export function startApp(): void {
     return state.settings.height / state.settings.width;
   }
 
-  function relayout(): void {
-    state.selected = null;
+  /**
+   * Make a new arrangement.
+   * - "search": try several and keep the one that crops the photos least. Used when the
+   *   set of photos changes, so the first thing shown is the best we can do. The seed
+   *   shown is the winner's, so typing it back gives the same layout in one generation.
+   * - "single": one generation from the current seed. Used for Regenerate, a typed
+   *   seed, the number of columns and a photo's size.
+   * `keepSelection` leaves the selected photo selected (its place in the list is unchanged).
+   */
+  function relayout(mode: "search" | "single" = "single", keepSelection = false): void {
+    state.selected = keepSelection ? state.selected : null;
     state.focused = 0;
-    state.page =
-      state.photos.length === 0
-        ? null
-        : generateLayout(state.photos, ratio(), seededRng(state.seed), {
-            columns: state.columns,
-          });
+    if (state.photos.length === 0) {
+      state.page = null;
+    } else if (mode === "search") {
+      const best = generateBest(state.photos, ratio(), randomSeed(), { columns: state.columns });
+      state.page = best.page;
+      state.seed = best.seed;
+    } else {
+      state.page = generateLayout(state.photos, ratio(), seededRng(state.seed), {
+        columns: state.columns,
+      });
+    }
     ui.seed.value = String(state.seed);
-    updateColumnsNote();
     ui.save.disabled = state.photos.length === 0;
     ui.emptyHint.hidden = state.photos.length > 0;
     draw();
   }
 
-  /** Say how many columns the current layout really has (empty ones are dropped). */
-  function updateColumnsNote(): void {
+  /** The notes under the layout controls: how many columns are in use and how much is cropped. */
+  function updateNotes(layout: Layout | null): void {
     ui.columns.placeholder = t("Auto");
     ui.columnsNote.textContent = state.page
       ? t("Columns in use: %(n)s", { n: state.page.noCols })
+      : "";
+    ui.cropNote.textContent = layout
+      ? t("Cropped on average: %(pct)s%", {
+          pct: Math.round(scoreLayout(layout, state.photos).cutOff * 100),
+        })
       : "";
   }
 
@@ -284,6 +316,12 @@ export function startApp(): void {
     ui.resetView.hidden = fit;
     ui.viewZoom.textContent = fit ? "" : t("Zoom: %(pct)s%", { pct: zoomPercent(state.view) });
     ui.removeSelected.hidden = state.selected === null;
+    const selected = state.selected === null ? undefined : state.photos[state.selected];
+    ui.spanGroup.hidden = selected === undefined;
+    const span = selected?.span ?? NO_SPAN;
+    ui.spanWider.setAttribute("aria-pressed", String(span.columns === 2));
+    ui.spanTaller.textContent = span.rows > 1 ? `${t("Taller")} ×${span.rows}` : t("Taller");
+    ui.spanReset.disabled = span.columns === 1 && span.rows === 1;
     ui.removeAll.disabled = state.photos.length === 0;
     ui.undoRemove.disabled = state.removed === null;
   }
@@ -319,6 +357,7 @@ export function startApp(): void {
     ctx.save();
     ctx.translate(ox, oy);
     const layout = currentLayout();
+    updateNotes(layout);
     if (!layout) {
       ctx.fillStyle = "#777777";
       ctx.font = `${Math.round(ph / 20)}px system-ui, sans-serif`;
@@ -365,10 +404,20 @@ export function startApp(): void {
           h: 80,
         });
       }
+      const info = document.createElement("div");
+      info.className = "info";
       const name = document.createElement("span");
       name.className = "name";
       name.textContent = photo.name;
       name.title = photo.name;
+      info.append(name);
+      const wanted = describeSpan(photo.span);
+      if (wanted) {
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = wanted;
+        info.append(tag);
+      }
       const remove = document.createElement("button");
       remove.type = "button";
       remove.textContent = t("Remove");
@@ -376,7 +425,7 @@ export function startApp(): void {
       remove.addEventListener("click", () => {
         removePhotos(new Set([photo.id]), t("Removed %(name)s.", { name: photo.name }));
       });
-      li.append(thumb, name, remove);
+      li.append(thumb, info, remove);
       ui.photoList.append(li);
     }
   }
@@ -390,7 +439,7 @@ export function startApp(): void {
     statusEl = null;
     if (added.length > 0) {
       state.photos = [...state.photos, ...added];
-      relayout();
+      relayout("search");
       renderPhotoList();
     }
   }
@@ -412,7 +461,7 @@ export function startApp(): void {
     discardRemoved();
     state.removed = items;
     state.photos = state.photos.filter((p) => !ids.has(p.id));
-    relayout();
+    relayout("search");
     renderPhotoList();
     setStatus(`${message} ${t("Undo remove brings it back.")}`);
   }
@@ -432,9 +481,58 @@ export function startApp(): void {
       state.photos.splice(Math.min(entry.index, state.photos.length), 0, entry.photo);
     }
     state.removed = null;
-    relayout();
+    relayout("search");
     renderPhotoList();
     setStatus(t("Restored %(n)s photo(s).", { n: restored.length }));
+  }
+
+  // -------------------------------------------------------------------- size
+
+  /** Describe a photo's requested size for the list ("" when it asks for nothing). */
+  function describeSpan(span: PhotoSpan | undefined): string {
+    const parts: string[] = [];
+    if (span?.columns === 2) parts.push(t("wider"));
+    if (span && span.rows > 1) parts.push(`${t("taller")} ×${span.rows}`);
+    return parts.join(" · ");
+  }
+
+  /**
+   * Ask for a photo to get more room, or go back to its normal size. The photo keeps the
+   * request through new arrangements, resizing and adding photos; the rest of the
+   * collage is recalculated around it from the same seed.
+   */
+  function setSpan(photoIndex: number, change: Partial<PhotoSpan> | "reset"): void {
+    const photo = state.photos[photoIndex];
+    if (!photo) return;
+    photo.span = change === "reset" ? { ...NO_SPAN } : { ...(photo.span ?? NO_SPAN), ...change };
+    relayout("single", true);
+    renderPhotoList();
+    const description = describeSpan(photo.span);
+    setStatus(
+      description
+        ? t("%(name)s: %(what)s.", { name: photo.name, what: description })
+        : t("%(name)s is back to its normal size.", { name: photo.name }),
+    );
+  }
+
+  function initSpan(): void {
+    const selectedIndex = () => state.selected;
+    ui.spanWider.addEventListener("click", () => {
+      const index = selectedIndex();
+      if (index === null) return;
+      const wide = state.photos[index]?.span?.columns === 2;
+      setSpan(index, { columns: wide ? 1 : 2 });
+    });
+    ui.spanTaller.addEventListener("click", () => {
+      const index = selectedIndex();
+      if (index === null) return;
+      const rows = state.photos[index]?.span?.rows ?? 1;
+      setSpan(index, { rows: rows === 1 ? 2 : rows === 2 ? 3 : 1 });
+    });
+    ui.spanReset.addEventListener("click", () => {
+      const index = selectedIndex();
+      if (index !== null) setSpan(index, "reset");
+    });
   }
 
   // ---------------------------------------------------------------- settings
@@ -517,6 +615,10 @@ export function startApp(): void {
     ui.borderWidth.addEventListener("input", () => {
       const pct = Number(ui.borderWidth.value);
       state.settings.borderWidth = Number.isFinite(pct) ? Math.min(20, Math.max(0, pct)) / 100 : 0;
+      draw();
+    });
+    ui.outerBorder.addEventListener("change", () => {
+      state.settings.outerBorder = ui.outerBorder.checked;
       draw();
     });
     ui.cornerStyle.addEventListener("change", () => {
@@ -867,6 +969,7 @@ export function startApp(): void {
   initLanguages();
   initSettings();
   initPreview();
+  initSpan();
   initInput();
   relayout();
   void detectLimits().then((limits) => {

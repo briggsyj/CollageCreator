@@ -22,7 +22,7 @@
 // with this program; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-import type { Photo } from "../core/types";
+import { NO_SPAN, type Photo } from "../core/types";
 import { t } from "../i18n";
 import type { WorkerPool } from "../render/pool";
 
@@ -107,6 +107,7 @@ export async function importFiles(
           name: file.name,
           width: res.width,
           height: res.height,
+          span: { ...NO_SPAN },
           file,
           thumb: res.thumb,
         };

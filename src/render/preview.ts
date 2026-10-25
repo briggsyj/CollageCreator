@@ -15,7 +15,7 @@ export interface PreviewInput {
   layout: Layout;
   /** Thumbnails indexed like `layout.placements[].photoIndex`. */
   thumbs: readonly (ImageBitmap | undefined)[];
-  settings: Pick<PosterSettings, "borderWidth" | "borderColor" | "cornerStyle">;
+  settings: Pick<PosterSettings, "borderWidth" | "borderColor" | "cornerStyle" | "outerBorder">;
 }
 
 /** Fit the poster inside a box, keeping its shape. */
@@ -46,9 +46,10 @@ export function drawCollage(
     corners: settings.cornerStyle,
     border: borderPixels(settings.borderWidth, width, height),
     color: settings.borderColor,
+    outer: settings.outerBorder,
   };
-  drawBackground(ctx, width, height, frame);
   const rects = cellPixelRects(layout, width, height);
+  drawBackground(ctx, width, height, frame, rects);
   layout.placements.forEach((placement, i) => {
     const thumb = thumbs[placement.photoIndex];
     const rect = rects[i];

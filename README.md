@@ -45,11 +45,12 @@ general information, not legal advice.
 ## Features
 
 - Add photos by file picker or drag and drop; works with 100+ photos
-- Automatic layouts that fill the poster, using the original's layout algorithm
-- Every layout has a **seed**: the same seed and photos give the same layout
+- Automatic layouts that fill the poster, using the original's layout algorithm; the first one shown is the best of 30 tries (the one that crops the photos least)
+- Ask for a photo to be **wider** or **taller**; the rest of the collage is worked out around it
+- Every layout has a **seed** (under Technical configuration): the same seed and photos give the same layout
 - Choose the **number of columns**, or leave it on automatic (the original's choice)
 - Poster size in pixels, with A4, A3 and A2 presets at 300 DPI; sizes your browser cannot produce are reduced to the largest available
-- Border colour, thickness (0.5 % white by default) and corner style: none, slightly rounded, rounded or circle
+- Border colour, thickness (0.5 % white by default), corner style (none, slightly rounded, rounded or circle), and an option to leave out the border around the whole collage
 - Swap two photos by clicking or from the keyboard; remove photos from the collage (Delete), all at once, with undo
 - Zoom the preview by scrolling over it; hold Space and drag to move it
 - Photos are shown the right way up (EXIF orientation)

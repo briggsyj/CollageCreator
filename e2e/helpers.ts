@@ -133,7 +133,14 @@ export async function setSize(page: Page, width: number, height: number): Promis
   await page.locator("#height").press("Tab");
 }
 
+/** Open the "Technical configuration" section, as a user would to reach the seed. */
+export async function openTechnical(page: Page): Promise<void> {
+  const open = await page.locator("#technical").evaluate((el) => (el as HTMLDetailsElement).open);
+  if (!open) await page.locator("#technical summary").click();
+}
+
 export async function setSeed(page: Page, seed: number): Promise<void> {
+  await openTechnical(page);
   await page.fill("#seed", String(seed));
   await page.locator("#seed").press("Tab");
 }

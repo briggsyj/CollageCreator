@@ -44,10 +44,11 @@ export async function exportCollage(input: ExportInput): Promise<Blob> {
     corners: settings.cornerStyle,
     border: borderPixels(settings.borderWidth, width, height),
     color: settings.borderColor,
+    outer: settings.outerBorder,
   };
-  drawBackground(ctx, width, height, frame);
-
   const rects = cellPixelRects(layout, width, height);
+  drawBackground(ctx, width, height, frame, rects);
+
   const abort = () => pool.terminate();
   if (signal?.aborted) abort();
   signal?.addEventListener("abort", abort, { once: true });

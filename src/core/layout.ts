@@ -6,7 +6,8 @@
 // it is a TypeScript port of photocollage/collage.py and of the layout setup
 // in UserCollage.make_page (photocollage/gtkgui.py). Changes: translated from
 // Python to TypeScript; the random source is injected so layouts are
-// reproducible from a seed; Page.scale/scale_to_fit, Cell.content_coords and
+// reproducible from a seed; a photo can ask to span two columns or to be taller;
+// Page.scale/scale_to_fit, Cell.content_coords and
 // Photo.move were not ported (the renderer does cover-cropping itself); the
 // column count is clamped to at least 1.
 //
@@ -25,7 +26,7 @@
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 import { type Rng, shuffle } from "./rng";
-import type { Layout, PhotoSize } from "./types";
+import type { Layout, LayoutPhoto, PhotoSize } from "./types";
 
 /*
 Summary of collage objects (from the original):
@@ -60,6 +61,8 @@ class PagePhoto {
   constructor(
     public index: number,
     public readonly ratio: number,
+    /** The user asked for this photo to span two columns. */
+    public readonly forceSpan = false,
   ) {}
 }
 
@@ -345,6 +348,18 @@ export class Page {
     const col = this.nextFreeCol();
     const left = col.leftNeighbor();
     const right = col.rightNeighbor();
+    if (photo.forceSpan) {
+      // Asked for: span two columns whatever the usual rule says, with the neighbour whose
+      // height is closest so the mismatch to absorb is as small as possible.
+      const neighbours = [left, right].filter((c): c is Column => c !== undefined);
+      neighbours.sort((a, b) => Math.abs(col.h - a.h) - Math.abs(col.h - b.h));
+      const chosen = neighbours[0];
+      if (chosen !== undefined) {
+        if (chosen === left) this.addCellMultiCol(chosen, col, photo);
+        else this.addCellMultiCol(col, chosen, photo);
+        return;
+      }
+    }
     if (2 * this.rng.random() > photo.ratio) {
       if (left && Math.abs(col.h - left.h) < 0.5 * col.w) {
         this.addCellMultiCol(left, col, photo);
@@ -514,7 +529,7 @@ export interface LayoutOptions {
  * rng sequence always give the same page.
  */
 export function generateLayout(
-  photos: readonly PhotoSize[],
+  photos: readonly LayoutPhoto[],
   posterRatio: number,
   rng: Rng,
   options: LayoutOptions = {},
@@ -522,13 +537,18 @@ export function generateLayout(
   const n = photos.length;
   if (n === 0) return new Page(1, posterRatio, 1, rng);
 
-  const noCols = normaliseColumns(options.columns) ?? autoColumns(photos, posterRatio);
-  const ratios = photos.map((p) => p.height / p.width);
+  let noCols = normaliseColumns(options.columns) ?? autoColumns(photos, posterRatio);
+  // A photo that asks to span two columns needs at least two.
+  if (photos.some((p) => p.span?.columns === 2)) noCols = Math.max(noCols, 2);
+  // A photo that asks for more height gets a cell that many times taller than its shape implies.
+  const ratios = photos.map((p) => (p.height / p.width) * (p.span?.rows ?? 1));
 
   const page = new Page(1, posterRatio, noCols, rng);
   const order = ratios.map((_, i) => i);
   shuffle(order, rng);
-  for (const i of order) page.addCell(new PagePhoto(i, ratios[i] as number));
+  for (const i of order) {
+    page.addCell(new PagePhoto(i, ratios[i] as number, photos[i]?.span?.columns === 2));
+  }
   page.adjust();
   return page;
 }

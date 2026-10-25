@@ -9,6 +9,7 @@ import {
   makeImages,
   makeOrientedJpeg,
   near,
+  openTechnical,
   posterPoint,
   posterRect,
   previewColor,
@@ -931,5 +932,368 @@ test.describe("The poster's edge", () => {
       return count;
     });
     expect(strayPixels).toBe(0);
+  });
+});
+
+test.describe("Technical configuration", () => {
+  test("the seed is tucked away in a collapsed section", async ({ page }) => {
+    await expect(page.locator("#technical summary")).toHaveText("Technical configuration");
+    await expect(page.locator("#technical")).not.toHaveAttribute("open", "");
+    await expect(page.locator("#seed")).toBeHidden();
+    await page.locator("#technical summary").click();
+    await expect(page.locator("#seed")).toBeVisible();
+    await page.locator("#technical summary").click();
+    await expect(page.locator("#seed")).toBeHidden();
+  });
+
+  test("the first arrangement is the best of 30 tries, and its seed gives the same layout again", async ({
+    page,
+  }) => {
+    await addPhotos(page, await makeImages(page, SIX));
+    await openTechnical(page);
+    const grid = async () => {
+      const out: number[][] = [];
+      for (const y of [0.12, 0.38, 0.62, 0.88]) {
+        for (const x of [0.12, 0.38, 0.62, 0.88]) out.push(await previewColor(page, x, y));
+      }
+      return JSON.stringify(out);
+    };
+    const seed = await page.inputValue("#seed");
+    expect(seed).toMatch(/^\d+$/);
+    const first = await grid();
+    const note = await page.locator("#crop-note").textContent();
+    expect(note).toMatch(/^Cropped on average: \d+%$/);
+
+    // Another seed gives another arrangement; the first one's seed brings the first one back.
+    await setSeed(page, Number(seed) === 5 ? 6 : 5);
+    expect(await grid()).not.toBe(first);
+    await setSeed(page, Number(seed));
+    expect(await grid()).toBe(first);
+    expect(await page.locator("#crop-note").textContent()).toBe(note);
+  });
+
+  test("Regenerate makes one new arrangement with a new seed", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, SIX));
+    await openTechnical(page);
+    const before = await page.inputValue("#seed");
+    await page.click("#regenerate");
+    await expect(page.locator("#seed")).not.toHaveValue(before);
+    // One generation: the shown seed is simply the new one, and typing it back changes nothing.
+    const after = await page.inputValue("#seed");
+    const crop = await page.locator("#crop-note").textContent();
+    await setSeed(page, Number(after));
+    expect(await page.locator("#crop-note").textContent()).toBe(crop);
+  });
+
+  test("adding photos picks the best arrangement for the new set", async ({ page }) => {
+    const all = await makeImages(page, SIX);
+    await addPhotos(page, all.slice(0, 3));
+    await openTechnical(page);
+    const first = await page.inputValue("#seed");
+    await addPhotos(page, all.slice(3));
+    expect(await page.inputValue("#seed")).not.toBe(first);
+    await expect(page.locator("#crop-note")).toContainText("Cropped on average");
+  });
+});
+
+test.describe("Sidebar fits its bounds", () => {
+  for (const width of [1280, 1000, 820, 760, 420, 340]) {
+    test(`nothing sticks out of the sidebar at ${width}px wide`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("./");
+      await openTechnical(page);
+      const longName = `${"a-very-long-photo-file-name-".repeat(3)}.png`;
+      await addPhotos(
+        page,
+        await makeImages(page, [{ name: longName, w: 100, h: 100, color: "red" }]),
+      );
+
+      const overflow = await page.evaluate(() => {
+        const panel = document.querySelector("aside.panel") as HTMLElement;
+        const box = panel.getBoundingClientRect();
+        const outside: string[] = [];
+        for (const el of panel.querySelectorAll<HTMLElement>("*")) {
+          const r = el.getBoundingClientRect();
+          if (r.width === 0 || r.height === 0) continue;
+          if (r.right > box.right + 1 || r.left < box.left - 1) {
+            outside.push(`${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ""}`);
+          }
+        }
+        return { outside, scrolls: panel.scrollWidth > panel.clientWidth + 1 };
+      });
+      expect(overflow.outside).toEqual([]);
+      expect(overflow.scrolls).toBe(false);
+      // And the page itself does not scroll sideways.
+      const pageScrolls = await page.evaluate(
+        () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+      );
+      expect(pageScrolls).toBe(false);
+    });
+  }
+
+  test("the width and height fields share the row evenly and stay inside it", async ({ page }) => {
+    const [w, h, panel] = await Promise.all([
+      page.locator("#width").boundingBox(),
+      page.locator("#height").boundingBox(),
+      page.locator("aside.panel").boundingBox(),
+    ]);
+    expect(w && h && panel).toBeTruthy();
+    expect(h!.x + h!.width).toBeLessThanOrEqual(panel!.x + panel!.width);
+    expect(Math.abs(w!.width - h!.width)).toBeLessThan(2);
+  });
+});
+
+test.describe("Border around the whole collage", () => {
+  const TWO = [
+    { name: "r.png", w: 400, h: 400, color: "red" as const },
+    { name: "b.png", w: 400, h: 400, color: "blue" as const },
+  ];
+
+  test("is on by default", async ({ page }) => {
+    await expect(page.locator("#outer-border")).toBeChecked();
+  });
+
+  test("off: the border stays between photos but not around the collage", async ({ page }) => {
+    await setSize(page, 400, 800);
+    await page.fill("#border-width", "5");
+    await page.locator("#border-color").fill("#00ff00");
+    await page.fill("#columns", "1");
+    await addPhotos(page, await makeImages(page, TWO));
+    await page.fill("#columns", "1");
+
+    // Whichever photo is on top, its edge and its middle are the same colour once the frame is off.
+    const edge = () => previewColor(page, 0.004, 0.25);
+    const middle = () => previewColor(page, 0.5, 0.25);
+    const seam = () => previewColor(page, 0.5, 0.5);
+    // On: green all round and between.
+    expect(near(await edge(), [0, 255, 0], 30)).toBe(true);
+    expect(near(await seam(), [0, 255, 0], 30)).toBe(true);
+
+    await page.uncheck("#outer-border");
+    // Off: the photo reaches the edge, and the line between the two photos is still there.
+    expect(near(await edge(), [0, 255, 0], 60)).toBe(false);
+    expect(near(await edge(), await middle(), 30)).toBe(true);
+    expect(near(await seam(), [0, 255, 0], 30)).toBe(true);
+
+    const png = await saveAndRead(page);
+    const saved = await analyse(page, png, [
+      [0.004, 0.25],
+      [0.5, 0.25],
+      [0.5, 0.5],
+    ]);
+    expect(near(saved.colors[0] as number[], [0, 255, 0], 60)).toBe(false);
+    expect(near(saved.colors[0] as number[], saved.colors[1] as number[], 30)).toBe(true);
+    expect(near(saved.colors[2] as number[], [0, 255, 0], 30)).toBe(true);
+  });
+
+  test("off, with rounded photos: gaps between them keep the colour, the outer corners do not", async ({
+    page,
+  }) => {
+    await setSize(page, 400, 800);
+    await page.fill("#border-width", "5");
+    await page.locator("#border-color").fill("#00ff00");
+    await addPhotos(page, await makeImages(page, TWO));
+    await page.fill("#columns", "1");
+    await page.selectOption("#corner-style", "circle");
+
+    // On: the whole poster behind the photos is the border colour.
+    expect(near(await previewColor(page, 0.003, 0.003), [0, 255, 0], 30)).toBe(true);
+    await page.uncheck("#outer-border");
+    // Off: the poster's corner is plain white, but the gap between the two photos is still green.
+    expect(near(await previewColor(page, 0.003, 0.003), [255, 255, 255], 15)).toBe(true);
+    expect(near(await previewColor(page, 0.5, 0.5), [0, 255, 0], 30)).toBe(true);
+  });
+
+  test("the saved image matches the preview with it off, for every corner style", async ({
+    page,
+  }) => {
+    await setSize(page, 480, 360);
+    await page.fill("#border-width", "2");
+    await page.locator("#border-color").fill("#202020");
+    await addPhotos(page, await makeImages(page, SIX));
+    await page.uncheck("#outer-border");
+    for (const style of ["none", "slight", "rounded", "circle"]) {
+      await page.selectOption("#corner-style", style);
+      const png = await saveAndRead(page);
+      expect(await previewDifference(page, png), style).toBeLessThan(8);
+    }
+  });
+});
+
+test.describe("Asking for a photo to be bigger", () => {
+  const THREE = [
+    { name: "r.png", w: 400, h: 400, color: "red" as const },
+    { name: "g.png", w: 400, h: 400, color: "green" as const },
+    { name: "b.png", w: 400, h: 400, color: "blue" as const },
+  ];
+
+  /** Click the photo whose colour is `rgb` (found by scanning the preview). */
+  async function selectPhoto(page: import("@playwright/test").Page, rgb: readonly number[]) {
+    for (let y = 0.05; y < 1; y += 0.1) {
+      for (let x = 0.05; x < 1; x += 0.1) {
+        if (near(await previewColor(page, x, y), rgb, 40)) {
+          const p = await posterPoint(page, x, y);
+          await page.mouse.click(p.x, p.y);
+          await expect(page.locator("#span-group")).toBeVisible();
+          return;
+        }
+      }
+    }
+    throw new Error("no photo of that colour on the poster");
+  }
+
+  /** The share of the poster's height, down its middle, that is `rgb`. */
+  async function shareDown(page: import("@playwright/test").Page, rgb: readonly number[]) {
+    let hits = 0;
+    const n = 40;
+    for (let i = 0; i < n; i++) {
+      if (near(await previewColor(page, 0.5, (i + 0.5) / n), rgb, 40)) hits++;
+    }
+    return hits / n;
+  }
+
+  test("the size buttons appear only while a photo is selected", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, THREE));
+    await expect(page.locator("#span-group")).toBeHidden();
+    await selectPhoto(page, COLORS.red);
+    await expect(page.getByRole("button", { name: "Wider" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Taller" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Normal size" })).toBeDisabled();
+    await page.keyboard.press("Escape");
+    await page.locator("#preview").focus();
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#span-group")).toBeHidden();
+  });
+
+  test("Taller gives a photo more of the height, in steps, and Normal size takes it back", async ({
+    page,
+  }) => {
+    await setSize(page, 400, 400);
+    await page.fill("#border-width", "0");
+    await addPhotos(page, await makeImages(page, THREE));
+    await page.fill("#columns", "1");
+    const normal = await shareDown(page, COLORS.red);
+    expect(normal).toBeGreaterThan(0.25);
+    expect(normal).toBeLessThan(0.42);
+
+    await selectPhoto(page, COLORS.red);
+    await page.getByRole("button", { name: "Taller" }).click();
+    await expect(page.locator("#span-taller")).toHaveText("Taller ×2");
+    const two = await shareDown(page, COLORS.red);
+    expect(two).toBeGreaterThan(normal + 0.1);
+    await expect(page.locator("#photo-list li").first()).toContainText("taller ×2");
+
+    await page.locator("#span-taller").click();
+    await expect(page.locator("#span-taller")).toHaveText("Taller ×3");
+    expect(await shareDown(page, COLORS.red)).toBeGreaterThan(two + 0.05);
+
+    // A third press goes back round to normal.
+    await page.locator("#span-taller").click();
+    await expect(page.locator("#span-taller")).toHaveText("Taller");
+    expect(await shareDown(page, COLORS.red)).toBeCloseTo(normal, 1);
+
+    await page.locator("#span-taller").click();
+    await page.getByRole("button", { name: "Normal size" }).click();
+    await expect(page.locator("#span-taller")).toHaveText("Taller");
+    await expect(page.locator("#photo-list li").first()).not.toContainText("taller");
+    expect(await shareDown(page, COLORS.red)).toBeCloseTo(normal, 1);
+  });
+
+  test("Wider makes a photo span two columns, and the photo stays selected", async ({ page }) => {
+    await setSize(page, 400, 300);
+    await page.fill("#border-width", "0");
+    await addPhotos(page, await makeImages(page, THREE));
+    await page.fill("#columns", "2");
+
+    await selectPhoto(page, COLORS.red);
+    await page.getByRole("button", { name: "Wider" }).click();
+    await expect(page.locator("#span-wider")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("#photo-list li").first()).toContainText("wider");
+    // Still selected, so the buttons are still there.
+    await expect(page.locator("#span-group")).toBeVisible();
+
+    // Somewhere down the poster the red photo covers both the left and the right edge.
+    const bothSides = async () => {
+      for (let y = 0.04; y < 1; y += 0.04) {
+        const left = await previewColor(page, 0.05, y);
+        const right = await previewColor(page, 0.95, y);
+        if (near(left, COLORS.red, 40) && near(right, COLORS.red, 40)) return true;
+      }
+      return false;
+    };
+    expect(await bothSides()).toBe(true);
+
+    await page.getByRole("button", { name: "Wider" }).click();
+    await expect(page.locator("#span-wider")).toHaveAttribute("aria-pressed", "false");
+    await expect(page.locator("#photo-list li").first()).not.toContainText("wider");
+  });
+
+  test("a requested size is kept when the collage is regenerated, resized or changed", async ({
+    page,
+  }) => {
+    await addPhotos(page, await makeImages(page, SIX));
+    await page.fill("#columns", "3");
+    await selectPhoto(page, COLORS.red);
+    await page.getByRole("button", { name: "Wider" }).click();
+    await page.locator("#span-taller").click();
+    const tag = page.locator("#photo-list li").first();
+    await expect(tag).toContainText("wider · taller ×2");
+
+    for (let i = 0; i < 3; i++) await page.click("#regenerate");
+    await expect(tag).toContainText("wider · taller ×2");
+
+    await setSize(page, 300, 400);
+    await expect(tag).toContainText("wider · taller ×2");
+
+    // Removing a different photo (a search for a new arrangement) keeps it too.
+    await page.locator("#photo-list li").nth(3).getByRole("button").click();
+    await expect(page.locator("#photo-list li").first()).toContainText("wider · taller ×2");
+    await page.click("#undo-remove");
+    await expect(page.locator("#photo-list li").first()).toContainText("wider · taller ×2");
+  });
+
+  test("several photos can each keep their own size", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, SIX));
+    await selectPhoto(page, COLORS.red);
+    await page.getByRole("button", { name: "Wider" }).click();
+    await page.keyboard.press("Escape");
+    await page.locator("#preview").focus();
+    await page.keyboard.press("Escape");
+    await selectPhoto(page, COLORS.blue);
+    await page.locator("#span-taller").click();
+
+    await expect(page.locator("#photo-list li", { hasText: "red.png" })).toContainText("wider");
+    await expect(page.locator("#photo-list li", { hasText: "blue.png" })).toContainText(
+      "taller ×2",
+    );
+    await expect(page.locator("#photo-list li", { hasText: "blue.png" })).not.toContainText(
+      "wider",
+    );
+  });
+
+  test("the saved image shows the same arrangement as the preview", async ({ page }) => {
+    await setSize(page, 480, 360);
+    await addPhotos(page, await makeImages(page, SIX));
+    await selectPhoto(page, COLORS.green);
+    await page.getByRole("button", { name: "Wider" }).click();
+    await page.locator("#span-taller").click();
+    const png = await saveAndRead(page);
+    expect(await previewDifference(page, png)).toBeLessThan(6);
+  });
+});
+
+test.describe("Small text styles", () => {
+  test("only the privacy note has the accent bar and background; the pixels label is plain hint text", async ({
+    page,
+  }) => {
+    const style = (selector: string) =>
+      page.locator(selector).evaluate((el) => {
+        const s = getComputedStyle(el);
+        return { bar: s.borderLeftWidth, background: s.backgroundColor };
+      });
+    expect((await style("#privacy-note")).bar).toBe("3px");
+    const unit = await style(".size-row .unit");
+    expect(unit.bar).toBe("0px");
+    expect(unit.background).toBe("rgba(0, 0, 0, 0)");
   });
 });

@@ -67,6 +67,8 @@ export interface Frame {
   /** Border thickness in pixels. */
   border: number;
   color: string;
+  /** Also draw the border around the whole collage, not only between photos. */
+  outer: boolean;
 }
 
 /**
@@ -86,17 +88,25 @@ export function cornerRadius(style: CornerStyle, width: number, height: number):
 
 /**
  * The part of a cell a photo occupies once the border is taken out: the border
- * thickness at the poster's edge, and half of it (split so the two halves add up
- * exactly) on each side of an edge shared with a neighbour. Photos therefore
- * never touch, and the gap between any two is exactly `border` pixels.
+ * thickness at the poster's edge (nothing there when there is no outer border),
+ * and half of it (split so the two halves add up exactly) on each side of an edge
+ * shared with a neighbour. Photos therefore never touch, and the gap between any
+ * two is exactly `border` pixels.
  */
-export function insetCell(cell: Rect, width: number, height: number, border: number): Rect {
+export function insetCell(
+  cell: Rect,
+  width: number,
+  height: number,
+  border: number,
+  outer = true,
+): Rect {
   const lo = Math.floor(border / 2);
   const hi = border - lo;
-  const left = cell.x <= 0 ? border : hi;
-  const top = cell.y <= 0 ? border : hi;
-  const right = cell.x + cell.w >= width ? border : lo;
-  const bottom = cell.y + cell.h >= height ? border : lo;
+  const edge = outer ? border : 0;
+  const left = cell.x <= 0 ? edge : hi;
+  const top = cell.y <= 0 ? edge : hi;
+  const right = cell.x + cell.w >= width ? edge : lo;
+  const bottom = cell.y + cell.h >= height ? edge : lo;
   // A border wider than the cell leaves nothing: collapse to its centre, still inside the cell.
   const w = cell.w - left - right;
   const h = cell.h - top - bottom;
@@ -131,12 +141,21 @@ function tracePhotoShape(ctx: Ctx2D, r: Rect, style: CornerStyle): void {
 /**
  * Fill the poster. With square photos it is plain white and the border is drawn
  * over the photos afterwards. With shaped photos the gaps between and around
- * them are the border, so the poster starts as the border colour.
+ * them are the border, so the poster starts as the border colour; without an outer
+ * border only the gaps between photos are, so it starts white and the seams between
+ * the photos are drawn now.
  */
-export function drawBackground(ctx: Ctx2D, width: number, height: number, frame?: Frame): void {
+export function drawBackground(
+  ctx: Ctx2D,
+  width: number,
+  height: number,
+  frame?: Frame,
+  rects: readonly Rect[] = [],
+): void {
   const shaped = frame !== undefined && frame.corners !== "none" && frame.border > 0;
-  ctx.fillStyle = shaped ? frame.color : "#ffffff";
+  ctx.fillStyle = shaped && frame.outer ? frame.color : "#ffffff";
   ctx.fillRect(0, 0, width, height);
+  if (shaped && !frame.outer) drawSeams(ctx, rects, width, height, frame.border, frame.color);
 }
 
 /**
@@ -158,7 +177,7 @@ export function drawPhoto(
     drawPhotoCover(ctx, source, sourceW, sourceH, cell);
     return;
   }
-  const inner = insetCell(cell, width, height, frame.border);
+  const inner = insetCell(cell, width, height, frame.border, frame.outer);
   if (inner.w <= 0 || inner.h <= 0) return;
   ctx.save();
   tracePhotoShape(ctx, inner, frame.corners);
@@ -189,9 +208,36 @@ export function drawPhotoCover(
   ctx.restore();
 }
 
+/** The border between photos: a seam centred on every edge shared by two cells. Clipped to the poster. */
+function drawSeams(
+  ctx: Ctx2D,
+  rects: readonly Rect[],
+  width: number,
+  height: number,
+  border: number,
+  color: string,
+): void {
+  if (border <= 0) return;
+  // Seams run half a border past the ends of each cell; keep that from spilling past the poster.
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, width, height);
+  ctx.clip();
+  ctx.fillStyle = color;
+  const lo = Math.floor(border / 2);
+  for (const r of rects) {
+    if (r.x > 0) ctx.fillRect(r.x - lo, r.y - lo, border, r.h + border);
+    if (r.y > 0) ctx.fillRect(r.x - lo, r.y - lo, r.w + border, border);
+    if (r.x + r.w < width) ctx.fillRect(r.x + r.w - lo, r.y - lo, border, r.h + border);
+    if (r.y + r.h < height) ctx.fillRect(r.x - lo, r.y + r.h - lo, r.w + border, border);
+  }
+  ctx.restore();
+}
+
 /**
- * For square photos: the poster frame, plus a seam on every edge shared by two
- * cells, drawn over the photos. Shaped photos need no overlay (see drawBackground).
+ * For square photos: the seams between photos, and (unless switched off) the
+ * frame around the whole poster, drawn over the photos. Shaped photos need no
+ * overlay (see drawBackground).
  */
 export function drawBorders(
   ctx: Ctx2D,
@@ -202,23 +248,11 @@ export function drawBorders(
 ): void {
   const { border, color } = frame;
   if (border <= 0 || frame.corners !== "none") return;
-  // Seams run half a border past the ends of each cell; keep that from spilling past the poster.
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(0, 0, width, height);
-  ctx.clip();
+  drawSeams(ctx, rects, width, height, border, color);
+  if (!frame.outer) return;
   ctx.fillStyle = color;
   ctx.fillRect(0, 0, width, border);
   ctx.fillRect(0, height - border, width, border);
   ctx.fillRect(0, 0, border, height);
   ctx.fillRect(width - border, 0, border, height);
-
-  const lo = Math.floor(border / 2);
-  for (const r of rects) {
-    if (r.x > 0) ctx.fillRect(r.x - lo, r.y - lo, border, r.h + border);
-    if (r.y > 0) ctx.fillRect(r.x - lo, r.y - lo, r.w + border, border);
-    if (r.x + r.w < width) ctx.fillRect(r.x + r.w - lo, r.y - lo, border, r.h + border);
-    if (r.y + r.h < height) ctx.fillRect(r.x - lo, r.y + r.h - lo, r.w + border, border);
-  }
-  ctx.restore();
 }

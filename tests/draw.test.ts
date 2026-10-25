@@ -62,6 +62,43 @@ describe("insetCell", () => {
     }
   });
 
+  it("without an outer border, leaves the poster's edge alone but still separates neighbours", () => {
+    for (const border of [1, 2, 7, 10, 11]) {
+      const left = insetCell(
+        { x: 0, y: 0, w: 400, h: 800 },
+        poster.width,
+        poster.height,
+        border,
+        false,
+      );
+      const right = insetCell(
+        { x: 400, y: 0, w: 600, h: 800 },
+        poster.width,
+        poster.height,
+        border,
+        false,
+      );
+      expect(left.x).toBe(0);
+      expect(left.y).toBe(0);
+      expect(left.y + left.h).toBe(800);
+      expect(right.x + right.w).toBe(1000);
+      expect(right.x - (left.x + left.w)).toBe(border);
+    }
+  });
+
+  it("with an outer border (the default) insets the edge by the border", () => {
+    const withOuter = insetCell(
+      { x: 0, y: 0, w: 400, h: 800 },
+      poster.width,
+      poster.height,
+      10,
+      true,
+    );
+    const byDefault = insetCell({ x: 0, y: 0, w: 400, h: 800 }, poster.width, poster.height, 10);
+    expect(withOuter).toEqual(byDefault);
+    expect(withOuter.x).toBe(10);
+  });
+
   it("with no border changes nothing", () => {
     const cell = { x: 100, y: 50, w: 300, h: 200 };
     expect(insetCell(cell, poster.width, poster.height, 0)).toEqual(cell);
