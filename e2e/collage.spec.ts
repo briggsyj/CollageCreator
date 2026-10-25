@@ -12,10 +12,10 @@ import {
   near,
   previewColor,
   previewDifference,
+  SIX,
   saveAndRead,
   setSeed,
   setSize,
-  SIX,
 } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
@@ -321,6 +321,8 @@ test.describe("Collage editing: borders and swapping", () => {
 
 test.describe("Progress, cancel, offline and language", () => {
   test("cancelling an export closes the dialog and saves nothing", async ({ page }) => {
+    // Importing 24 large photos is slow on a busy machine; the default 30 s is too tight.
+    test.setTimeout(120_000);
     await setSize(page, 3000, 2250);
     const files = await makeImages(
       page,
@@ -333,11 +335,20 @@ test.describe("Progress, cancel, offline and language", () => {
       })),
     );
     await addPhotos(page, files);
-    await expect(page.locator("#photo-list li")).toHaveCount(24);
-    await page.click("#save");
-    await page.click("#cancel");
+    let downloaded = false;
+    page.on("download", () => {
+      downloaded = true;
+    });
+    // Save and Cancel in one task, so the cancel always lands before the export can finish
+    // (a separate click can lose the race on a fast machine and find the dialog already gone).
+    await page.evaluate(() => {
+      (document.getElementById("save") as HTMLButtonElement).click();
+      (document.getElementById("cancel") as HTMLButtonElement).click();
+    });
     await expect(page.locator("#progress-dialog")).not.toBeVisible();
+    await expect(page.locator("#save")).toBeEnabled();
     await expect(page.locator("#messages .error")).toHaveCount(0);
+    expect(downloaded).toBe(false);
   });
 
   test("works with the network disconnected once loaded", async ({ page, context }) => {

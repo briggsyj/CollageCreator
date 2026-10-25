@@ -26,12 +26,12 @@ import { generateLayout, type Page } from "../core/layout";
 import { randomSeed, seededRng } from "../core/rng";
 import type { Layout, PosterSettings, Rect } from "../core/types";
 import { getLanguage, languages, resolveLanguage, setLanguage, t } from "../i18n";
-import { importFiles, type ImportedPhoto, type ImportMessage } from "../io/import";
-import { CanvasLimits, clampSize, detectLimits, FALLBACK_LIMITS } from "../platform/limits";
-import { drawCollage, drawSelection, fitSize } from "../render/preview";
+import { type ImportedPhoto, type ImportMessage, importFiles } from "../io/import";
+import { type CanvasLimits, clampSize, detectLimits, FALLBACK_LIMITS } from "../platform/limits";
 import { drawPhotoCover } from "../render/draw";
 import { exportCollage } from "../render/export";
 import { WorkerPool } from "../render/pool";
+import { drawCollage, drawSelection, fitSize } from "../render/preview";
 import { findPreset, PRESETS } from "./presets";
 
 function el<T extends HTMLElement>(id: string): T {
@@ -122,7 +122,7 @@ export function startApp(): void {
   }
 
   function setStatus(text: string): void {
-    if (!statusEl || !statusEl.isConnected) {
+    if (!statusEl?.isConnected) {
       statusEl = document.createElement("div");
       statusEl.className = "status";
       ui.messages.prepend(statusEl);
@@ -140,7 +140,7 @@ export function startApp(): void {
   function applyTranslations(): void {
     document.documentElement.lang = getLanguage().replace("_", "-");
     for (const node of document.querySelectorAll<HTMLElement>("[data-i18n]")) {
-      const key = node.dataset["i18n"];
+      const key = node.dataset.i18n;
       if (key) node.textContent = t(key);
     }
     renderPhotoList();
@@ -575,7 +575,7 @@ export function startApp(): void {
 
   // Once every worker script is loaded the app needs no more network. Exposed for tests.
   void Promise.all([state.importPool.ready, state.exportPool.ready]).then(() => {
-    document.documentElement.dataset["workersReady"] = "true";
+    document.documentElement.dataset.workersReady = "true";
   });
 
   initLanguages();

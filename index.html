@@ -107,6 +107,7 @@
       <section class="stage" aria-label="Preview">
         <div id="messages" class="messages" role="status" aria-live="polite"></div>
         <div id="canvas-box" class="canvas-box">
+          <!-- biome-ignore lint/a11y/noInteractiveElementToNoninteractiveRole: the canvas handles its own arrow-key navigation, so screen readers must pass keys through (application role) -->
           <canvas
             id="preview"
             tabindex="0"

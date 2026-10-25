@@ -25,7 +25,7 @@
 // with this program; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-import { shuffle, type Rng } from "./rng";
+import { type Rng, shuffle } from "./rng";
 import type { Layout, PhotoSize } from "./types";
 
 /*
@@ -348,9 +348,12 @@ export class Page {
     const right = col.rightNeighbor();
     if (2 * this.rng.random() > photo.ratio) {
       if (left && Math.abs(col.h - left.h) < 0.5 * col.w) {
-        return this.addCellMultiCol(left, col, photo);
-      } else if (right && Math.abs(col.h - right.h) < 0.5 * col.w) {
-        return this.addCellMultiCol(col, right, photo);
+        this.addCellMultiCol(left, col, photo);
+        return;
+      }
+      if (right && Math.abs(col.h - right.h) < 0.5 * col.w) {
+        this.addCellMultiCol(col, right, photo);
+        return;
       }
     }
     this.addCellSingleCol(col, photo);

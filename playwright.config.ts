@@ -7,11 +7,11 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "e2e",
   fullyParallel: true,
-  forbidOnly: !!process.env["CI"],
-  retries: process.env["CI"] ? 1 : 0,
-  reporter: process.env["CI"] ? "github" : "list",
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 1 : 0,
+  reporter: process.env.CI ? "github" : "list",
   use: {
-    baseURL: process.env["E2E_BASE_URL"] ?? "http://localhost:4173",
+    baseURL: process.env.E2E_BASE_URL ?? "http://localhost:4173",
     trace: "retain-on-failure",
   },
   projects: [
@@ -20,8 +20,8 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         // Lets a machine with a different pre-installed Chromium run the suite.
-        launchOptions: process.env["CHROMIUM_PATH"]
-          ? { executablePath: process.env["CHROMIUM_PATH"] }
+        launchOptions: process.env.CHROMIUM_PATH
+          ? { executablePath: process.env.CHROMIUM_PATH }
           : {},
       },
     },
@@ -29,12 +29,12 @@ export default defineConfig({
     { name: "webkit", use: { ...devices["Desktop Safari"] } },
   ],
   // Set E2E_BASE_URL to test an already running server (for example the Docker container).
-  webServer: process.env["E2E_BASE_URL"]
+  webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
         command: "npm run build && npm run preview -- --port 4173 --strictPort",
         url: "http://localhost:4173",
-        reuseExistingServer: !process.env["CI"],
+        reuseExistingServer: !process.env.CI,
         timeout: 120_000,
       },
 });

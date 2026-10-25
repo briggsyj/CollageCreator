@@ -1,9 +1,0 @@
-dist
-node_modules
-package-lock.json
-playwright-report
-test-results
-LICENSE
-src/i18n/po
-public/icon.svg
-.claude

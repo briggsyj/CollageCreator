@@ -6,7 +6,7 @@
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
-import { addPhotos, analyse, saveAndRead, setSize, type Fixture } from "./helpers";
+import { addPhotos, analyse, type Fixture, saveAndRead, setSize } from "./helpers";
 
 test("exports 100 twelve-megapixel photos", async ({ page, browserName }) => {
   test.setTimeout(300_000);
@@ -53,11 +53,11 @@ test("exports 100 twelve-megapixel photos", async ({ page, browserName }) => {
   const result = await analyse(page, png);
   expect([result.width, result.height]).toEqual([4961, 3508]);
 
-  if (process.env["BENCH_WRITE"]) {
+  if (process.env.BENCH_WRITE) {
     await mkdir("benchmarks", { recursive: true });
     await writeFile(
       `benchmarks/export-${browserName}.json`,
-      JSON.stringify(
+      `${JSON.stringify(
         {
           date: new Date().toISOString().slice(0, 10),
           photos: 100,
@@ -69,7 +69,7 @@ test("exports 100 twelve-megapixel photos", async ({ page, browserName }) => {
         },
         null,
         2,
-      ) + "\n",
+      )}\n`,
     );
   }
   expect(exportMs).toBeLessThan(240_000);

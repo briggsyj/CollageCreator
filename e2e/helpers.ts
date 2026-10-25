@@ -2,7 +2,7 @@
 // Copyright (C) 2026 briggsyj and contributors
 
 import { readFile } from "node:fs/promises";
-import { expect, type Download, type Page } from "@playwright/test";
+import { type Download, expect, type Page } from "@playwright/test";
 
 export interface Fixture {
   name: string;

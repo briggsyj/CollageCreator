@@ -22,7 +22,7 @@
 // with this program; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-import { parsePo, type Messages } from "./po";
+import { type Messages, parsePo } from "./po";
 
 // Constitution principle 8: user-visible strings live in a message catalogue.
 // English source strings are the keys; the original translations cover the
