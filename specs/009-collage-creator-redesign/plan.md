@@ -2,11 +2,13 @@
 
 ## How to run this plan (read first)
 
-1. Work on branch `claude/sharp-ritchie-oq4dba`. Open one pull request into `master` when the work is done; do not push to any other branch. Commit once per phase in [tasks.md](tasks.md) and tick the boxes as you go.
-2. Read `.specify/memory/constitution.md`, `specs/README.md`, [spec.md](spec.md) and this file. Read the design Artifact (below) before touching the UI.
-3. Run `npm ci`, `npm test`, `npm run lint`, `npm run typecheck` and `npm run check:headers` first and note which tests already fail (the README and `specs/README.md` mention known gaps). Do not fix unrelated failures; list them in the PR.
-4. Before the last commit run the same commands plus `npm run build` and `npm run test:e2e` (Chromium: `npx playwright install chromium` once). Biome also formats Markdown and HTML: run `npm run format` before committing.
-5. If the repo contradicts this plan, stop and record it in the spec's research notes and the PR description instead of choosing silently (constitution, Governance).
+1. This plan is run **once, unattended, and must finish in that one run**. Nobody is available to answer questions. Make the decision this plan or the spec implies, record it in the spec's research notes and the PR description, and keep going. Never stop to ask.
+2. Work on branch `claude/sharp-ritchie-oq4dba`; do not push to any other branch. Commit once per phase in [tasks.md](tasks.md), push after every commit, and tick the boxes as you go. After Phase 1 is pushed, open the pull request into `master` as a **draft** so the work is never stranded, then keep pushing to it. Mark it ready for review only when every phase is done.
+3. Read `.specify/memory/constitution.md`, `specs/README.md`, [spec.md](spec.md) and this file. Read the design Artifact (below) before touching the UI.
+4. Run `npm ci`, `npm test`, `npm run lint`, `npm run typecheck` and `npm run check:headers` first and note which tests already fail (the README and `specs/README.md` mention known gaps). Do not fix unrelated failures; list them in the PR.
+5. Before each commit run `npm run format`, lint, typecheck, the header check and `npm test`. Before the last commit also run `npm run build` and `npm run test:e2e` (Chromium: `npx playwright install chromium` once).
+6. Order of priority if time or context runs short: Phases 0 to 3 first (they carry the product), then 4 (mobile and dark), then 5 (rename and docs). Never leave a phase half done: either finish it and commit, or revert it and say so in the PR. Use sub-agents for independent work (for example the Gallery core in Phase 1 and the theme tokens in Phase 2) and keep your own context for integration.
+7. If a task is blocked (a failing test you cannot fix, the Artifact unreadable, a contradiction between the repo and this plan), record it in the research notes and the PR description, skip to the next task, and carry on. Constitution governance asks to stop and ask; for this unattended run the owner has pre-approved recording instead.
 
 ## Design reference
 
