@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Copyright (C) 2026 briggsyj and contributors
 
 # docker compose up --build -d     then open http://localhost:8080
 # HOST_PORT=9000 docker compose up -d   to use another port

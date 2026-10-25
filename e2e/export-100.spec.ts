@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2026 briggsyj and contributors
 
 // Spec 003 gate: exporting 100 large photos completes without crashing the tab.
 // Run with BENCH_WRITE=1 to record timings in benchmarks/export-<browser>.json.

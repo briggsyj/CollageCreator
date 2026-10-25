@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Copyright (C) 2026 briggsyj and contributors
 
 # Stage 1: install dependencies and build the static site.
 FROM node:22-alpine AS build

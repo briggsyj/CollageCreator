@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2026 briggsyj and contributors
 
 // Layout benchmark. Run with `npm run bench`; add `--write` to record the
 // result in benchmarks/layout.json (rerun when the layout core changes).

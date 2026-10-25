@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2026 briggsyj and contributors
 
 import { beforeEach, describe, expect, it } from "vitest";
 import { getLanguage, languages, resolveLanguage, setLanguage, t } from "../src/i18n";

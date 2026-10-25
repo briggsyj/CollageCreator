@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "description": "Collage Web: a browser-only, modified web reimplementation of PhotoCollage by Adrien Vergé and contributors",
   "license": "GPL-2.0-or-later",
-  "author": "briggsyj and contributors",
   "homepage": "https://github.com/briggsyj/PhotoCollage",
   "repository": {
     "type": "git",

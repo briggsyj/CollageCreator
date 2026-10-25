@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2026 briggsyj and contributors
 
 import { writeFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";

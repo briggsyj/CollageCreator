@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2026 briggsyj and contributors
 
 import { defineConfig, devices } from "@playwright/test";
 
