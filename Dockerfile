@@ -11,7 +11,7 @@ RUN npm run build
 # Stage 2: serve only the build output, as a non-root user (nginx listens on 8080).
 FROM nginxinc/nginx-unprivileged:alpine
 # The GPL asks for source to accompany every distribution; this points to it.
-LABEL org.opencontainers.image.title="Collage Web" \
+LABEL org.opencontainers.image.title="Collage Creator" \
       org.opencontainers.image.description="Browser-only photo collage maker, a modified web version of PhotoCollage" \
       org.opencontainers.image.source="https://github.com/briggsyj/PhotoCollage" \
       org.opencontainers.image.licenses="GPL-2.0-or-later" \

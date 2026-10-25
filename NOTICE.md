@@ -1,6 +1,6 @@
 # Notice
 
-**Collage Web** is a modified, independent web reimplementation of
+**Collage Creator** is a modified, independent web reimplementation of
 **PhotoCollage**. It is not the original program and is not endorsed by the
 original authors.
 
@@ -78,3 +78,8 @@ This applies to every way the program is distributed: the GitHub Pages site and
 the Docker image both link back to it.
 The About dialog links to it, and the Docker image carries it as the
 `org.opencontainers.image.source` label.
+
+The app is named Collage Creator. Besides the ported layout algorithm (Mosaic) it
+has a second, new layout style (Gallery, a slicing tree) that is not derived from
+the original, and a redesigned interface; the original's translations are reused
+unchanged and new strings are in English.

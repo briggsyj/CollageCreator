@@ -43,3 +43,14 @@ Dragging to resize photos, choosing which neighbour a wider photo joins, saving 
 
 - Owner decisions (2026-10-25): implement a basic slicing tree; mobile and desktop together; muted frosted glass in light and dark; per-photo Wider/Taller stays in the Photos step; variants A to D of the look were explored; E (muted frosted glass) is the light theme and D (smoked glass) informs the dark theme.
 - Not yet decided by the owner, defaults used here: the Instagram sizes above; the import summary behaviour; restyling (not redesigning) the About and progress dialogs.
+
+### Differences from the design, found while implementing
+
+- The selected-photo controls keep today's buttons (Wider, Taller, Normal size, Remove selected photo) in a dock under the list, rather than the design's segmented controls. They behave as before (Taller cycles x2, x3, normal).
+- Columns stay a number field (empty means automatic) with Fewer, More and Automatic buttons, so existing keyboard use and tests are kept; the design's segmented Automatic / Choose a number would be a follow-up.
+- In Pan mode a click that does not move the view selects the photo under it (so the size buttons can be used); in Swap mode clicks pick and swap as before. Enter on the preview picks and swaps in both modes.
+- The visible privacy sentence is in the drop target; a screen-reader copy stays attached to Add images, so it is still announced after photos are added.
+- Strings that changed wording lost their translations and show in English: "Try another arrangement" (was "Regenerate"), "Border thickness" and "Border colour" (were "Thickness:" and "Color:"), and the trim note. The old strings are still in the catalogue for a future translation pass.
+- Gallery's tree is refined by random local changes and keeps panels within a 4 % minimum share; it crops a little more than Mosaic on average (about 5 to 13 % in measurements with mixed photo shapes). The first Gallery search is limited to 10 tries because each try is refined.
+- Dark theme uses the Smoked glass tokens; there is no dark design board for the empty state, so its neutrals were chosen to match.
+- The save options (file type, quality) show under the Style step on wide screens, and inside the Save sheet on phones.

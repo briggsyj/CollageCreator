@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2014 Adrien Vergé
 //
-// This file is part of Collage Web, a modified version of PhotoCollage
+// This file is part of Collage Creator, a modified version of PhotoCollage
 // (https://github.com/adrienverge/PhotoCollage). It was CHANGED on 2026-10-25:
 // it replaces build_photolist and PIL_SUPPORTED_EXTS from
 // photocollage/render.py. Image sizes are read after the EXIF orientation is
@@ -25,11 +25,14 @@
 import { NO_SPAN, type Photo } from "../core/types";
 import { t } from "../i18n";
 import type { WorkerPool } from "../render/pool";
+import { sampleColour } from "./colour";
 
 /** A photo plus what the browser needs to show and export it. Files never leave the device. */
 export interface ImportedPhoto extends Photo {
   file: File;
   thumb: ImageBitmap;
+  /** The photo's average colour (a CSS colour), used for the backdrop behind the glass. */
+  colour: string;
 }
 
 /** Extensions browsers can generally decode (a subset of the original's PIL list). */
@@ -50,6 +53,12 @@ export const THUMB_MAX = 480;
 export interface ImportMessage {
   kind: "info" | "error";
   text: string;
+}
+
+/** A file that was not added, and why. */
+export interface SkippedFile {
+  reason: "duplicate" | "not-image" | "unreadable";
+  name: string;
 }
 
 export function looksLikeImage(file: File): boolean {
@@ -74,16 +83,19 @@ export async function importFiles(
   pool: WorkerPool,
   onMessage: (m: ImportMessage) => void,
   onProgress?: (done: number, total: number) => void,
+  onSkip?: (skipped: SkippedFile) => void,
 ): Promise<ImportedPhoto[]> {
   const seen = new Set(existing.map((p) => fileKey(p.file)));
   const candidates: File[] = [];
   for (const file of files) {
     if (!looksLikeImage(file)) {
+      onSkip?.({ reason: "not-image", name: file.name });
       onMessage({
         kind: "error",
         text: t("Skipped %(name)s: it is not an image.", { name: file.name }),
       });
     } else if (seen.has(fileKey(file))) {
+      onSkip?.({ reason: "duplicate", name: file.name });
       onMessage({
         kind: "info",
         text: t("Skipped %(name)s: it was already added.", { name: file.name }),
@@ -110,8 +122,10 @@ export async function importFiles(
           span: { ...NO_SPAN },
           file,
           thumb: res.thumb,
+          colour: sampleColour(res.thumb),
         };
       } catch {
+        onSkip?.({ reason: "unreadable", name: file.name });
         onMessage({
           kind: "error",
           text: t('This image could not be opened:\n"%(imgname)s".', { imgname: file.name }),

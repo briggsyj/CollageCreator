@@ -1,6 +1,6 @@
-# Collage Web Constitution
+# Collage Creator Constitution
 
-Collage Web is a browser-only web reimplementation of PhotoCollage. These
+Collage Creator is a browser-only web reimplementation of PhotoCollage. These
 principles govern every spec, plan and change. Performance numbers are
 proposed targets for the owner to confirm.
 
@@ -24,7 +24,7 @@ proposed targets for the owner to confirm.
 - Treat the JavaScript served to browsers and the Docker image as distribution: the About dialog and the image's `org.opencontainers.image.source` label link to the source.
 - Reuse the original's translation files with translator credits intact.
 - A generated third-party licence file is built with the app; every bundled library's licence must be GPL-compatible (`scripts/third-party-licenses.mjs` fails the build otherwise).
-- Present the app as an independent modified version, with a distinct name (Collage Web).
+- Present the app as an independent modified version, with a distinct name (Collage Creator).
 
 ## Governance
 
@@ -32,4 +32,4 @@ proposed targets for the owner to confirm.
 - If something in a plan conflicts with what the repo shows, stop and ask the owner; do not resolve it silently. Record the decision in the spec's research notes.
 - Updating `spec.md` or `plan.md` is itself a task whenever implementation changes the design.
 
-**Version**: 1.2.0 | **Ratified**: 2026-10-25 | **Amended**: principle 3 names Biome instead of ESLint and Prettier; licensing rules no longer add a copyright line of our own
+**Version**: 1.3.0 | **Ratified**: 2026-10-25 | **Amended**: principle 3 names Biome instead of ESLint and Prettier; licensing rules no longer add a copyright line of our own; the app is renamed Collage Creator (spec 009)

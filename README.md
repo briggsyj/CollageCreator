@@ -1,4 +1,4 @@
-# Collage Web
+# Collage Creator
 
 [![CI](https://github.com/briggsyj/PhotoCollage/actions/workflows/ci.yaml/badge.svg)](https://github.com/briggsyj/PhotoCollage/actions/workflows/ci.yaml)
 [![Docker build](https://github.com/briggsyj/PhotoCollage/actions/workflows/docker.yaml/badge.svg)](https://github.com/briggsyj/PhotoCollage/actions/workflows/docker.yaml)
@@ -7,9 +7,9 @@
 [![Derived from PhotoCollage](https://img.shields.io/badge/derived%20from-adrienverge%2FPhotoCollage-informational.svg)](https://github.com/adrienverge/PhotoCollage)
 
 > **A web reimplementation of [PhotoCollage](https://github.com/adrienverge/PhotoCollage) by Adrien Vergé and contributors.**
-> Collage Web is an independent, modified version. It is not the original program and is not endorsed by the original authors.
+> Collage Creator is an independent, modified version. It is not the original program and is not endorsed by the original authors.
 
-Collage Web turns a set of photos into one poster. It runs entirely in your
+Collage Creator turns a set of photos into one poster. It runs entirely in your
 browser: **photos are never uploaded**, and once the page has loaded it works
 without a network connection.
 
@@ -21,7 +21,7 @@ Docker.
 
 ## Credit and licence
 
-Collage Web is a derivative work of **PhotoCollage** by Adrien Vergé and
+Collage Creator is a derivative work of **PhotoCollage** by Adrien Vergé and
 contributors (their copyright notices are kept; see [NOTICE.md](NOTICE.md)), and
 is released under the same terms: the
 **GNU General Public License, version 2 or (at your option) any later version**
@@ -45,25 +45,26 @@ general information, not legal advice.
 ## Features
 
 - Add photos by file picker or drag and drop; works with 100+ photos
-- Automatic layouts that fill the poster, using the original's layout algorithm; the first one shown is the best of 30 tries (the one that crops the photos least)
-- Ask for a photo to be **wider** or **taller**; the rest of the collage is worked out around it
+- Two layout styles, chosen in the Poster step. **Mosaic** (the default) uses the original's layout algorithm: photos fill columns of different heights, and the first layout shown is the best of 30 tries (the one that crops the photos least). **Gallery** cuts the poster into panels with a slicing tree, one panel per photo, and also keeps the best of several tries
+- Ask for a photo to be **wider** or **taller** from the Photos step; the rest of the collage is worked out around it
 - Every layout has a **seed** (under Technical configuration): the same seed and photos give the same layout
-- Choose the **number of columns**, or leave it on automatic (the original's choice)
-- Poster size in pixels, with A4, A3 and A2 presets at 300 DPI; sizes your browser cannot produce are reduced to the largest available
-- Border colour, thickness (0.5 % white by default), corner style (none, slightly rounded or rounded), and an option to leave out the border around the whole collage
+- Choose the **number of columns** for Mosaic, or leave it on automatic (the original's choice)
+- Poster size in pixels: Screen, A4, A3 and A2 (300 DPI) and Instagram post, story and square presets, each in landscape or portrait, or a custom width and height; sizes your browser cannot produce are reduced to the largest available
+- Border colour (swatches or any colour), thickness (0.5 % white by default), corner style (square, slightly rounded or rounded), and an option to leave out the border around the whole collage
 - Swap two photos by clicking or from the keyboard; remove photos from the collage (Delete), all at once, with undo
-- Zoom the preview by scrolling over it; hold Space and drag to move it
+- Pan and Swap modes: drag to move the preview (the default) or choose Swap to click two photos and swap them; hold Space to pan while swapping; scroll or use the buttons to zoom
+- A frosted glass look that follows your light or dark setting, with a backdrop made from your photos' colours; on phones the controls open as sheets from a bottom bar
 - Photos are shown the right way up (EXIF orientation)
 - Save as PNG or JPEG, with progress and cancel; decoding runs in web workers
-- Translations from the original: Bulgarian, Czech, German, Spanish, French, Italian, Dutch, Polish, Brazilian Portuguese, Russian, Ukrainian
+- Translations from the original: Bulgarian, Czech, German, Spanish, French, Italian, Dutch, Polish, Brazilian Portuguese, Russian, Ukrainian (strings added since then are in English)
 
 ## What is different from the original
 
-|              | PhotoCollage                | Collage Web                                                     |
+|              | PhotoCollage                | Collage Creator                                                 |
 | ------------ | --------------------------- | --------------------------------------------------------------- |
 | Platform     | Python + GTK desktop app    | Static web app, no backend                                      |
 | Rendering    | Pillow / cairo              | Canvas 2D, `OffscreenCanvas` in a worker pool                   |
-| Layouts      | New random layout each time | Same algorithm, reproducible from a seed                        |
+| Layouts      | New random layout each time | Same algorithm (Mosaic) plus Gallery, reproducible from a seed  |
 | Maximum size | Limited by memory           | Limited by what the browser can allocate (detected at run time) |
 | Packaging    | pip / distro packages       | Docker (nginx) or any static host                               |
 
@@ -130,7 +131,7 @@ feature has a `spec.md`, `plan.md` and `tasks.md` under [specs/](specs/); [specs
 Copyright © 2013–2014 Adrien Vergé (original PhotoCollage), and the translators
 credited in [NOTICE.md](NOTICE.md) for their translation files.
 
-The changes in Collage Web carry no separate copyright notice; they are offered
+The changes in Collage Creator carry no separate copyright notice; they are offered
 under the same licence.
 
 This program is free software; you can redistribute it and/or modify it under

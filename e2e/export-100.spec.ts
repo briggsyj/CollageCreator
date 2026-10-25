@@ -5,10 +5,11 @@
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
-import { addPhotos, analyse, type Fixture, saveAndRead, setSize } from "./helpers";
+import { addPhotos, analyse, autoReveal, type Fixture, saveAndRead, setSize } from "./helpers";
 
 test("exports 100 twelve-megapixel photos", async ({ page, browserName }) => {
   test.setTimeout(300_000);
+  autoReveal(page);
   await page.goto("./");
 
   // Five distinct 4000 x 3000 JPEGs with some detail, each used 20 times under different names.

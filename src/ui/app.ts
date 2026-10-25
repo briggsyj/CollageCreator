@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2014 Adrien Vergé
 //
-// This file is part of Collage Web, a modified version of PhotoCollage
+// This file is part of Collage Creator, a modified version of PhotoCollage
 // (https://github.com/adrienverge/PhotoCollage). It was CHANGED on 2026-10-25:
 // it replaces the GTK window of photocollage/gtkgui.py (add images,
 // regenerate, settings for size and border, save, swap photos by clicking two
@@ -21,18 +21,27 @@
 // with this program; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-import { generateLayout, MAX_COLUMNS, normaliseColumns, type Page } from "../core/layout";
+import { MAX_COLUMNS, normaliseColumns } from "../core/layout";
 import { randomSeed, seededRng } from "../core/rng";
-import { generateBest, scoreLayout } from "../core/search";
+import { generateBestPage, generatePage, scoreLayout } from "../core/search";
 import {
+  type CornerStyle,
   type Layout,
+  type LayoutPage,
+  type LayoutStyle,
   NO_SPAN,
   type PhotoSpan,
   type PosterSettings,
   type Rect,
 } from "../core/types";
 import { getLanguage, languages, resolveLanguage, setLanguage, t } from "../i18n";
-import { fileKey, type ImportedPhoto, type ImportMessage, importFiles } from "../io/import";
+import {
+  fileKey,
+  type ImportedPhoto,
+  type ImportMessage,
+  importFiles,
+  type SkippedFile,
+} from "../io/import";
 import { type CanvasLimits, clampSize, detectLimits, FALLBACK_LIMITS } from "../platform/limits";
 import { drawPhotoCover } from "../render/draw";
 import { exportCollage } from "../render/export";
@@ -49,7 +58,17 @@ import {
   zoomAt,
   zoomPercent,
 } from "../render/view";
-import { findPreset, PRESETS } from "./presets";
+import { createBackdrop, updateBackdrop } from "./backdrop";
+import {
+  findChoice,
+  findPreset,
+  type Orientation,
+  orientationOf,
+  PRESETS,
+  SIZE_CHOICES,
+  type SizeGroup,
+  sizeOf,
+} from "./presets";
 
 function el<T extends HTMLElement>(id: string): T {
   const found = document.getElementById(id);
@@ -75,36 +94,115 @@ function storeLanguage(code: string): void {
   }
 }
 
+type Tab = "photos" | "poster" | "style" | "save";
+type Mode = "pan" | "swap";
+
+const TAB_TITLES: Record<Tab, string> = {
+  photos: "Photos",
+  poster: "Poster",
+  style: "Style",
+  save: "Save image",
+};
+
+const GROUP_TITLES: Record<SizeGroup, string> = {
+  screen: "Screen",
+  print: "Print",
+  social: "Social",
+};
+
+const SWATCHES: { name: string; color: string }[] = [
+  { name: "White", color: "#ffffff" },
+  { name: "Black", color: "#111111" },
+  { name: "Warm grey", color: "#bdb8ad" },
+  { name: "Cream", color: "#f1e7d0" },
+  { name: "Navy", color: "#1d2b4a" },
+];
+
+const CORNER_LABELS: { value: CornerStyle; label: string }[] = [
+  { value: "none", label: "Square" },
+  { value: "slight", label: "Slight" },
+  { value: "rounded", label: "Rounded" },
+];
+
+/** How long a notice about already-added photos stays before it goes by itself. */
+const DUPLICATE_NOTICE_MS = 10_000;
+/** How long a status line replaces the hint in the pill over the preview. */
+const STATUS_MS = 6000;
+const THUMB_SIZE = 160;
+
 export function startApp(): void {
   const ui = {
+    app: el<HTMLElement>("app"),
+    backdrop: el<HTMLElement>("backdrop"),
+    tabs: el<HTMLElement>("tabs"),
+    util: el<HTMLElement>("util"),
+    sheet: el<HTMLElement>("sheet"),
+    sheetTitle: el<HTMLElement>("sheet-title"),
+    sheetClose: el<HTMLButtonElement>("sheet-close"),
+    saveClose: el<HTMLButtonElement>("save-close"),
+    menuOpen: el<HTMLButtonElement>("menu-open"),
     add: el<HTMLButtonElement>("add"),
+    addEmpty: el<HTMLButtonElement>("add-empty"),
     fileInput: el<HTMLInputElement>("file-input"),
     regenerate: el<HTMLButtonElement>("regenerate"),
+    shuffle: el<HTMLButtonElement>("shuffle"),
     seed: el<HTMLInputElement>("seed"),
     columns: el<HTMLInputElement>("columns"),
+    columnsLess: el<HTMLButtonElement>("columns-less"),
+    columnsMore: el<HTMLButtonElement>("columns-more"),
+    columnsAuto: el<HTMLButtonElement>("columns-auto"),
+    columnsBlock: el<HTMLElement>("columns-block"),
     columnsNote: el<HTMLElement>("columns-note"),
+    galleryNote: el<HTMLElement>("gallery-note"),
+    layoutMosaic: el<HTMLButtonElement>("layout-mosaic"),
+    layoutGallery: el<HTMLButtonElement>("layout-gallery"),
     cropNote: el<HTMLElement>("crop-note"),
     outerBorder: el<HTMLInputElement>("outer-border"),
-    spanGroup: el<HTMLElement>("span-group"),
+    dock: el<HTMLElement>("selected-dock"),
+    dockName: el<HTMLElement>("dock-name"),
+    dockDone: el<HTMLButtonElement>("dock-done"),
     spanWider: el<HTMLButtonElement>("span-wider"),
     spanTaller: el<HTMLButtonElement>("span-taller"),
     spanReset: el<HTMLButtonElement>("span-reset"),
     preset: el<HTMLSelectElement>("preset"),
+    sizeChoices: el<HTMLElement>("size-choices"),
+    orientLandscape: el<HTMLButtonElement>("orient-landscape"),
+    orientPortrait: el<HTMLButtonElement>("orient-portrait"),
     width: el<HTMLInputElement>("width"),
     height: el<HTMLInputElement>("height"),
     borderWidth: el<HTMLInputElement>("border-width"),
+    borderOutput: el<HTMLOutputElement>("border-output"),
     borderColor: el<HTMLInputElement>("border-color"),
+    swatches: el<HTMLElement>("swatches"),
     cornerStyle: el<HTMLSelectElement>("corner-style"),
+    cornerCards: el<HTMLElement>("corner-cards"),
     format: el<HTMLSelectElement>("format"),
+    formatPng: el<HTMLButtonElement>("format-png"),
+    formatJpeg: el<HTMLButtonElement>("format-jpeg"),
     qualityField: el<HTMLElement>("quality-field"),
     quality: el<HTMLInputElement>("quality"),
+    qualityOutput: el<HTMLOutputElement>("quality-output"),
+    saveSummary: el<HTMLElement>("save-summary"),
     save: el<HTMLButtonElement>("save"),
     emptyHint: el<HTMLElement>("empty-hint"),
+    photoCount: el<HTMLElement>("photo-count"),
     photoList: el<HTMLUListElement>("photo-list"),
+    notices: el<HTMLElement>("notices"),
+    noticesSummary: el<HTMLElement>("notices-summary"),
+    noticesList: el<HTMLUListElement>("notices-list"),
+    noticesDetails: el<HTMLButtonElement>("notices-details"),
+    noticesDismiss: el<HTMLButtonElement>("notices-dismiss"),
     messages: el<HTMLElement>("messages"),
+    hint: el<HTMLElement>("hint"),
+    statusLine: el<HTMLElement>("status-line"),
     box: el<HTMLElement>("canvas-box"),
     canvas: el<HTMLCanvasElement>("preview"),
+    empty: el<HTMLElement>("empty-state"),
     sizeNote: el<HTMLElement>("size-note"),
+    modePan: el<HTMLButtonElement>("mode-pan"),
+    modeSwap: el<HTMLButtonElement>("mode-swap"),
+    zoomIn: el<HTMLButtonElement>("zoom-in"),
+    zoomOut: el<HTMLButtonElement>("zoom-out"),
     viewZoom: el<HTMLElement>("view-zoom"),
     resetView: el<HTMLButtonElement>("reset-view"),
     removeSelected: el<HTMLButtonElement>("remove-selected"),
@@ -119,12 +217,17 @@ export function startApp(): void {
     language: el<HTMLSelectElement>("language"),
   };
 
+  const narrowQuery = window.matchMedia("(max-width: 760px)");
+  const backdropCells = createBackdrop(ui.backdrop);
+  const isNarrow = () => narrowQuery.matches;
+
   const state = {
     photos: [] as ImportedPhoto[],
     seed: randomSeed(),
-    /** Chosen number of columns; undefined lets the original heuristic decide. */
+    /** Chosen number of columns (Mosaic only); undefined lets the original heuristic decide. */
     columns: undefined as number | undefined,
-    page: null as Page | null,
+    layoutStyle: "mosaic" as LayoutStyle,
+    page: null as LayoutPage | null,
     settings: {
       width: 1600,
       height: 1200,
@@ -135,7 +238,13 @@ export function startApp(): void {
       format: "png",
       jpegQuality: 0.92,
     } as PosterSettings,
+    /** True once the user typed a size or picked Custom, until a named size is chosen again. */
+    customSize: false,
+    /** The orientation last chosen; a square keeps it so the buttons do not jump. */
+    portrait: false,
     limits: FALLBACK_LIMITS as CanvasLimits,
+    tab: "photos" as Tab,
+    mode: "pan" as Mode,
     selected: null as number | null,
     focused: 0,
     /** Zoom and pan of the preview; FIT_VIEW shows the whole poster. */
@@ -153,6 +262,17 @@ export function startApp(): void {
   // ---------------------------------------------------------------- messages
 
   let statusEl: HTMLElement | null = null;
+  let statusTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /** What the pill over the preview says when no status is being shown. */
+  function modeHint(): string {
+    if (state.photos.length === 0) {
+      return t("Add photos to start. Then drag to pan or choose Swap.");
+    }
+    return state.mode === "pan"
+      ? t("Drag to pan, scroll to zoom. Choose Swap to exchange photos.")
+      : t("Click a photo, then another, to swap them. Hold Space to pan.");
+  }
 
   function addMessage(m: ImportMessage): void {
     const div = document.createElement("div");
@@ -162,6 +282,7 @@ export function startApp(): void {
     while (ui.messages.children.length > 8) ui.messages.firstElementChild?.remove();
   }
 
+  /** Show a status line (for screen readers, and in the pill over the preview for a while). */
   function setStatus(text: string): void {
     if (!statusEl?.isConnected) {
       statusEl = document.createElement("div");
@@ -169,11 +290,65 @@ export function startApp(): void {
       ui.messages.prepend(statusEl);
     }
     statusEl.textContent = text;
+    clearTimeout(statusTimer);
+    ui.hint.textContent = text || modeHint();
+    if (text) {
+      statusTimer = setTimeout(() => {
+        ui.hint.textContent = modeHint();
+      }, STATUS_MS);
+    }
   }
 
   function clearMessages(): void {
     ui.messages.replaceChildren();
     statusEl = null;
+  }
+
+  // ----------------------------------------------------------------- notices
+
+  let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function hideNotices(): void {
+    clearTimeout(noticeTimer);
+    ui.notices.hidden = true;
+    ui.noticesList.hidden = true;
+    ui.noticesDetails.setAttribute("aria-expanded", "false");
+  }
+
+  /** Summarise what was not added: counts by reason, with the file names under Details. */
+  function showNotices(skipped: readonly SkippedFile[]): void {
+    hideNotices();
+    if (skipped.length === 0) return;
+    const count = (reason: SkippedFile["reason"]) =>
+      skipped.filter((s) => s.reason === reason).length;
+    const duplicates = count("duplicate");
+    const notImages = count("not-image");
+    const unreadable = count("unreadable");
+    const parts: string[] = [];
+    if (duplicates) parts.push(t("%(n)s already added", { n: duplicates }));
+    if (notImages) parts.push(t("%(n)s not an image", { n: notImages }));
+    if (unreadable) parts.push(t("%(n)s could not be opened", { n: unreadable }));
+    ui.noticesSummary.textContent = t("%(n)s skipped: %(what)s", {
+      n: skipped.length,
+      what: parts.join(", "),
+    });
+    ui.noticesList.replaceChildren(
+      ...skipped.map((s) => {
+        const li = document.createElement("li");
+        const why =
+          s.reason === "duplicate"
+            ? t("already added")
+            : s.reason === "not-image"
+              ? t("not an image")
+              : t("could not be opened");
+        li.textContent = `${s.name}: ${why}`;
+        return li;
+      }),
+    );
+    const onlyDuplicates = duplicates === skipped.length;
+    ui.notices.dataset.kind = onlyDuplicates ? "info" : "error";
+    ui.notices.hidden = false;
+    if (onlyDuplicates) noticeTimer = setTimeout(hideNotices, DUPLICATE_NOTICE_MS);
   }
 
   // -------------------------------------------------------------------- i18n
@@ -184,7 +359,12 @@ export function startApp(): void {
       const key = node.dataset.i18n;
       if (key) node.textContent = t(key);
     }
+    renderSizeChoices();
+    renderCornerCards();
     renderPhotoList();
+    setTab(state.tab, false);
+    ui.hint.textContent = modeHint();
+    syncSizeFields();
     updateNotes(currentLayout());
   }
 
@@ -215,6 +395,91 @@ export function startApp(): void {
     applyTranslations();
   }
 
+  // -------------------------------------------------------------------- tabs
+
+  const panelOf: Record<Exclude<Tab, "save">, HTMLElement> = {
+    photos: el("panel-photos"),
+    poster: el("panel-poster"),
+    style: el("panel-style"),
+  };
+  const tabButtons: Record<Tab, HTMLButtonElement> = {
+    photos: el("tab-photos"),
+    poster: el("tab-poster"),
+    style: el("tab-style"),
+    save: el("tab-save"),
+  };
+
+  function closeMenu(): void {
+    ui.app.dataset.menu = "closed";
+    ui.menuOpen.setAttribute("aria-expanded", "false");
+  }
+
+  /**
+   * Show a step. On wide screens exactly one step is always shown. On narrow screens a step
+   * is a sheet over the collage: choosing the open one again (or Close) puts it away.
+   * `toggle` is true when the person pressed a tab or Close.
+   */
+  function setTab(requested: Tab, toggle: boolean): void {
+    const narrow = isNarrow();
+    const tab: Tab = !narrow && requested === "save" ? "photos" : requested;
+    const wasOpen = ui.app.dataset.open === "true";
+    const previousTab = state.tab;
+    const closing = narrow && toggle && wasOpen && state.tab === tab;
+    const open = narrow && !closing && (toggle || wasOpen);
+    state.tab = tab;
+    ui.app.dataset.tab = tab;
+    ui.app.dataset.open = String(open);
+    for (const name of Object.keys(tabButtons) as Tab[]) {
+      const selected = name === tab && (!narrow || open);
+      tabButtons[name].setAttribute("aria-selected", String(selected));
+      tabButtons[name].tabIndex = name === tab ? 0 : -1;
+    }
+    for (const name of Object.keys(panelOf) as (keyof typeof panelOf)[]) {
+      panelOf[name].hidden = name !== tab;
+    }
+    ui.sheetTitle.textContent = t(TAB_TITLES[tab]);
+    if (tab !== previousTab) ui.sheet.scrollTop = 0;
+    if (open) closeMenu();
+  }
+
+  function initTabs(): void {
+    for (const name of Object.keys(tabButtons) as Tab[]) {
+      tabButtons[name].addEventListener("click", () => setTab(name, true));
+    }
+    ui.tabs.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      const shown = (Object.keys(tabButtons) as Tab[]).filter(
+        (name) => tabButtons[name].offsetParent !== null,
+      );
+      const at = shown.indexOf(state.tab);
+      const step = e.key === "ArrowRight" ? 1 : -1;
+      const next = shown[(at + step + shown.length) % shown.length];
+      if (!next) return;
+      e.preventDefault();
+      setTab(next, false);
+      tabButtons[next].focus();
+    });
+    ui.sheetClose.addEventListener("click", () => setTab(state.tab, true));
+    ui.saveClose.addEventListener("click", () => setTab("save", true));
+    ui.menuOpen.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const open = ui.app.dataset.menu !== "open";
+      ui.app.dataset.menu = open ? "open" : "closed";
+      ui.menuOpen.setAttribute("aria-expanded", String(open));
+    });
+    document.addEventListener("click", (e) => {
+      if (ui.app.dataset.menu !== "open") return;
+      if (e.target instanceof Node && ui.util.contains(e.target)) return;
+      closeMenu();
+    });
+    narrowQuery.addEventListener("change", () => {
+      setTab(state.tab, false);
+      draw();
+    });
+    closeMenu();
+    setTab("photos", false);
+  }
+
   // ------------------------------------------------------------------ layout
 
   function ratio(): number {
@@ -236,31 +501,48 @@ export function startApp(): void {
     if (state.photos.length === 0) {
       state.page = null;
     } else if (mode === "search") {
-      const best = generateBest(state.photos, ratio(), randomSeed(), { columns: state.columns });
+      const best = generateBestPage(state.layoutStyle, state.photos, ratio(), randomSeed(), {
+        columns: state.columns,
+      });
       state.page = best.page;
       state.seed = best.seed;
     } else {
-      state.page = generateLayout(state.photos, ratio(), seededRng(state.seed), {
+      state.page = generatePage(state.layoutStyle, state.photos, ratio(), seededRng(state.seed), {
         columns: state.columns,
       });
     }
     ui.seed.value = String(state.seed);
     ui.save.disabled = state.photos.length === 0;
     ui.emptyHint.hidden = state.photos.length > 0;
+    ui.hint.textContent = modeHint();
+    updateBackdrop(
+      backdropCells,
+      state.photos.map((p) => p.colour),
+    );
     draw();
   }
 
-  /** The notes under the layout controls: how many columns are in use and how much is cropped. */
+  /** The notes about the layout: how many columns are in use and how much is trimmed. */
   function updateNotes(layout: Layout | null): void {
     ui.columns.placeholder = t("Auto");
-    ui.columnsNote.textContent = state.page
-      ? t("Columns in use: %(n)s", { n: state.page.noCols })
-      : "";
-    ui.cropNote.textContent = layout
-      ? t("Cropped on average: %(pct)s%", {
-          pct: Math.round(scoreLayout(layout, state.photos).cutOff * 100),
-        })
-      : "";
+    const gallery = state.layoutStyle === "gallery";
+    ui.columnsBlock.hidden = gallery;
+    ui.galleryNote.hidden = !gallery;
+    ui.layoutMosaic.setAttribute("aria-pressed", String(!gallery));
+    ui.layoutGallery.setAttribute("aria-pressed", String(gallery));
+    const columns = state.page?.noCols;
+    ui.columnsNote.textContent =
+      columns !== undefined ? t("Columns in use: %(n)s", { n: columns }) : "";
+    const pct = layout ? Math.round(scoreLayout(layout, state.photos).cutOff * 100) : 0;
+    ui.cropNote.textContent = layout ? t("%(pct)s% of each photo is trimmed to fit.", { pct }) : "";
+    const n = state.photos.length;
+    ui.statusLine.textContent = layout
+      ? [
+          n === 1 ? t("1 photo") : t("%(n)s photos", { n }),
+          gallery ? t("Gallery") : t("%(n)s columns", { n: columns ?? 0 }),
+          t("%(pct)s% trimmed", { pct }),
+        ].join(" · ")
+      : t("No photos yet");
   }
 
   function currentLayout(): Layout | null {
@@ -284,13 +566,18 @@ export function startApp(): void {
     return { w: ui.box.clientWidth, h: ui.box.clientHeight };
   }
 
-  /** The poster's size on screen when the view is "fit", in CSS pixels. */
+  /**
+   * The poster's size on screen when the view is "fit", in CSS pixels. Room is left for the
+   * tools on the right and the pill on the top (wide screens), or for the bars (phones).
+   */
   function fitPoster(viewport: Size): Size {
+    const padX = isNarrow() ? 12 : 88;
+    const padY = isNarrow() ? 104 : 72;
     const fit = fitSize(
       state.settings.width,
       state.settings.height,
-      Math.max(160, viewport.w - 24),
-      Math.max(160, viewport.h - 24),
+      Math.max(160, viewport.w - 2 * padX),
+      Math.max(160, viewport.h - 2 * padY),
     );
     return { w: fit.width, h: fit.height };
   }
@@ -312,12 +599,15 @@ export function startApp(): void {
 
   /** Controls that depend on the view and on what is selected. */
   function updateControls(): void {
+    const none = state.photos.length === 0;
     const fit = isFit(state.view);
-    ui.resetView.hidden = fit;
+    ui.resetView.disabled = fit || none;
     ui.viewZoom.textContent = fit ? "" : t("Zoom: %(pct)s%", { pct: zoomPercent(state.view) });
-    ui.removeSelected.hidden = state.selected === null;
+    const n = state.photos.length;
+    ui.photoCount.textContent = n === 1 ? t("1 photo") : t("%(n)s photos", { n });
     const selected = state.selected === null ? undefined : state.photos[state.selected];
-    ui.spanGroup.hidden = selected === undefined;
+    ui.dock.hidden = selected === undefined;
+    ui.dockName.textContent = selected?.name ?? "";
     const span = selected?.span ?? NO_SPAN;
     ui.spanWider.setAttribute("aria-pressed", String(span.columns === 2));
     // Only touch the label when it changes: redrawing on the canvas losing focus runs this in
@@ -326,8 +616,19 @@ export function startApp(): void {
     const taller = span.rows > 1 ? `${t("Taller")} ×${span.rows}` : t("Taller");
     if (ui.spanTaller.textContent !== taller) ui.spanTaller.textContent = taller;
     ui.spanReset.disabled = span.columns === 1 && span.rows === 1;
-    ui.removeAll.disabled = state.photos.length === 0;
+    ui.removeAll.disabled = none;
     ui.undoRemove.disabled = state.removed === null;
+    ui.photoList.querySelectorAll("button.tile").forEach((tile, i) => {
+      tile.setAttribute("aria-pressed", String(i === state.selected));
+    });
+    ui.modePan.setAttribute("aria-pressed", String(state.mode === "pan"));
+    ui.modeSwap.setAttribute("aria-pressed", String(state.mode === "swap"));
+    ui.box.classList.toggle("pan-mode", state.mode === "pan");
+    for (const button of [ui.modePan, ui.modeSwap, ui.zoomIn, ui.zoomOut, ui.shuffle]) {
+      button.disabled = none;
+    }
+    ui.app.dataset.empty = String(none);
+    ui.empty.hidden = !none;
   }
 
   function draw(): void {
@@ -349,6 +650,17 @@ export function startApp(): void {
     lastOrigin = { x: ox, y: oy };
     // Where the poster is, in CSS pixels from the canvas's top-left (used by tests and tooling).
     ui.canvas.dataset.poster = [ox, oy, pw, ph].map((n) => (n / dpr).toFixed(1)).join(",");
+    // The empty drop target has the poster's shape and size.
+    ui.empty.style.setProperty("--empty-w", `${fit.w}px`);
+    ui.empty.style.setProperty("--empty-h", `${fit.h}px`);
+
+    const layout = currentLayout();
+    updateNotes(layout);
+    if (!layout) {
+      lastRects = [];
+      updateControls();
+      return;
+    }
 
     ctx.save();
     ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
@@ -360,30 +672,19 @@ export function startApp(): void {
 
     ctx.save();
     ctx.translate(ox, oy);
-    const layout = currentLayout();
-    updateNotes(layout);
-    if (!layout) {
-      ctx.fillStyle = "#777777";
-      ctx.font = `${Math.round(ph / 20)}px system-ui, sans-serif`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(t("Add images..."), pw / 2, ph / 2, pw * 0.9);
-      lastRects = [];
-    } else {
-      const thumbs = state.photos.map((p) => p.thumb);
-      lastRects = drawCollage(ctx, pw, ph, { layout, thumbs, settings: state.settings });
+    const thumbs = state.photos.map((p) => p.thumb);
+    lastRects = drawCollage(ctx, pw, ph, { layout, thumbs, settings: state.settings });
 
-      const order = readingOrder(layout);
-      const focusCell = order[state.focused];
-      if (document.activeElement === ui.canvas && focusCell !== undefined) {
-        const rect = lastRects[focusCell];
-        if (rect) drawSelection(ctx, rect, "#ff9d00");
-      }
-      if (state.selected !== null) {
-        const i = layout.placements.findIndex((p) => p.photoIndex === state.selected);
-        const rect = lastRects[i];
-        if (rect) drawSelection(ctx, rect, "#1f5fbf");
-      }
+    const order = readingOrder(layout);
+    const focusCell = order[state.focused];
+    if (document.activeElement === ui.canvas && focusCell !== undefined) {
+      const rect = lastRects[focusCell];
+      if (rect) drawSelection(ctx, rect, "#ff9d00");
+    }
+    if (state.selected !== null) {
+      const i = layout.placements.findIndex((p) => p.photoIndex === state.selected);
+      const rect = lastRects[i];
+      if (rect) drawSelection(ctx, rect, "#1f5fbf");
     }
     ctx.restore();
     updateControls();
@@ -393,54 +694,78 @@ export function startApp(): void {
 
   function renderPhotoList(): void {
     ui.photoList.replaceChildren();
-    for (const photo of state.photos) {
+    state.photos.forEach((photo, index) => {
       const li = document.createElement("li");
+      const tile = document.createElement("button");
+      tile.type = "button";
+      tile.className = "tile";
+      tile.setAttribute("aria-pressed", String(index === state.selected));
+      const wanted = describeSpan(photo.span);
+      tile.setAttribute("aria-label", wanted ? `${photo.name}, ${wanted}` : photo.name);
       const thumb = document.createElement("canvas");
-      thumb.width = 80;
-      thumb.height = 80;
+      thumb.width = THUMB_SIZE;
+      thumb.height = THUMB_SIZE;
       thumb.setAttribute("aria-hidden", "true");
       const tctx = thumb.getContext("2d");
       if (tctx) {
         drawPhotoCover(tctx, photo.thumb, photo.thumb.width, photo.thumb.height, {
           x: 0,
           y: 0,
-          w: 80,
-          h: 80,
+          w: THUMB_SIZE,
+          h: THUMB_SIZE,
         });
       }
-      const info = document.createElement("div");
-      info.className = "info";
-      const name = document.createElement("span");
-      name.className = "name";
-      name.textContent = photo.name;
-      name.title = photo.name;
-      info.append(name);
-      const wanted = describeSpan(photo.span);
+      tile.append(thumb);
       if (wanted) {
         const tag = document.createElement("span");
         tag.className = "tag";
         tag.textContent = wanted;
-        info.append(tag);
+        tile.append(tag);
       }
-      const remove = document.createElement("button");
-      remove.type = "button";
-      remove.textContent = t("Remove");
-      remove.setAttribute("aria-label", `${t("Remove")}: ${photo.name}`);
-      remove.addEventListener("click", () => {
-        removePhotos(new Set([photo.id]), t("Removed %(name)s.", { name: photo.name }));
-      });
-      li.append(thumb, info, remove);
+      const name = document.createElement("span");
+      name.className = "name";
+      name.textContent = photo.name;
+      name.title = photo.name;
+      tile.append(name);
+      tile.addEventListener("click", () => selectPhoto(index));
+      li.append(tile);
       ui.photoList.append(li);
+    });
+  }
+
+  /** Select a photo (or unselect it when it already is) from the list or the preview. */
+  function selectPhoto(photoIndex: number): void {
+    const photo = state.photos[photoIndex];
+    if (!photo) return;
+    if (state.selected === photoIndex) {
+      state.selected = null;
+      setStatus("");
+    } else {
+      state.selected = photoIndex;
+      setStatus(t("Selected %(name)s.", { name: photo.name }));
     }
+    draw();
   }
 
   async function addFiles(files: File[]): Promise<void> {
     if (files.length === 0) return;
     clearMessages();
+    hideNotices();
     setStatus(t("Please wait"));
-    const added = await importFiles(files, state.photos, state.importPool, addMessage);
+    const skipped: SkippedFile[] = [];
+    const added = await importFiles(
+      files,
+      state.photos,
+      state.importPool,
+      addMessage,
+      undefined,
+      (s) => skipped.push(s),
+    );
     if (statusEl) statusEl.remove();
     statusEl = null;
+    clearTimeout(statusTimer);
+    ui.hint.textContent = modeHint();
+    showNotices(skipped);
     if (added.length > 0) {
       state.photos = [...state.photos, ...added];
       relayout("search");
@@ -520,32 +845,97 @@ export function startApp(): void {
   }
 
   function initSpan(): void {
-    const selectedIndex = () => state.selected;
     ui.spanWider.addEventListener("click", () => {
-      const index = selectedIndex();
+      const index = state.selected;
       if (index === null) return;
       const wide = state.photos[index]?.span?.columns === 2;
       setSpan(index, { columns: wide ? 1 : 2 });
     });
     ui.spanTaller.addEventListener("click", () => {
-      const index = selectedIndex();
+      const index = state.selected;
       if (index === null) return;
       const rows = state.photos[index]?.span?.rows ?? 1;
       setSpan(index, { rows: rows === 1 ? 2 : rows === 2 ? 3 : 1 });
     });
     ui.spanReset.addEventListener("click", () => {
-      const index = selectedIndex();
+      const index = state.selected;
       if (index !== null) setSpan(index, "reset");
+    });
+    ui.dockDone.addEventListener("click", () => {
+      state.selected = null;
+      setStatus("");
+      draw();
     });
   }
 
   // ---------------------------------------------------------------- settings
 
+  function renderSizeChoices(): void {
+    ui.sizeChoices.replaceChildren();
+    let group: SizeGroup | null = null;
+    for (const choice of SIZE_CHOICES) {
+      if (choice.group !== group) {
+        group = choice.group;
+        const label = document.createElement("p");
+        label.className = "group-label";
+        label.textContent = t(GROUP_TITLES[group]);
+        ui.sizeChoices.append(label);
+      }
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "chip";
+      button.dataset.choice = choice.id;
+      const name = document.createElement("span");
+      name.textContent = t(choice.label);
+      button.append(name, document.createElement("small"));
+      button.addEventListener("click", () => {
+        state.customSize = false;
+        const size = sizeOf(choice, state.portrait ? "portrait" : "landscape");
+        applySize(size.width, size.height);
+      });
+      ui.sizeChoices.append(button);
+    }
+    const custom = document.createElement("button");
+    custom.type = "button";
+    custom.className = "chip wide-chip";
+    custom.dataset.choice = "custom";
+    const name = document.createElement("span");
+    name.textContent = t("Custom");
+    const small = document.createElement("small");
+    small.textContent = t("Set your own width and height");
+    custom.append(name, small);
+    custom.addEventListener("click", () => {
+      state.customSize = true;
+      syncSizeFields();
+      ui.width.focus();
+    });
+    ui.sizeChoices.append(custom);
+  }
+
   function syncSizeFields(): void {
-    ui.width.value = String(state.settings.width);
-    ui.height.value = String(state.settings.height);
-    const index = findPreset(state.settings.width, state.settings.height);
+    const { width, height } = state.settings;
+    ui.width.value = String(width);
+    ui.height.value = String(height);
+    const index = findPreset(width, height);
     ui.preset.value = index >= 0 ? String(index) : "custom";
+    const orientation = orientationOf(width, height);
+    if (orientation !== "square") state.portrait = orientation === "portrait";
+    ui.orientLandscape.setAttribute("aria-pressed", String(orientation === "landscape"));
+    ui.orientPortrait.setAttribute("aria-pressed", String(orientation === "portrait"));
+    const match = findChoice(width, height);
+    const active = state.customSize || !match ? "custom" : match.choice.id;
+    const shape: Orientation = state.portrait ? "portrait" : "landscape";
+    ui.sizeChoices.querySelectorAll<HTMLButtonElement>("button.chip").forEach((button) => {
+      const id = button.dataset.choice;
+      button.setAttribute("aria-pressed", String(id === active));
+      const choice = SIZE_CHOICES.find((c) => c.id === id);
+      const small = button.querySelector("small");
+      if (choice && small) {
+        const size = sizeOf(choice, shape);
+        small.textContent = `${size.width} × ${size.height}${choice.note ? ` · ${choice.note}` : ""}`;
+      }
+    });
+    syncSaveSummary();
   }
 
   function applySize(width: number, height: number): void {
@@ -593,6 +983,66 @@ export function startApp(): void {
     applySize(Number(ui.width.value), Number(ui.height.value));
   }
 
+  function syncSaveSummary(): void {
+    const format = state.settings.format === "jpeg" ? "JPEG" : "PNG";
+    ui.saveSummary.textContent = `${format}, ${state.settings.width} × ${state.settings.height} px`;
+  }
+
+  /** Set the filled part of a slider's track from its value. */
+  function paintRange(input: HTMLInputElement): void {
+    const min = Number(input.min || 0);
+    const max = Number(input.max || 100);
+    const pct = max > min ? ((Number(input.value) - min) / (max - min)) * 100 : 0;
+    input.style.setProperty("--p", `${Math.min(100, Math.max(0, pct))}%`);
+  }
+
+  function setFormat(format: "png" | "jpeg"): void {
+    state.settings.format = format;
+    ui.format.value = format;
+    ui.qualityField.hidden = format !== "jpeg";
+    ui.formatPng.setAttribute("aria-pressed", String(format === "png"));
+    ui.formatJpeg.setAttribute("aria-pressed", String(format === "jpeg"));
+    syncSaveSummary();
+  }
+
+  function syncColourControls(): void {
+    const colour = state.settings.borderColor.toLowerCase();
+    ui.swatches.querySelectorAll<HTMLButtonElement>("button").forEach((button) => {
+      button.setAttribute("aria-pressed", String(button.dataset.color === colour));
+    });
+  }
+
+  function syncCornerCards(): void {
+    ui.cornerCards.querySelectorAll<HTMLButtonElement>("button").forEach((card) => {
+      card.setAttribute("aria-pressed", String(card.dataset.corner === state.settings.cornerStyle));
+    });
+  }
+
+  function setCorner(value: string): void {
+    state.settings.cornerStyle = value === "slight" || value === "rounded" ? value : "none";
+    ui.cornerStyle.value = state.settings.cornerStyle;
+    syncCornerCards();
+    draw();
+  }
+
+  function renderCornerCards(): void {
+    ui.cornerCards.replaceChildren();
+    for (const { value, label } of CORNER_LABELS) {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "card";
+      card.dataset.corner = value;
+      const shape = document.createElement("span");
+      shape.className = `shape ${value}`;
+      const text = document.createElement("span");
+      text.textContent = t(label);
+      card.append(shape, text);
+      card.addEventListener("click", () => setCorner(value));
+      ui.cornerCards.append(card);
+    }
+    syncCornerCards();
+  }
+
   function initSettings(): void {
     PRESETS.forEach((p, i) => {
       const option = document.createElement("option");
@@ -606,40 +1056,73 @@ export function startApp(): void {
     ui.preset.append(custom);
     syncSizeFields();
     ui.borderWidth.value = String(state.settings.borderWidth * 100);
+    ui.borderOutput.textContent = `${ui.borderWidth.value}%`;
+    paintRange(ui.borderWidth);
     ui.borderColor.value = state.settings.borderColor;
+    for (const { name, color } of SWATCHES) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.color = color;
+      button.setAttribute("aria-label", name);
+      button.style.background = color;
+      button.addEventListener("click", () => {
+        ui.borderColor.value = color;
+        state.settings.borderColor = color;
+        syncColourControls();
+        draw();
+      });
+      ui.swatches.append(button);
+    }
+    syncColourControls();
+    paintRange(ui.quality);
+    ui.qualityOutput.textContent = `${ui.quality.value}%`;
 
     ui.preset.addEventListener("change", () => {
       const p = PRESETS[Number(ui.preset.value)];
+      state.customSize = false;
       if (p) applySize(p.width, p.height);
     });
     for (const field of [ui.width, ui.height]) {
-      field.addEventListener("input", commitSize);
+      field.addEventListener("input", () => {
+        state.customSize = true;
+        commitSize();
+      });
       field.addEventListener("change", commitSize);
     }
+    const turn = (portrait: boolean) => {
+      state.portrait = portrait;
+      const { width, height } = state.settings;
+      if ((portrait && height < width) || (!portrait && width < height)) applySize(height, width);
+      else syncSizeFields();
+    };
+    ui.orientLandscape.addEventListener("click", () => turn(false));
+    ui.orientPortrait.addEventListener("click", () => turn(true));
     ui.borderWidth.addEventListener("input", () => {
       const pct = Number(ui.borderWidth.value);
       state.settings.borderWidth = Number.isFinite(pct) ? Math.min(20, Math.max(0, pct)) / 100 : 0;
+      ui.borderOutput.textContent = `${Number.isFinite(pct) ? pct : 0}%`;
+      paintRange(ui.borderWidth);
       draw();
     });
     ui.outerBorder.addEventListener("change", () => {
       state.settings.outerBorder = ui.outerBorder.checked;
       draw();
     });
-    ui.cornerStyle.addEventListener("change", () => {
-      const value = ui.cornerStyle.value;
-      state.settings.cornerStyle = value === "slight" || value === "rounded" ? value : "none";
-      draw();
-    });
+    ui.cornerStyle.addEventListener("change", () => setCorner(ui.cornerStyle.value));
     ui.borderColor.addEventListener("input", () => {
       state.settings.borderColor = ui.borderColor.value;
+      syncColourControls();
       draw();
     });
     ui.format.addEventListener("change", () => {
-      state.settings.format = ui.format.value === "jpeg" ? "jpeg" : "png";
-      ui.qualityField.hidden = state.settings.format !== "jpeg";
+      setFormat(ui.format.value === "jpeg" ? "jpeg" : "png");
     });
+    ui.formatPng.addEventListener("click", () => setFormat("png"));
+    ui.formatJpeg.addEventListener("click", () => setFormat("jpeg"));
     ui.quality.addEventListener("input", () => {
       state.settings.jpegQuality = Number(ui.quality.value) / 100;
+      ui.qualityOutput.textContent = `${ui.quality.value}%`;
+      paintRange(ui.quality);
     });
     ui.seed.addEventListener("change", () => {
       const seed = Math.floor(Number(ui.seed.value));
@@ -652,20 +1135,38 @@ export function startApp(): void {
     });
     ui.columns.max = String(MAX_COLUMNS);
     // Empty means automatic. Apply while typing; tidy the field once the edit is done.
-    const applyColumns = (tidy: boolean) => {
-      const raw = ui.columns.value.trim();
-      const columns = raw === "" ? undefined : normaliseColumns(Number(raw));
+    const setColumns = (columns: number | undefined, tidy: boolean) => {
       if (tidy) ui.columns.value = columns === undefined ? "" : String(columns);
       if (columns === state.columns) return;
       state.columns = columns;
       relayout();
     };
+    const applyColumns = (tidy: boolean) => {
+      const raw = ui.columns.value.trim();
+      setColumns(raw === "" ? undefined : normaliseColumns(Number(raw)), tidy);
+    };
     ui.columns.addEventListener("input", () => applyColumns(false));
     ui.columns.addEventListener("change", () => applyColumns(true));
-    ui.regenerate.addEventListener("click", () => {
+    const stepColumns = (by: number) => {
+      const current = state.columns ?? state.page?.noCols ?? 1;
+      setColumns(normaliseColumns(current + by), true);
+    };
+    ui.columnsLess.addEventListener("click", () => stepColumns(-1));
+    ui.columnsMore.addEventListener("click", () => stepColumns(1));
+    ui.columnsAuto.addEventListener("click", () => setColumns(undefined, true));
+    const shuffleLayout = () => {
       state.seed = randomSeed();
       relayout();
-    });
+    };
+    ui.regenerate.addEventListener("click", shuffleLayout);
+    ui.shuffle.addEventListener("click", shuffleLayout);
+    const chooseStyle = (style: LayoutStyle) => {
+      if (state.layoutStyle === style) return;
+      state.layoutStyle = style;
+      relayout("search");
+    };
+    ui.layoutMosaic.addEventListener("click", () => chooseStyle("mosaic"));
+    ui.layoutGallery.addEventListener("click", () => chooseStyle("gallery"));
   }
 
   // -------------------------------------------------------------------- swap
@@ -716,10 +1217,25 @@ export function startApp(): void {
     );
   }
 
+  function setMode(mode: Mode): void {
+    state.mode = mode;
+    clearTimeout(statusTimer);
+    ui.hint.textContent = modeHint();
+    updateControls();
+  }
+
+  function zoomAtCentre(factor: number): void {
+    const viewport = viewportSize();
+    const centre = { x: viewport.w / 2, y: viewport.h / 2 };
+    setView(zoomAt(state.view, factor, centre, viewport, fitPoster(viewport)));
+  }
+
   function initPreview(): void {
     let dragFrom = -1;
     let panning: { x: number; y: number } | null = null;
+    let panMoved = false;
     let pointerOver = false;
+    let downAt = { x: 0, y: 0 };
 
     const endPan = () => {
       panning = null;
@@ -730,17 +1246,14 @@ export function startApp(): void {
       ui.box.classList.toggle("pan-ready", held);
       if (!held) endPan();
     };
-    const zoomAtCentre = (factor: number) => {
-      const viewport = viewportSize();
-      const centre = { x: viewport.w / 2, y: viewport.h / 2 };
-      setView(zoomAt(state.view, factor, centre, viewport, fitPoster(viewport)));
-    };
 
     ui.canvas.addEventListener("pointerdown", (e) => {
       ui.canvas.focus();
-      if (state.spaceHeld) {
-        // Space held: drag the view instead of picking a photo.
+      // In Pan mode a drag moves the view; in Swap mode it does so only while Space is held.
+      if (state.spaceHeld || state.mode === "pan") {
         panning = { x: e.clientX, y: e.clientY };
+        downAt = { x: e.clientX, y: e.clientY };
+        panMoved = false;
         ui.canvas.setPointerCapture(e.pointerId);
         ui.box.classList.add("panning");
         e.preventDefault();
@@ -750,6 +1263,7 @@ export function startApp(): void {
     });
     ui.canvas.addEventListener("pointermove", (e) => {
       if (!panning) return;
+      if (Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 4) panMoved = true;
       const viewport = viewportSize();
       const dx = e.clientX - panning.x;
       const dy = e.clientY - panning.y;
@@ -758,7 +1272,14 @@ export function startApp(): void {
     });
     ui.canvas.addEventListener("pointerup", (e) => {
       if (panning) {
+        const click = !panMoved && !state.spaceHeld && state.mode === "pan";
         endPan();
+        // A press that did not move the view selects the photo under it.
+        if (click) {
+          const cell = cellAt(e.clientX, e.clientY);
+          const photoIndex = currentLayout()?.placements[cell]?.photoIndex;
+          if (photoIndex !== undefined) selectPhoto(photoIndex);
+        }
         return;
       }
       const to = cellAt(e.clientX, e.clientY);
@@ -794,17 +1315,28 @@ export function startApp(): void {
       pointerOver = false;
     });
     window.addEventListener("keydown", (e) => {
-      if (e.code !== "Space" || isFormControl(e.target)) return;
+      if (e.code !== "Space") return;
+      // A button that still has the focus (the Pan / Swap toggle just pressed) must not swallow
+      // Space while the pointer is over the preview.
+      const buttonUnderPointer = pointerOver && e.target instanceof HTMLButtonElement;
+      if (isFormControl(e.target) && !buttonUnderPointer) return;
       if (!pointerOver && document.activeElement !== ui.canvas) return;
       e.preventDefault();
       if (!e.repeat) setSpaceHeld(true);
     });
     window.addEventListener("keyup", (e) => {
-      if (e.code === "Space") setSpaceHeld(false);
+      if (e.code !== "Space") return;
+      // Stop a focused button from taking the release as a press.
+      if (state.spaceHeld) e.preventDefault();
+      setSpaceHeld(false);
     });
     window.addEventListener("blur", () => setSpaceHeld(false));
 
     ui.resetView.addEventListener("click", () => setView(FIT_VIEW));
+    ui.zoomIn.addEventListener("click", () => zoomAtCentre(1.25));
+    ui.zoomOut.addEventListener("click", () => zoomAtCentre(0.8));
+    ui.modePan.addEventListener("click", () => setMode("pan"));
+    ui.modeSwap.addEventListener("click", () => setMode("swap"));
 
     ui.canvas.addEventListener("keydown", (e) => {
       // View keys and undo work whether or not there are photos.
@@ -882,6 +1414,12 @@ export function startApp(): void {
       removePhotos(new Set(state.photos.map((p) => p.id)), t("Removed all %(n)s photos.", { n }));
     });
     ui.undoRemove.addEventListener("click", undoRemove);
+    ui.noticesDismiss.addEventListener("click", hideNotices);
+    ui.noticesDetails.addEventListener("click", () => {
+      const open = ui.noticesList.hidden;
+      ui.noticesList.hidden = !open;
+      ui.noticesDetails.setAttribute("aria-expanded", String(open));
+    });
   }
 
   // ------------------------------------------------------------------ export
@@ -941,7 +1479,9 @@ export function startApp(): void {
   // -------------------------------------------------------------------- wire
 
   function initInput(): void {
-    ui.add.addEventListener("click", () => ui.fileInput.click());
+    const chooseFiles = () => ui.fileInput.click();
+    ui.add.addEventListener("click", chooseFiles);
+    ui.addEmpty.addEventListener("click", chooseFiles);
     ui.fileInput.addEventListener("change", () => {
       const files = Array.from(ui.fileInput.files ?? []);
       ui.fileInput.value = "";
@@ -969,6 +1509,7 @@ export function startApp(): void {
     document.documentElement.dataset.workersReady = "true";
   });
 
+  initTabs();
   initLanguages();
   initSettings();
   initPreview();

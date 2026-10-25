@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 import { readFile } from "node:fs/promises";
-import { type Download, expect, type Page } from "@playwright/test";
+import { type Download, expect, type Locator, type Page } from "@playwright/test";
 
 export interface Fixture {
   name: string;
@@ -281,3 +281,96 @@ export const SIX = [
   { name: "magenta.png", w: 300, h: 700, color: "magenta" as const },
   { name: "cyan.png", w: 640, h: 480, color: "cyan" as const },
 ];
+
+/** Locator methods that act on an element and so need it to be visible. */
+const ACTIONS = new Set([
+  "check",
+  "click",
+  "dblclick",
+  "fill",
+  "focus",
+  "hover",
+  "press",
+  "selectOption",
+  "setInputFiles",
+  "uncheck",
+]);
+
+/** Show the step (tab) that holds a control, as a person would before using it. */
+async function reveal(page: Page, selector: string): Promise<void> {
+  const panel = await page
+    .locator(selector)
+    .first()
+    .evaluate(
+      (el) =>
+        el.closest('[role="tabpanel"]')?.id ?? (el.closest(".save-opts") ? "panel-style" : null),
+      undefined,
+      { timeout: 2000 },
+    )
+    .catch(() => null);
+  if (!panel) return;
+  const hidden = await page.locator(`#${panel}`).evaluate((el) => (el as HTMLElement).hidden);
+  if (hidden) await page.locator(`#tab-${panel.replace("panel-", "")}`).click();
+}
+
+type Wrapped<T> = T;
+
+function isLocator(value: unknown): value is Locator {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as Locator).fill === "function" &&
+    typeof (value as Locator).locator === "function"
+  );
+}
+
+function wrapLocator<T extends Locator>(page: Page, locator: T, selector: string): Wrapped<T> {
+  return new Proxy(locator, {
+    get(target, prop) {
+      const value = Reflect.get(target, prop, target);
+      if (typeof value !== "function") return value;
+      if (typeof prop === "string" && ACTIONS.has(prop)) {
+        return async (...args: unknown[]) => {
+          await reveal(page, selector);
+          return value.apply(target, args);
+        };
+      }
+      return (...args: unknown[]) => {
+        const out = value.apply(target, args);
+        return isLocator(out) ? wrapLocator(page, out, selector) : out;
+      };
+    },
+  });
+}
+
+/**
+ * The controls live in three steps and only one is shown at a time. Make every call that
+ * acts on a control (by selector) first show the step it is in, so tests read as they
+ * always did: "fill the border width".
+ */
+export function autoReveal(page: Page): void {
+  const original = page.locator.bind(page);
+  page.locator = ((selector: string, options?: Parameters<Page["locator"]>[1]) =>
+    wrapLocator(page, original(selector, options), selector)) as Page["locator"];
+  for (const method of ["fill", "selectOption", "check", "uncheck", "click", "press"] as const) {
+    const base = (page[method] as (...args: unknown[]) => Promise<unknown>).bind(page);
+    (page as unknown as Record<string, unknown>)[method] = async (
+      selector: string,
+      ...rest: unknown[]
+    ) => {
+      await reveal(page, selector);
+      return base(selector, ...rest);
+    };
+  }
+}
+
+/** Switch the preview to Swap mode, where clicking two photos swaps them. */
+export async function swapMode(page: Page): Promise<void> {
+  await page.click("#mode-swap");
+}
+
+/** Take the photo in the list at `index` out: select it, then press Remove selected photo. */
+export async function removeFromList(page: Page, index: number): Promise<void> {
+  await page.locator("#photo-list li button").nth(index).click();
+  await page.click("#remove-selected");
+}
