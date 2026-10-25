@@ -1,0 +1,179 @@
+<!doctype html>
+<!--
+  SPDX-License-Identifier: GPL-2.0-or-later
+  Copyright (C) 2026 briggsyj and contributors
+  Collage Web is a modified web version of PhotoCollage by Adrien Vergé and
+  contributors. It comes with ABSOLUTELY NO WARRANTY. See NOTICE.md.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Collage Web</title>
+    <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>Collage Web</h1>
+      <div class="topbar-actions">
+        <label class="inline">
+          <span data-i18n="Language">Language</span>
+          <select id="language"></select>
+        </label>
+        <button type="button" id="about-open" data-i18n="About">About</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="panel" aria-label="Controls">
+        <section>
+          <div class="button-row">
+            <button type="button" id="add" class="primary" data-i18n="Add images...">
+              Add images...
+            </button>
+            <button type="button" id="regenerate" data-i18n="Regenerate">Regenerate</button>
+          </div>
+          <input id="file-input" type="file" accept="image/*" multiple hidden />
+          <label class="field">
+            <span data-i18n="Seed">Seed</span>
+            <input id="seed" type="number" min="0" max="4294967295" step="1" inputmode="numeric" />
+          </label>
+        </section>
+
+        <section>
+          <h2 data-i18n="Output image size">Output image size</h2>
+          <label class="field">
+            <span data-i18n="Apply a template:">Apply a template:</span>
+            <select id="preset"></select>
+          </label>
+          <div class="size-row">
+            <label class="field">
+              <span data-i18n="Width">Width</span>
+              <input id="width" type="number" min="1" step="1" inputmode="numeric" />
+            </label>
+            <label class="field">
+              <span data-i18n="Height">Height</span>
+              <input id="height" type="number" min="1" step="1" inputmode="numeric" />
+            </label>
+            <span class="unit" data-i18n="pixels">pixels</span>
+          </div>
+        </section>
+
+        <section>
+          <h2 data-i18n="Border">Border</h2>
+          <label class="field">
+            <span><span data-i18n="Thickness:">Thickness:</span> %</span>
+            <input id="border-width" type="number" min="0" max="20" step="0.1" />
+          </label>
+          <label class="field">
+            <span data-i18n="Color:">Color:</span>
+            <input id="border-color" type="color" value="#000000" />
+          </label>
+        </section>
+
+        <section>
+          <h2 data-i18n="Save image">Save image</h2>
+          <label class="field">
+            <span data-i18n="Format">Format</span>
+            <select id="format">
+              <option value="png">PNG</option>
+              <option value="jpeg">JPEG</option>
+            </select>
+          </label>
+          <label class="field" id="quality-field" hidden>
+            <span data-i18n="JPEG quality">JPEG quality</span>
+            <input id="quality" type="range" min="10" max="100" step="1" value="92" />
+          </label>
+          <button type="button" id="save" class="primary" data-i18n="Save poster..." disabled>
+            Save poster...
+          </button>
+        </section>
+
+        <section>
+          <h2 data-i18n="Photos">Photos</h2>
+          <p
+            id="empty-hint"
+            class="hint"
+            data-i18n="Drop photos anywhere on this page, or use Add images."
+          >
+            Drop photos anywhere on this page, or use Add images.
+          </p>
+          <ul id="photo-list" class="photo-list"></ul>
+        </section>
+      </aside>
+
+      <section class="stage" aria-label="Preview">
+        <div id="messages" class="messages" role="status" aria-live="polite"></div>
+        <div id="canvas-box" class="canvas-box">
+          <canvas
+            id="preview"
+            tabindex="0"
+            role="application"
+            aria-label="Collage preview. Use arrow keys to move between photos, Enter to pick one and Enter on another to swap them, Escape to cancel."
+          ></canvas>
+        </div>
+        <p id="size-note" class="hint"></p>
+      </section>
+    </main>
+
+    <footer class="credit">
+      <span>
+        Collage Web is a modified web version of
+        <a href="https://github.com/adrienverge/PhotoCollage" rel="noopener">PhotoCollage</a>
+        by Adrien Vergé and contributors, released under the GNU GPL v2 or later. No warranty.
+      </span>
+    </footer>
+
+    <dialog id="progress-dialog" aria-labelledby="progress-title">
+      <h2 id="progress-title" data-i18n="Please wait">Please wait</h2>
+      <p data-i18n="Performing image computation...">Performing image computation...</p>
+      <progress id="progress" max="100" value="0"></progress>
+      <div class="button-row">
+        <button type="button" id="cancel" data-i18n="Cancel">Cancel</button>
+      </div>
+    </dialog>
+
+    <dialog id="about-dialog" aria-labelledby="about-title">
+      <h2 id="about-title" data-i18n="About">About</h2>
+      <p>
+        <strong>Collage Web</strong>
+        <span data-i18n="is an independent, modified web version of"
+          >is an independent, modified web version of</span
+        >
+        <a href="https://github.com/adrienverge/PhotoCollage" rel="noopener">PhotoCollage</a>,
+        Copyright © 2013–2024 Adrien Vergé and contributors. It is not the original and is not
+        endorsed by its authors.
+      </p>
+      <p>
+        Copyright © 2026 briggsyj and contributors. Released under the
+        <a href="./LICENSE" rel="noopener">GNU General Public License</a>, version 2 or (at your
+        option) any later version (SPDX: GPL-2.0-or-later).
+      </p>
+      <p
+        data-i18n="This program comes with ABSOLUTELY NO WARRANTY; without even the implied warranty of merchantability or fitness for a particular purpose."
+      >
+        This program comes with ABSOLUTELY NO WARRANTY; without even the implied warranty of
+        merchantability or fitness for a particular purpose.
+      </p>
+      <p>
+        <span data-i18n="Your photos never leave your device."
+          >Your photos never leave your device.</span
+        >
+        <a href="https://github.com/briggsyj/PhotoCollage" rel="noopener" data-i18n="Source code"
+          >Source code</a
+        >
+        ·
+        <a href="./NOTICE.md" rel="noopener">NOTICE</a>
+        ·
+        <a href="./THIRD-PARTY-LICENSES.txt" rel="noopener">Third-party licences</a>
+      </p>
+      <div class="button-row">
+        <button type="button" id="about-close" class="primary" data-i18n="Close">Close</button>
+      </div>
+    </dialog>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,47 @@
+{
+  "name": "collage-web",
+  "version": "0.1.0",
+  "description": "Collage Web: a browser-only, modified web reimplementation of PhotoCollage by Adrien Vergé and contributors",
+  "license": "GPL-2.0-or-later",
+  "author": "briggsyj and contributors",
+  "homepage": "https://github.com/briggsyj/PhotoCollage",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/briggsyj/PhotoCollage.git"
+  },
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "vite",
+    "prebuild": "node scripts/third-party-licenses.mjs",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write .",
+    "check:headers": "node scripts/check-headers.mjs",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "bench": "tsx scripts/bench-layout.ts"
+  },
+  "dependencies": {
+    "canvas-size": "^2.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^26.6.5",
+    "eslint": "^10.13.0",
+    "fast-check": "^4.10.2",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.0",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  }
+}

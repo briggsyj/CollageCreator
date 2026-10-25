@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (C) 2026 briggsyj and contributors
+
+name: Docker build
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  docker:
+    name: Build image and smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose up --build -d
+      - name: Wait for healthy container and fetch the app
+        run: |
+          for i in $(seq 1 30); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' "$(docker compose ps -q photocollage)")
+            [ "$status" = "healthy" ] && break
+            sleep 2
+          done
+          echo "health: $status"
+          [ "$status" = "healthy" ]
+          curl -fsS http://localhost:8080/ | grep -q "Collage Web"
+          test "$(docker compose exec -T photocollage id -u)" != "0"
+      - if: always()
+        run: docker compose down

@@ -1,0 +1,26 @@
+{
+  "node": "v22.22.0",
+  "date": "2026-10-25",
+  "results": {
+    "10 photos": {
+      "meanMs": 0.14,
+      "maxMs": 1.37
+    },
+    "50 photos": {
+      "meanMs": 0.5,
+      "maxMs": 3.85
+    },
+    "100 photos": {
+      "meanMs": 0.64,
+      "maxMs": 3.1
+    },
+    "200 photos": {
+      "meanMs": 1.83,
+      "maxMs": 4.3
+    },
+    "500 photos": {
+      "meanMs": 11.82,
+      "maxMs": 35.84
+    }
+  }
+}
