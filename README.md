@@ -21,8 +21,9 @@ Docker.
 
 ## Credit and licence
 
-Collage Web is a derivative work of **PhotoCollage**, Copyright © 2013–2024
-Adrien Vergé and contributors, and is released under the same terms: the
+Collage Web is a derivative work of **PhotoCollage** by Adrien Vergé and
+contributors (their copyright notices are kept; see [NOTICE.md](NOTICE.md)), and
+is released under the same terms: the
 **GNU General Public License, version 2 or (at your option) any later version**
 (SPDX: `GPL-2.0-or-later`). It comes with **no warranty**.
 
@@ -100,10 +101,10 @@ npm run build          # production build in dist/
 npm run bench          # layout benchmark
 ```
 
-Every source file needs an SPDX identifier and a copyright line at the top;
-`npm run check:headers` (also run in CI) enforces it. New files derived from the
-original must keep its notice and add a dated change notice (see an existing
-ported file such as `src/core/layout.ts`).
+Every source file starts with the line `SPDX-License-Identifier: GPL-2.0-or-later`; this
+project adds no copyright notice of its own. A file derived from the original must also keep
+the original author's copyright line and carry a dated "CHANGED on" notice (see a ported file
+such as `src/core/layout.ts`). `npm run check:headers`, also run in CI, enforces both.
 
 ## How the project is organised
 
@@ -122,8 +123,11 @@ feature has a `spec.md`, `plan.md` and `tasks.md` under [specs/](specs/); [specs
 
 ## Licence
 
-Copyright © 2013–2024 Adrien Vergé and contributors (original PhotoCollage).
-Copyright © 2026 briggsyj and contributors (Collage Web).
+Copyright © 2013–2014 Adrien Vergé (original PhotoCollage), and the translators
+credited in [NOTICE.md](NOTICE.md) for their translation files.
+
+The changes in Collage Web carry no separate copyright notice; they are offered
+under the same licence.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software

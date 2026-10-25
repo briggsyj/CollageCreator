@@ -19,8 +19,8 @@ proposed targets for the owner to confirm.
 
 ## Licensing rules in force (from the handoff plan)
 
-- Every source file starts with an `SPDX-License-Identifier: GPL-2.0-or-later` line and a copyright line; `scripts/check-headers.mjs` enforces this in CI.
-- A file derived from the original keeps the original copyright and licence notice, adds our own copyright line next to it, and carries a "CHANGED on <date>" notice.
+- Every source file starts with an `SPDX-License-Identifier: GPL-2.0-or-later` line. This project adds no copyright notice of its own (owner decision): its changes are offered under the same licence. `scripts/check-headers.mjs` enforces the rules below in CI.
+- A file derived from the original keeps the original author's copyright and licence notice and carries a "CHANGED on <date>" notice (the GPL requires both). Files that are not derived carry only the SPDX line.
 - Treat the JavaScript served to browsers and the Docker image as distribution: the About dialog and the image's `org.opencontainers.image.source` label link to the source.
 - Reuse the original's translation files with translator credits intact.
 - A generated third-party licence file is built with the app; every bundled library's licence must be GPL-compatible (`scripts/third-party-licenses.mjs` fails the build otherwise).
@@ -32,4 +32,4 @@ proposed targets for the owner to confirm.
 - If something in a plan conflicts with what the repo shows, stop and ask the owner; do not resolve it silently. Record the decision in the spec's research notes.
 - Updating `spec.md` or `plan.md` is itself a task whenever implementation changes the design.
 
-**Version**: 1.1.0 | **Ratified**: 2026-10-25 | **Amended**: principle 3 names Biome instead of ESLint and Prettier
+**Version**: 1.2.0 | **Ratified**: 2026-10-25 | **Amended**: principle 3 names Biome instead of ESLint and Prettier; licensing rules no longer add a copyright line of our own

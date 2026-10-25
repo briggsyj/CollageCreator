@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2026 briggsyj and contributors
 
 // Serves a built site under a sub-path with no custom headers, the way GitHub
 // Pages serves a project site (https://<user>.github.io/<repo>/). Used to test

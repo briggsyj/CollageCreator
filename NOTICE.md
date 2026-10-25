@@ -60,10 +60,11 @@ Yovev, Sabri Ünal, Sandro, Tim Gromeyer, and andreynovikov95.
 
 ## Changes made in this version
 
-Every file derived from the original carries its original copyright and
-licence notice, our own copyright line next to it (never in place of it), and a
-prominent notice that it was changed, with the date. All changes are dated
-2026-10-25 or later and are recorded in git history.
+Every file derived from the original keeps its original copyright and licence
+notice and carries a prominent notice that it was changed, with the date. This
+version adds no copyright notice of its own: its changes are offered under the
+same licence, and the files it adds carry only an SPDX licence identifier. All
+changes are dated 2026-10-25 or later and are recorded in git history.
 
 ## Third-party software
 

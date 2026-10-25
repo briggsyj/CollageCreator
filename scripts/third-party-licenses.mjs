@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2026 briggsyj and contributors
 
 // Generates public/THIRD-PARTY-LICENSES.txt from the production dependencies
 // and fails if any of them has a licence that is not GPL-2.0-or-later
