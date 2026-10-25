@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2014 Adrien Vergé
 //
-// This file is part of Collage Web, a modified version of PhotoCollage
+// This file is part of Collage Creator, a modified version of PhotoCollage
 // (https://github.com/adrienverge/PhotoCollage). It was CHANGED on 2026-10-25:
 // it replaces build_photolist and PIL_SUPPORTED_EXTS from
 // photocollage/render.py. Image sizes are read after the EXIF orientation is

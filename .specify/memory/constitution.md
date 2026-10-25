@@ -1,6 +1,6 @@
-# Collage Web Constitution
+# Collage Creator Constitution
 
-Collage Web is a browser-only web reimplementation of PhotoCollage. These
+Collage Creator is a browser-only web reimplementation of PhotoCollage. These
 principles govern every spec, plan and change. Performance numbers are
 proposed targets for the owner to confirm.
 
@@ -24,7 +24,7 @@ proposed targets for the owner to confirm.
 - Treat the JavaScript served to browsers and the Docker image as distribution: the About dialog and the image's `org.opencontainers.image.source` label link to the source.
 - Reuse the original's translation files with translator credits intact.
 - A generated third-party licence file is built with the app; every bundled library's licence must be GPL-compatible (`scripts/third-party-licenses.mjs` fails the build otherwise).
-- Present the app as an independent modified version, with a distinct name (Collage Web).
+- Present the app as an independent modified version, with a distinct name (Collage Creator).
 
 ## Governance
 

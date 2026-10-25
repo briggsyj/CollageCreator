@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2014 Adrien Vergé
 //
-// This file is part of Collage Web, a modified version of PhotoCollage
+// This file is part of Collage Creator, a modified version of PhotoCollage
 // (https://github.com/adrienverge/PhotoCollage). It was CHANGED on 2026-10-25:
 // it re-implements, for the HTML canvas, the drawing rules of
 // photocollage/render.py: photos are scaled to cover their cell and centred

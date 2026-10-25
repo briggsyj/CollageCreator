@@ -1,7 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 import { beforeEach, describe, expect, it } from "vitest";
-import { getLanguage, languages, resolveLanguage, setLanguage, t } from "../src/i18n";
+import {
+  getLanguage,
+  languages,
+  preferredLanguage,
+  resolveLanguage,
+  setLanguage,
+  t,
+} from "../src/i18n";
 import { parsePo } from "../src/i18n/po";
 
 describe("parsePo", () => {
@@ -50,7 +57,7 @@ describe("catalogue", () => {
 
   it("translates strings from the original and falls back to English", () => {
     setLanguage("fr");
-    expect(t("Regenerate")).toBe("Regénérer");
+    expect(t("Save poster...")).toBe("Enregistrer le poster...");
     expect(t("A string that is not in any catalogue")).toBe(
       "A string that is not in any catalogue",
     );
@@ -67,5 +74,24 @@ describe("catalogue", () => {
     expect(resolveLanguage(undefined)).toBe("en");
     setLanguage("de-AT");
     expect(getLanguage()).toBe("de");
+  });
+});
+
+describe("preferredLanguage", () => {
+  it("takes the first browser language that has a translation", () => {
+    expect(preferredLanguage(["de-AT", "fr"])).toBe("de");
+    expect(preferredLanguage(["xx", "fr-CA", "de"])).toBe("fr");
+  });
+
+  it("matches a regional variant to the translation of its language", () => {
+    expect(preferredLanguage(["pt-PT"])).toBe("pt_BR");
+    expect(preferredLanguage(["pt-BR"])).toBe("pt_BR");
+  });
+
+  it("falls back to English when nothing matches or nothing is known", () => {
+    expect(preferredLanguage(["xx", "zz-ZZ"])).toBe("en");
+    expect(preferredLanguage([])).toBe("en");
+    expect(preferredLanguage(undefined)).toBe("en");
+    expect(preferredLanguage([undefined, ""])).toBe("en");
   });
 });

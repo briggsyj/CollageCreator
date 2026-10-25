@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+import { sliceRects, splitFileNames } from "../core/split";
 import type { Layout, Photo, PosterSettings } from "../core/types";
+import { zipBlob } from "../io/zip";
 import {
   borderPixels,
   cellPixelRects,
@@ -21,14 +23,22 @@ export interface ExportInput {
   pool: WorkerPool;
   signal?: AbortSignal;
   onProgress?: (done: number, total: number) => void;
+  /** File name stem for a split collage's images (`<baseName>_1.png`, ...). */
+  baseName?: string;
 }
 
 export function mimeType(format: PosterSettings["format"]): string {
   return format === "jpeg" ? "image/jpeg" : "image/png";
 }
 
+/** The file extension for a format. */
+export function extension(format: PosterSettings["format"]): string {
+  return format === "jpeg" ? "jpg" : "png";
+}
+
 /**
- * Render the collage at full resolution and encode it.
+ * Render the collage at full resolution and encode it. A collage made for a multi-image post
+ * is cut into squares, left to right, and the result is a zip of those images.
  *
  * Decoding runs in a pool of workers, each photo decoded at just the size its
  * cell needs. Each decoded bitmap is drawn and closed straight away, so only a
@@ -85,10 +95,26 @@ export async function exportCollage(input: ExportInput): Promise<Blob> {
     );
     if (signal?.aborted) throw new DOMException("Cancelled", "AbortError");
     drawBorders(ctx, rects, width, height, frame);
-    return await canvas.convertToBlob({
+    const options = {
       type: mimeType(settings.format),
       quality: settings.format === "jpeg" ? settings.jpegQuality : undefined,
-    });
+    };
+    const count = settings.splitImages;
+    if (count < 2) return await canvas.convertToBlob(options);
+
+    // One square image per part of the collage, named in order from the leftmost.
+    const names = splitFileNames(input.baseName ?? "collage", count, extension(settings.format));
+    const entries = [];
+    for (const [i, part] of sliceRects(count, height).entries()) {
+      if (signal?.aborted) throw new DOMException("Cancelled", "AbortError");
+      const piece = new OffscreenCanvas(part.w, part.h);
+      const pieceCtx = piece.getContext("2d");
+      if (!pieceCtx) throw new Error("2D canvas is not available");
+      pieceCtx.drawImage(canvas, part.x, part.y, part.w, part.h, 0, 0, part.w, part.h);
+      const blob = await piece.convertToBlob(options);
+      entries.push({ name: names[i] as string, data: new Uint8Array(await blob.arrayBuffer()) });
+    }
+    return zipBlob(entries);
   } finally {
     signal?.removeEventListener("abort", abort);
   }

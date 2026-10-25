@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2014 Adrien Vergé
 //
-// This file is part of Collage Web, a modified version of PhotoCollage
+// This file is part of Collage Creator, a modified version of PhotoCollage
 // (https://github.com/adrienverge/PhotoCollage). It was CHANGED on 2026-10-25:
 // it replaces the GTK window of photocollage/gtkgui.py (add images,
 // regenerate, settings for size and border, save, swap photos by clicking two
@@ -25,19 +25,36 @@ import { generateLayout, MAX_COLUMNS, normaliseColumns, type Page } from "../cor
 import { randomSeed, seededRng } from "../core/rng";
 import { generateBest, scoreLayout } from "../core/search";
 import {
+  normaliseSplit,
+  SPLIT_DEFAULT,
+  SPLIT_MAX,
+  SPLIT_MIN,
+  SPLIT_SIDE_DEFAULT,
+  SPLIT_SIDE_MIN,
+} from "../core/split";
+import {
   type Layout,
   NO_SPAN,
   type PhotoSpan,
   type PosterSettings,
   type Rect,
 } from "../core/types";
-import { getLanguage, languages, resolveLanguage, setLanguage, t } from "../i18n";
+import {
+  getLanguage,
+  languages,
+  preferredLanguage,
+  resolveLanguage,
+  setLanguage,
+  t,
+} from "../i18n";
 import { fileKey, type ImportedPhoto, type ImportMessage, importFiles } from "../io/import";
+import { loadSession, saveSession } from "../io/session";
 import { type CanvasLimits, clampSize, detectLimits, FALLBACK_LIMITS } from "../platform/limits";
 import { drawPhotoCover } from "../render/draw";
 import { exportCollage } from "../render/export";
 import { WorkerPool } from "../render/pool";
 import { drawCollage, drawSelection, fitSize } from "../render/preview";
+import { drawSplitMarks, SPLIT_MARGIN } from "../render/splitmarks";
 import {
   FIT_VIEW,
   isFit,
@@ -50,6 +67,7 @@ import {
   zoomPercent,
 } from "../render/view";
 import { findPreset, PRESETS } from "./presets";
+import { parseSeed, withSeed } from "./url";
 
 function el<T extends HTMLElement>(id: string): T {
   const found = document.getElementById(id);
@@ -57,7 +75,7 @@ function el<T extends HTMLElement>(id: string): T {
   return found as T;
 }
 
-const LANG_KEY = "collage-web.language";
+const LANG_KEY = "collage-creator.language";
 
 function readStoredLanguage(): string | null {
   try {
@@ -65,6 +83,24 @@ function readStoredLanguage(): string | null {
   } catch {
     return null;
   }
+}
+
+/** The browser's language preferences, most preferred first; empty if it does not say. */
+function browserLanguages(): readonly string[] {
+  try {
+    const list = navigator.languages;
+    return list?.length ? list : navigator.language ? [navigator.language] : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Set a node's text only when it changed. Redrawing runs while a button is being pressed (the
+ * preview losing focus), and WebKit drops the click if the button's text node was replaced.
+ */
+function setText(node: HTMLElement, text: string): void {
+  if (node.textContent !== text) node.textContent = text;
 }
 
 function storeLanguage(code: string): void {
@@ -79,23 +115,46 @@ export function startApp(): void {
   const ui = {
     add: el<HTMLButtonElement>("add"),
     fileInput: el<HTMLInputElement>("file-input"),
-    regenerate: el<HTMLButtonElement>("regenerate"),
+    shuffle: el<HTMLButtonElement>("shuffle"),
     seed: el<HTMLInputElement>("seed"),
     columns: el<HTMLInputElement>("columns"),
     columnsNote: el<HTMLElement>("columns-note"),
     cropNote: el<HTMLElement>("crop-note"),
     outerBorder: el<HTMLInputElement>("outer-border"),
-    spanGroup: el<HTMLElement>("span-group"),
-    spanWider: el<HTMLButtonElement>("span-wider"),
-    spanTaller: el<HTMLButtonElement>("span-taller"),
-    spanReset: el<HTMLButtonElement>("span-reset"),
-    preset: el<HTMLSelectElement>("preset"),
+    dock: el<HTMLElement>("selection-dock"),
+    selectionName: el<HTMLElement>("selection-name"),
+    selectionDone: el<HTMLButtonElement>("selection-done"),
+    widthNormal: el<HTMLButtonElement>("span-w-normal"),
+    widthWider: el<HTMLButtonElement>("span-w-wider"),
+    heightNormal: el<HTMLButtonElement>("span-h-normal"),
+    heightTaller: el<HTMLButtonElement>("span-h-taller"),
+    heightTallest: el<HTMLButtonElement>("span-h-tallest"),
+    presets: el<HTMLElement>("presets"),
+    splitControls: el<HTMLElement>("split-controls"),
+    splitCount: el<HTMLInputElement>("split-count"),
+    splitLess: el<HTMLButtonElement>("split-less"),
+    splitMore: el<HTMLButtonElement>("split-more"),
+    splitSize: el<HTMLInputElement>("split-size"),
+    splitHint: el<HTMLElement>("split-hint"),
+    splitNote: el<HTMLElement>("split-note"),
+    columnsAuto: el<HTMLButtonElement>("columns-auto"),
+    columnsCustom: el<HTMLButtonElement>("columns-custom"),
+    columnsLess: el<HTMLButtonElement>("columns-less"),
+    columnsMore: el<HTMLButtonElement>("columns-more"),
+    borderWidthOut: el<HTMLElement>("border-width-out"),
+    swatches: el<HTMLElement>("swatches"),
+    customColour: el<HTMLElement>("custom-colour"),
+    corners: el<HTMLElement>("corners"),
+    formatPng: el<HTMLButtonElement>("format-png"),
+    formatJpeg: el<HTMLButtonElement>("format-jpeg"),
+    exportToggle: el<HTMLButtonElement>("export-toggle"),
+    exportOptions: el<HTMLElement>("export-options"),
+    outputSummary: el<HTMLElement>("output-summary"),
+    photoCount: el<HTMLElement>("photo-count"),
     width: el<HTMLInputElement>("width"),
     height: el<HTMLInputElement>("height"),
     borderWidth: el<HTMLInputElement>("border-width"),
     borderColor: el<HTMLInputElement>("border-color"),
-    cornerStyle: el<HTMLSelectElement>("corner-style"),
-    format: el<HTMLSelectElement>("format"),
     qualityField: el<HTMLElement>("quality-field"),
     quality: el<HTMLInputElement>("quality"),
     save: el<HTMLButtonElement>("save"),
@@ -121,7 +180,8 @@ export function startApp(): void {
 
   const state = {
     photos: [] as ImportedPhoto[],
-    seed: randomSeed(),
+    // A seed in the address (a shared link, or back/forward) decides the first arrangement.
+    seed: parseSeed(location.search) ?? randomSeed(),
     /** Chosen number of columns; undefined lets the original heuristic decide. */
     columns: undefined as number | undefined,
     page: null as Page | null,
@@ -132,6 +192,7 @@ export function startApp(): void {
       borderColor: "#ffffff",
       cornerStyle: "none",
       outerBorder: true,
+      splitImages: 0,
       format: "png",
       jpegQuality: 0.92,
     } as PosterSettings,
@@ -184,6 +245,10 @@ export function startApp(): void {
       const key = node.dataset.i18n;
       if (key) node.textContent = t(key);
     }
+    for (const node of document.querySelectorAll<HTMLElement>("[data-i18n-label]")) {
+      const key = node.dataset.i18nLabel;
+      if (key) node.setAttribute("aria-label", t(key));
+    }
     renderPhotoList();
     updateNotes(currentLayout());
   }
@@ -204,7 +269,9 @@ export function startApp(): void {
       option.textContent = name;
       ui.language.append(option);
     }
-    const initial = resolveLanguage(readStoredLanguage() ?? navigator.language);
+    // A language chosen earlier wins; otherwise the browser's own preferences, then English.
+    const stored = readStoredLanguage();
+    const initial = stored ? resolveLanguage(stored) : preferredLanguage(browserLanguages());
     setLanguage(initial);
     ui.language.value = initial;
     ui.language.addEventListener("change", () => {
@@ -226,7 +293,7 @@ export function startApp(): void {
    * - "search": try several and keep the one that crops the photos least. Used when the
    *   set of photos changes, so the first thing shown is the best we can do. The seed
    *   shown is the winner's, so typing it back gives the same layout in one generation.
-   * - "single": one generation from the current seed. Used for Regenerate, a typed
+   * - "single": one generation from the current seed. Used for Shuffle layout, a typed
    *   seed, the number of columns and a photo's size.
    * `keepSelection` leaves the selected photo selected (its place in the list is unchanged).
    */
@@ -247,7 +314,165 @@ export function startApp(): void {
     ui.seed.value = String(state.seed);
     ui.save.disabled = state.photos.length === 0;
     ui.emptyHint.hidden = state.photos.length > 0;
+    syncUrl();
+    persist();
     draw();
+  }
+
+  // ------------------------------------------------------- address and storage
+
+  /** True while the address may be rewritten in place instead of adding a history entry. */
+  let replaceUrl = true;
+
+  /**
+   * Keep the seed in the address, so the browser's back and forward buttons step through
+   * earlier arrangements. A new arrangement adds a history entry; startup and restoring
+   * saved work rewrite the current one.
+   */
+  function syncUrl(): void {
+    try {
+      const next = withSeed(location.href, state.seed);
+      if (next === location.href) return;
+      if (replaceUrl) history.replaceState(null, "", next);
+      else history.pushState(null, "", next);
+    } catch {
+      // history can be unavailable (sandboxed frames); the seed field still works
+    }
+  }
+
+  window.addEventListener("popstate", () => {
+    const seed = parseSeed(location.search);
+    if (seed === undefined || seed === state.seed) return;
+    state.seed = seed;
+    relayout();
+  });
+
+  /** Nothing is saved until saved work has been restored, or it would overwrite it. */
+  let persistReady = false;
+  let persistWarned = false;
+  let persistTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /** Save the photos and settings in this browser shortly after the last change. */
+  function persist(): void {
+    if (!persistReady) return;
+    clearTimeout(persistTimer);
+    persistTimer = setTimeout(() => {
+      const files = new Map(state.photos.map((p) => [fileKey(p.file), p.file]));
+      saveSession(
+        {
+          v: 1,
+          photos: state.photos.map((p) => ({
+            key: fileKey(p.file),
+            span: p.span ?? { ...NO_SPAN },
+          })),
+          seed: state.seed,
+          columns: state.columns,
+          settings: { ...state.settings },
+        },
+        files,
+      ).catch(() => {
+        if (persistWarned) return;
+        persistWarned = true;
+        addMessage({
+          kind: "error",
+          text: t(
+            "Your work could not be kept for next time: browser storage is unavailable or full.",
+          ),
+        });
+      });
+    }, 250);
+  }
+
+  /** Show the stored settings in the controls. */
+  function showSettings(): void {
+    const s = state.settings;
+    ui.borderWidth.value = String(Math.round(s.borderWidth * 1000) / 10);
+    ui.borderColor.value = s.borderColor;
+    ui.outerBorder.checked = s.outerBorder;
+    ui.quality.value = String(Math.round(s.jpegQuality * 100));
+    ui.columns.value = state.columns === undefined ? "" : String(state.columns);
+    syncSizeFields();
+    syncBorder();
+    syncCorners();
+    syncFormat();
+    syncColumns();
+  }
+
+  /** Reflect the border thickness and colour in the slider's value and the swatches. */
+  function syncBorder(): void {
+    setText(ui.borderWidthOut, `${Math.round(state.settings.borderWidth * 1000) / 10}%`);
+    const colour = state.settings.borderColor.toLowerCase();
+    let known = false;
+    for (const swatch of ui.swatches.querySelectorAll<HTMLButtonElement>("[data-colour]")) {
+      const on = swatch.dataset.colour === colour;
+      known = known || on;
+      swatch.setAttribute("aria-pressed", String(on));
+    }
+    ui.customColour.classList.toggle("active", !known);
+  }
+
+  function syncCorners(): void {
+    for (const tile of ui.corners.querySelectorAll<HTMLButtonElement>("[data-corner]")) {
+      tile.setAttribute("aria-pressed", String(tile.dataset.corner === state.settings.cornerStyle));
+    }
+  }
+
+  /** The file type buttons, the quality slider (JPEG only) and the one-line summary by Save. */
+  function syncFormat(): void {
+    const jpeg = state.settings.format === "jpeg";
+    ui.formatPng.setAttribute("aria-pressed", String(!jpeg));
+    ui.formatJpeg.setAttribute("aria-pressed", String(jpeg));
+    ui.qualityField.hidden = !jpeg;
+    const kind = jpeg ? "JPEG" : "PNG";
+    const n = state.settings.splitImages;
+    setText(
+      ui.outputSummary,
+      n > 1
+        ? t("ZIP of %(n)s %(kind)s images, %(px)s × %(px)s px each", {
+            n,
+            kind,
+            px: state.settings.height,
+          })
+        : `${kind}, ${state.settings.width} × ${state.settings.height} px`,
+    );
+  }
+
+  /** Automatic or a chosen number; the stepper only works on a chosen number. */
+  function syncColumns(): void {
+    const chosen = state.columns;
+    ui.columnsAuto.setAttribute("aria-pressed", String(chosen === undefined));
+    ui.columnsCustom.setAttribute("aria-pressed", String(chosen !== undefined));
+    ui.columnsLess.disabled = chosen === undefined || chosen <= 1;
+    ui.columnsMore.disabled = chosen === undefined || chosen >= MAX_COLUMNS;
+  }
+
+  /** Bring back the photos and settings kept by an earlier visit. */
+  async function restore(): Promise<void> {
+    try {
+      const saved = await loadSession(state.settings);
+      if (saved) {
+        Object.assign(state.settings, saved.session.settings);
+        state.columns = saved.session.columns;
+        showSettings();
+        const files = saved.session.photos
+          .map((p) => saved.files.get(p.key))
+          .filter((f): f is File => f !== undefined);
+        const photos = await importFiles(files, [], state.importPool, addMessage);
+        const spans = new Map(saved.session.photos.map((p) => [p.key, p.span]));
+        for (const photo of photos) photo.span = { ...(spans.get(fileKey(photo.file)) ?? NO_SPAN) };
+        state.photos = photos;
+        // An address with a seed wins over the stored one.
+        state.seed = parseSeed(location.search) ?? saved.session.seed;
+        applySize(state.settings.width, state.settings.height);
+        relayout();
+        renderPhotoList();
+      }
+    } catch {
+      // nothing usable stored (or storage is unavailable): start empty
+    } finally {
+      persistReady = true;
+      replaceUrl = false;
+    }
   }
 
   /** The notes under the layout controls: how many columns are in use and how much is cropped. */
@@ -286,11 +511,13 @@ export function startApp(): void {
 
   /** The poster's size on screen when the view is "fit", in CSS pixels. */
   function fitPoster(viewport: Size): Size {
+    // A collage for a multi-image post keeps room above and below for the cut marks.
+    const marks = state.settings.splitImages > 1 ? 2 * SPLIT_MARGIN : 0;
     const fit = fitSize(
       state.settings.width,
       state.settings.height,
       Math.max(160, viewport.w - 24),
-      Math.max(160, viewport.h - 24),
+      Math.max(160, viewport.h - 24 - marks),
     );
     return { w: fit.width, h: fit.height };
   }
@@ -314,20 +541,27 @@ export function startApp(): void {
   function updateControls(): void {
     const fit = isFit(state.view);
     ui.resetView.hidden = fit;
-    ui.viewZoom.textContent = fit ? "" : t("Zoom: %(pct)s%", { pct: zoomPercent(state.view) });
-    ui.removeSelected.hidden = state.selected === null;
+    setText(ui.viewZoom, fit ? "" : t("Zoom: %(pct)s%", { pct: zoomPercent(state.view) }));
     const selected = state.selected === null ? undefined : state.photos[state.selected];
-    ui.spanGroup.hidden = selected === undefined;
+    ui.dock.hidden = selected === undefined;
+    if (selected) setText(ui.selectionName, selected.name);
     const span = selected?.span ?? NO_SPAN;
-    ui.spanWider.setAttribute("aria-pressed", String(span.columns === 2));
-    // Only touch the label when it changes: redrawing on the canvas losing focus runs this in
-    // the middle of a press on this very button, and WebKit drops the click if the button's
-    // text node is replaced by then.
-    const taller = span.rows > 1 ? `${t("Taller")} ×${span.rows}` : t("Taller");
-    if (ui.spanTaller.textContent !== taller) ui.spanTaller.textContent = taller;
-    ui.spanReset.disabled = span.columns === 1 && span.rows === 1;
+    const press = (button: HTMLButtonElement, on: boolean) =>
+      button.setAttribute("aria-pressed", String(on));
+    press(ui.widthNormal, span.columns === 1);
+    press(ui.widthWider, span.columns === 2);
+    press(ui.heightNormal, span.rows === 1);
+    press(ui.heightTaller, span.rows === 2);
+    press(ui.heightTallest, span.rows === 3);
     ui.removeAll.disabled = state.photos.length === 0;
     ui.undoRemove.disabled = state.removed === null;
+    setText(
+      ui.photoCount,
+      state.photos.length === 0 ? "" : t("%(n)s photo(s)", { n: state.photos.length }),
+    );
+    photoTiles.forEach((tile, i) => {
+      tile.setAttribute("aria-pressed", String(i === state.selected));
+    });
   }
 
   function draw(): void {
@@ -386,56 +620,88 @@ export function startApp(): void {
       }
     }
     ctx.restore();
+    if (state.settings.splitImages > 1) {
+      const colour =
+        getComputedStyle(document.documentElement).getPropertyValue("--muted").trim() || "#5d5d58";
+      drawSplitMarks(
+        ctx,
+        { x: ox, y: oy, w: pw, h: ph },
+        state.settings.splitImages,
+        dpr,
+        colour,
+        t("Cut along the dashed lines: the collage is split into %(n)s images for the post.", {
+          n: state.settings.splitImages,
+        }),
+      );
+    }
     updateControls();
   }
 
   // ------------------------------------------------------------------ photos
 
+  /** The tiles in the photo grid, in photo order (to show which one is selected). */
+  let photoTiles: HTMLButtonElement[] = [];
+
   function renderPhotoList(): void {
     ui.photoList.replaceChildren();
-    for (const photo of state.photos) {
+    photoTiles = [];
+    state.photos.forEach((photo, index) => {
       const li = document.createElement("li");
+      const tile = document.createElement("button");
+      tile.type = "button";
+      tile.className = "tile";
+      tile.title = photo.name;
       const thumb = document.createElement("canvas");
-      thumb.width = 80;
-      thumb.height = 80;
+      thumb.width = 160;
+      thumb.height = 160;
       thumb.setAttribute("aria-hidden", "true");
       const tctx = thumb.getContext("2d");
       if (tctx) {
         drawPhotoCover(tctx, photo.thumb, photo.thumb.width, photo.thumb.height, {
           x: 0,
           y: 0,
-          w: 80,
-          h: 80,
+          w: 160,
+          h: 160,
         });
       }
-      const info = document.createElement("div");
-      info.className = "info";
       const name = document.createElement("span");
-      name.className = "name";
+      name.className = "name sr-only";
       name.textContent = photo.name;
-      name.title = photo.name;
-      info.append(name);
+      tile.append(thumb, name);
       const wanted = describeSpan(photo.span);
       if (wanted) {
         const tag = document.createElement("span");
-        tag.className = "tag";
+        tag.className = "badge";
         tag.textContent = wanted;
-        info.append(tag);
+        tile.append(tag);
       }
-      const remove = document.createElement("button");
-      remove.type = "button";
-      remove.textContent = t("Remove");
-      remove.setAttribute("aria-label", `${t("Remove")}: ${photo.name}`);
-      remove.addEventListener("click", () => {
-        removePhotos(new Set([photo.id]), t("Removed %(name)s.", { name: photo.name }));
-      });
-      li.append(thumb, info, remove);
+      tile.addEventListener("click", () => selectPhoto(index));
+      li.append(tile);
+      photoTiles.push(tile);
       ui.photoList.append(li);
+    });
+    updateControls();
+  }
+
+  /** Select a photo from the grid (again to unselect); the collage shows it outlined. */
+  function selectPhoto(index: number): void {
+    if (state.selected === index) {
+      state.selected = null;
+      setStatus("");
+    } else {
+      state.selected = index;
+      setStatus(
+        t("Selected %(name)s. Choose another photo to swap, or press Escape.", {
+          name: state.photos[index]?.name ?? "",
+        }),
+      );
     }
+    draw();
   }
 
   async function addFiles(files: File[]): Promise<void> {
     if (files.length === 0) return;
+    await restoring;
     clearMessages();
     setStatus(t("Please wait"));
     const added = await importFiles(files, state.photos, state.importPool, addMessage);
@@ -505,10 +771,12 @@ export function startApp(): void {
    * request through new arrangements, resizing and adding photos; the rest of the
    * collage is recalculated around it from the same seed.
    */
-  function setSpan(photoIndex: number, change: Partial<PhotoSpan> | "reset"): void {
+  function setSpan(photoIndex: number, change: Partial<PhotoSpan>): void {
     const photo = state.photos[photoIndex];
     if (!photo) return;
-    photo.span = change === "reset" ? { ...NO_SPAN } : { ...(photo.span ?? NO_SPAN), ...change };
+    const next = { ...(photo.span ?? NO_SPAN), ...change };
+    if (next.columns === photo.span?.columns && next.rows === photo.span?.rows) return;
+    photo.span = next;
     relayout("single", true);
     renderPhotoList();
     const description = describeSpan(photo.span);
@@ -520,22 +788,54 @@ export function startApp(): void {
   }
 
   function initSpan(): void {
-    const selectedIndex = () => state.selected;
-    ui.spanWider.addEventListener("click", () => {
-      const index = selectedIndex();
-      if (index === null) return;
-      const wide = state.photos[index]?.span?.columns === 2;
-      setSpan(index, { columns: wide ? 1 : 2 });
+    const apply = (button: HTMLButtonElement, change: Partial<PhotoSpan>) =>
+      button.addEventListener("click", () => {
+        if (state.selected !== null) setSpan(state.selected, change);
+      });
+    apply(ui.widthNormal, { columns: 1 });
+    apply(ui.widthWider, { columns: 2 });
+    apply(ui.heightNormal, { rows: 1 });
+    apply(ui.heightTaller, { rows: 2 });
+    apply(ui.heightTallest, { rows: 3 });
+    ui.selectionDone.addEventListener("click", () => {
+      state.selected = null;
+      setStatus("");
+      draw();
     });
-    ui.spanTaller.addEventListener("click", () => {
-      const index = selectedIndex();
-      if (index === null) return;
-      const rows = state.photos[index]?.span?.rows ?? 1;
-      setSpan(index, { rows: rows === 1 ? 2 : rows === 2 ? 3 : 1 });
-    });
-    ui.spanReset.addEventListener("click", () => {
-      const index = selectedIndex();
-      if (index !== null) setSpan(index, "reset");
+  }
+
+  // -------------------------------------------------------------------- tabs
+
+  /** The sidebar's tabs: one panel at a time; arrow keys move between tabs. */
+  function initTabs(): void {
+    const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+    const show = (active: HTMLButtonElement, focus = false) => {
+      for (const tab of tabs) {
+        const on = tab === active;
+        tab.setAttribute("aria-selected", String(on));
+        tab.tabIndex = on ? 0 : -1;
+        const panel = document.getElementById(tab.getAttribute("aria-controls") ?? "");
+        if (panel) panel.hidden = !on;
+      }
+      if (focus) active.focus();
+    };
+    tabs.forEach((tab, i) => {
+      tab.addEventListener("click", () => show(tab));
+      tab.addEventListener("keydown", (e) => {
+        const to =
+          e.key === "ArrowRight"
+            ? tabs[(i + 1) % tabs.length]
+            : e.key === "ArrowLeft"
+              ? tabs[(i - 1 + tabs.length) % tabs.length]
+              : e.key === "Home"
+                ? tabs[0]
+                : e.key === "End"
+                  ? tabs[tabs.length - 1]
+                  : undefined;
+        if (!to) return;
+        e.preventDefault();
+        show(to, true);
+      });
     });
   }
 
@@ -544,11 +844,95 @@ export function startApp(): void {
   function syncSizeFields(): void {
     ui.width.value = String(state.settings.width);
     ui.height.value = String(state.settings.height);
-    const index = findPreset(state.settings.width, state.settings.height);
-    ui.preset.value = index >= 0 ? String(index) : "custom";
+    const split = state.settings.splitImages > 1;
+    const index = split ? -1 : findPreset(state.settings.width, state.settings.height);
+    Array.from(ui.presets.children).forEach((chip, i) => {
+      chip.setAttribute("aria-pressed", String(i === index));
+    });
+    instagramChip?.setAttribute("aria-pressed", String(split));
+    syncSplit();
+    syncFormat();
+  }
+
+  /** The "Instagram post" size button, added with the other presets. */
+  let instagramChip: HTMLButtonElement | null = null;
+
+  /** Show or hide the controls for a multi-image post, and lock the size fields they set. */
+  function syncSplit(): void {
+    const n = state.settings.splitImages;
+    const on = n > 1;
+    ui.splitControls.hidden = !on;
+    ui.splitNote.hidden = !on;
+    ui.width.disabled = on;
+    ui.height.disabled = on;
+    if (!on) return;
+    const side = state.settings.height;
+    if (Number(ui.splitCount.value) !== n) ui.splitCount.value = String(n);
+    if (Number(ui.splitSize.value) !== side) ui.splitSize.value = String(side);
+    ui.splitLess.disabled = n <= SPLIT_MIN;
+    ui.splitMore.disabled = n >= SPLIT_MAX;
+    setText(
+      ui.splitHint,
+      t(
+        "The collage is made as one wide picture and cut into %(n)s squares when you save. Use Columns to change how it is arranged.",
+        { n },
+      ),
+    );
+    setText(
+      ui.splitNote,
+      t(
+        "Dashed lines mark where the collage is split into %(n)s images of %(px)s × %(px)s pixels. They are saved as a zip, numbered _1 to _%(n)s from left to right.",
+        { n, px: side },
+      ),
+    );
+  }
+
+  /**
+   * Make the collage for a post of `count` square images of `side` pixels. The shape of the
+   * collage changes with the number of images, so changing it makes a new arrangement.
+   */
+  function setSplit(count: number, side: number, arrange: boolean): void {
+    const n = normaliseSplit(count) || SPLIT_DEFAULT;
+    let px = Math.max(
+      SPLIT_SIDE_MIN,
+      Math.round(Number.isFinite(side) ? side : SPLIT_SIDE_DEFAULT),
+    );
+    const fit = clampSize(n * px, px, state.limits);
+    if (fit.clamped) px = Math.max(SPLIT_SIDE_MIN, Math.floor(Math.min(fit.height, fit.width / n)));
+    ui.sizeNote.textContent = fit.clamped
+      ? t("This browser can only make images up to %(w)s × %(h)s pixels here; using that size.", {
+          w: n * px,
+          h: px,
+        })
+      : "";
+    const changed = n !== state.settings.splitImages;
+    state.settings.splitImages = n;
+    state.settings.width = n * px;
+    state.settings.height = px;
+    ui.width.value = String(state.settings.width);
+    ui.height.value = String(state.settings.height);
+    syncSizeFields();
+    if (arrange && (changed || !state.page)) {
+      relayout("search");
+    } else {
+      state.page?.setTargetRatio(ratio());
+      persist();
+      draw();
+    }
+  }
+
+  /** Choose an ordinary poster size (leaving any multi-image post). */
+  function chooseSize(width: number, height: number): void {
+    state.settings.splitImages = 0;
+    applySize(width, height);
   }
 
   function applySize(width: number, height: number): void {
+    if (state.settings.splitImages > 1) {
+      // The size of a multi-image post follows from its image count and image size.
+      setSplit(state.settings.splitImages, state.settings.height, false);
+      return;
+    }
     if (!Number.isFinite(width) || !Number.isFinite(height) || width < 1 || height < 1) {
       syncSizeFields();
       return;
@@ -564,6 +948,7 @@ export function startApp(): void {
       : "";
     syncSizeFields();
     state.page?.setTargetRatio(ratio());
+    persist();
     draw();
   }
 
@@ -594,24 +979,58 @@ export function startApp(): void {
   }
 
   function initSettings(): void {
-    PRESETS.forEach((p, i) => {
-      const option = document.createElement("option");
-      option.value = String(i);
-      option.textContent = p.label;
-      ui.preset.append(option);
+    PRESETS.forEach((p) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "chip";
+      chip.setAttribute("aria-pressed", "false");
+      chip.append(p.label);
+      if (!p.label.includes("×")) {
+        const dims = document.createElement("small");
+        dims.textContent = `${p.width} × ${p.height} px`;
+        chip.append(dims);
+      }
+      chip.addEventListener("click", () => chooseSize(p.width, p.height));
+      ui.presets.append(chip);
     });
-    const custom = document.createElement("option");
-    custom.value = "custom";
-    custom.textContent = "—";
-    ui.preset.append(custom);
+    instagramChip = document.createElement("button");
+    instagramChip.type = "button";
+    instagramChip.className = "chip";
+    instagramChip.setAttribute("aria-pressed", "false");
+    instagramChip.append(t("Instagram post"));
+    const several = document.createElement("small");
+    several.textContent = t("Several square images");
+    instagramChip.append(several);
+    instagramChip.addEventListener("click", () =>
+      setSplit(SPLIT_DEFAULT, SPLIT_SIDE_DEFAULT, true),
+    );
+    ui.presets.append(instagramChip);
+    ui.splitLess.addEventListener("click", () =>
+      setSplit(state.settings.splitImages - 1, state.settings.height, true),
+    );
+    ui.splitMore.addEventListener("click", () =>
+      setSplit(state.settings.splitImages + 1, state.settings.height, true),
+    );
+    ui.splitCount.addEventListener("change", () => {
+      const n = normaliseSplit(Number(ui.splitCount.value));
+      if (n === 0) ui.splitCount.value = String(state.settings.splitImages);
+      else setSplit(n, state.settings.height, true);
+    });
+    ui.splitSize.addEventListener("change", () => {
+      const side = Number(ui.splitSize.value);
+      if (Number.isFinite(side) && side >= SPLIT_SIDE_MIN) {
+        setSplit(state.settings.splitImages, side, true);
+      } else {
+        ui.splitSize.value = String(state.settings.height);
+      }
+    });
     syncSizeFields();
     ui.borderWidth.value = String(state.settings.borderWidth * 100);
     ui.borderColor.value = state.settings.borderColor;
+    syncBorder();
+    syncCorners();
+    syncColumns();
 
-    ui.preset.addEventListener("change", () => {
-      const p = PRESETS[Number(ui.preset.value)];
-      if (p) applySize(p.width, p.height);
-    });
     for (const field of [ui.width, ui.height]) {
       field.addEventListener("input", commitSize);
       field.addEventListener("change", commitSize);
@@ -619,28 +1038,55 @@ export function startApp(): void {
     ui.borderWidth.addEventListener("input", () => {
       const pct = Number(ui.borderWidth.value);
       state.settings.borderWidth = Number.isFinite(pct) ? Math.min(20, Math.max(0, pct)) / 100 : 0;
+      syncBorder();
+      persist();
       draw();
     });
     ui.outerBorder.addEventListener("change", () => {
       state.settings.outerBorder = ui.outerBorder.checked;
+      persist();
       draw();
     });
-    ui.cornerStyle.addEventListener("change", () => {
-      const value = ui.cornerStyle.value;
-      state.settings.cornerStyle =
-        value === "slight" || value === "rounded" || value === "circle" ? value : "none";
-      draw();
-    });
+    for (const tile of ui.corners.querySelectorAll<HTMLButtonElement>("[data-corner]")) {
+      tile.addEventListener("click", () => {
+        const value = tile.dataset.corner;
+        state.settings.cornerStyle =
+          value === "slight" || value === "rounded" || value === "circle" ? value : "none";
+        syncCorners();
+        persist();
+        draw();
+      });
+    }
     ui.borderColor.addEventListener("input", () => {
       state.settings.borderColor = ui.borderColor.value;
+      syncBorder();
+      persist();
       draw();
     });
-    ui.format.addEventListener("change", () => {
-      state.settings.format = ui.format.value === "jpeg" ? "jpeg" : "png";
-      ui.qualityField.hidden = state.settings.format !== "jpeg";
+    for (const swatch of ui.swatches.querySelectorAll<HTMLButtonElement>("[data-colour]")) {
+      swatch.addEventListener("click", () => {
+        ui.borderColor.value = swatch.dataset.colour ?? "#ffffff";
+        state.settings.borderColor = ui.borderColor.value;
+        syncBorder();
+        persist();
+        draw();
+      });
+    }
+    const setFormat = (format: "png" | "jpeg") => {
+      state.settings.format = format;
+      syncFormat();
+      persist();
+    };
+    ui.formatPng.addEventListener("click", () => setFormat("png"));
+    ui.formatJpeg.addEventListener("click", () => setFormat("jpeg"));
+    ui.exportToggle.addEventListener("click", () => {
+      const open = ui.exportOptions.hidden;
+      ui.exportOptions.hidden = !open;
+      ui.exportToggle.setAttribute("aria-expanded", String(open));
     });
     ui.quality.addEventListener("input", () => {
       state.settings.jpegQuality = Number(ui.quality.value) / 100;
+      persist();
     });
     ui.seed.addEventListener("change", () => {
       const seed = Math.floor(Number(ui.seed.value));
@@ -659,11 +1105,26 @@ export function startApp(): void {
       if (tidy) ui.columns.value = columns === undefined ? "" : String(columns);
       if (columns === state.columns) return;
       state.columns = columns;
+      syncColumns();
       relayout();
     };
+    ui.columnsAuto.addEventListener("click", () => {
+      ui.columns.value = "";
+      applyColumns(true);
+    });
+    ui.columnsCustom.addEventListener("click", () => {
+      ui.columns.value = String(state.columns ?? state.page?.noCols ?? 1);
+      applyColumns(true);
+    });
+    const step = (by: number) => {
+      ui.columns.value = String(Math.min(MAX_COLUMNS, Math.max(1, (state.columns ?? 1) + by)));
+      applyColumns(true);
+    };
+    ui.columnsLess.addEventListener("click", () => step(-1));
+    ui.columnsMore.addEventListener("click", () => step(1));
     ui.columns.addEventListener("input", () => applyColumns(false));
     ui.columns.addEventListener("change", () => applyColumns(true));
-    ui.regenerate.addEventListener("click", () => {
+    ui.shuffle.addEventListener("click", () => {
       state.seed = randomSeed();
       relayout();
     });
@@ -916,13 +1377,20 @@ export function startApp(): void {
         layout,
         photos: state.photos,
         settings,
+        baseName: `collage-${state.seed}`,
         pool: state.exportPool,
         signal: controller.signal,
         onProgress: (done, total) => {
           ui.progress.value = total ? (done / total) * 100 : 100;
         },
       });
-      download(blob, `collage-${state.seed}.${settings.format === "jpeg" ? "jpg" : "png"}`);
+      const stem = `collage-${state.seed}`;
+      download(
+        blob,
+        settings.splitImages > 1
+          ? `${stem}.zip`
+          : `${stem}.${settings.format === "jpeg" ? "jpg" : "png"}`,
+      );
     } catch (err) {
       if (!(err instanceof DOMException && err.name === "AbortError")) {
         addMessage({
@@ -970,12 +1438,16 @@ export function startApp(): void {
     document.documentElement.dataset.workersReady = "true";
   });
 
+  let restoring: Promise<void> = Promise.resolve();
+
   initLanguages();
   initSettings();
+  initTabs();
   initPreview();
   initSpan();
   initInput();
   relayout();
+  restoring = restore();
   void detectLimits().then((limits) => {
     state.limits = limits;
     applySize(state.settings.width, state.settings.height);

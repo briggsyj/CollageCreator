@@ -1,4 +1,4 @@
-# Collage Web
+# Collage Creator
 
 [![CI](https://github.com/briggsyj/PhotoCollage/actions/workflows/ci.yaml/badge.svg)](https://github.com/briggsyj/PhotoCollage/actions/workflows/ci.yaml)
 [![Docker build](https://github.com/briggsyj/PhotoCollage/actions/workflows/docker.yaml/badge.svg)](https://github.com/briggsyj/PhotoCollage/actions/workflows/docker.yaml)
@@ -6,22 +6,23 @@
 [![License: GPL v2 or later](https://img.shields.io/badge/license-GPL--2.0--or--later-blue.svg)](LICENSE)
 [![Derived from PhotoCollage](https://img.shields.io/badge/derived%20from-adrienverge%2FPhotoCollage-informational.svg)](https://github.com/adrienverge/PhotoCollage)
 
-> **A web reimplementation of [PhotoCollage](https://github.com/adrienverge/PhotoCollage) by Adrien Vergé and contributors.**
-> Collage Web is an independent, modified version. It is not the original program and is not endorsed by the original authors.
+**Collage Creator is an easy, free way to turn your photos into a collage poster, right in your browser.**
 
-Collage Web turns a set of photos into one poster. It runs entirely in your
-browser: **photos are never uploaded**, and once the page has loaded it works
-without a network connection.
+Drop in your photos, pick a size, and get a tidy collage you can save as a PNG or JPEG. There is
+nothing to install and no account to make.
 
-It keeps what PhotoCollage is good at: random layouts that fill the whole
-poster while keeping each photo as large as possible, with border colour and
-width, photo swapping, and saving at high resolution. It replaces the Python/GTK
-desktop program with a static web app that you can host anywhere or run with
-Docker.
+- **Try it now:** <https://briggsyj.github.io/PhotoCollage/> (hosted on GitHub Pages)
+- **Host it yourself:** it is a static site, so any web server will do, or run it with Docker (see [Run with Docker](#run-with-docker)).
+- **Private by design:** everything happens in your browser. Your photos are never uploaded.
+  Once the page has loaded it even works offline.
+
+Collage Creator is based on [PhotoCollage](https://github.com/adrienverge/PhotoCollage) by Adrien
+Vergé and contributors, rebuilt as a web app. It is an independent, modified version and is not
+endorsed by the original authors. See [Credit and licence](#credit-and-licence).
 
 ## Credit and licence
 
-Collage Web is a derivative work of **PhotoCollage** by Adrien Vergé and
+Collage Creator is a derivative work of **PhotoCollage** by Adrien Vergé and
 contributors (their copyright notices are kept; see [NOTICE.md](NOTICE.md)), and
 is released under the same terms: the
 **GNU General Public License, version 2 or (at your option) any later version**
@@ -47,19 +48,21 @@ general information, not legal advice.
 - Add photos by file picker or drag and drop; works with 100+ photos
 - Automatic layouts that fill the poster, using the original's layout algorithm; the first one shown is the best of 30 tries (the one that crops the photos least)
 - Ask for a photo to be **wider** or **taller**; the rest of the collage is worked out around it
-- Every layout has a **seed** (under Technical configuration): the same seed and photos give the same layout
+- Every layout has a **seed** (under Technical configuration), also in the address (`?seed=…`): the same seed and photos give the same layout, and the browser's back and forward buttons step through earlier arrangements
+- A refresh keeps your photos, sizes and settings (saved in this browser only; removing photos deletes them)
 - Choose the **number of columns**, or leave it on automatic (the original's choice)
 - Poster size in pixels, with A4, A3 and A2 presets at 300 DPI; sizes your browser cannot produce are reduced to the largest available
 - Border colour, thickness (0.5 % white by default), corner style (none, slightly rounded, rounded or circle), and an option to leave out the border around the whole collage
 - Swap two photos by clicking or from the keyboard; remove photos from the collage (Delete), all at once, with undo
 - Zoom the preview by scrolling over it; hold Space and drag to move it
+- An **Instagram post** size: one wide collage, previewed whole with dashed cut marks, saved as a zip of square images numbered `_1`, `_2`, … from left to right
 - Photos are shown the right way up (EXIF orientation)
 - Save as PNG or JPEG, with progress and cancel; decoding runs in web workers
-- Translations from the original: Bulgarian, Czech, German, Spanish, French, Italian, Dutch, Polish, Brazilian Portuguese, Russian, Ukrainian
+- Starts in your browser's language when it is one of the translations, otherwise English. Translations from the original: Bulgarian, Czech, German, Spanish, French, Italian, Dutch, Polish, Brazilian Portuguese, Russian, Ukrainian
 
 ## What is different from the original
 
-|              | PhotoCollage                | Collage Web                                                     |
+|              | PhotoCollage                | Collage Creator                                                 |
 | ------------ | --------------------------- | --------------------------------------------------------------- |
 | Platform     | Python + GTK desktop app    | Static web app, no backend                                      |
 | Rendering    | Pillow / cairo              | Canvas 2D, `OffscreenCanvas` in a worker pool                   |
@@ -130,7 +133,7 @@ feature has a `spec.md`, `plan.md` and `tasks.md` under [specs/](specs/); [specs
 Copyright © 2013–2014 Adrien Vergé (original PhotoCollage), and the translators
 credited in [NOTICE.md](NOTICE.md) for their translation files.
 
-The changes in Collage Web carry no separate copyright notice; they are offered
+The changes in Collage Creator carry no separate copyright notice; they are offered
 under the same licence.
 
 This program is free software; you can redistribute it and/or modify it under

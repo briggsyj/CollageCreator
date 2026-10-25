@@ -1,6 +1,6 @@
 # Notice
 
-**Collage Web** is a modified, independent web reimplementation of
+**Collage Creator** is a modified, independent web reimplementation of
 **PhotoCollage**. It is not the original program and is not endorsed by the
 original authors.
 
