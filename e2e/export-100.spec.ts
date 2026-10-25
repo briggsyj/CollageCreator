@@ -10,7 +10,7 @@ import { addPhotos, analyse, type Fixture, saveAndRead, setSize } from "./helper
 
 test("exports 100 twelve-megapixel photos", async ({ page, browserName }) => {
   test.setTimeout(300_000);
-  await page.goto("/");
+  await page.goto("./");
 
   // Five distinct 4000 x 3000 JPEGs with some detail, each used 20 times under different names.
   const base = await page.evaluate(async () => {

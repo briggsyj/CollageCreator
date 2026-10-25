@@ -8,6 +8,17 @@
 - `compose.yaml`: one service, `${HOST_PORT:-8080}`, `restart: unless-stopped`, read-only root filesystem with a tmpfs for `/tmp`, all capabilities dropped, `no-new-privileges`.
 - Source offer: the image carries `org.opencontainers.image.source` and `...licenses` labels; the app's About dialog links to the repository.
 
+## GitHub Pages
+
+The app is a static site, so it is also published to GitHub Pages (`.github/workflows/pages.yaml`).
+
+- **Trigger**: pushes to `master` deploy; pull requests only build and check; `workflow_dispatch` is available. The deploy job runs in the `github-pages` environment with `pages: write` and `id-token: write`, one at a time.
+- **Setup once**: Settings → Pages → Source: GitHub Actions. The workflow cannot enable this itself with the default token.
+- **Sub-path**: Pages serves a project site at `/<repo>/`. The Vite `base` is `./` (relative), so the same build works there and in Docker. The build job proves it by serving `dist/` under `/PhotoCollage/` with `scripts/serve-subpath.mjs` (no custom headers, unknown file types become downloads, like Pages) and running the key e2e flows against it.
+- **Headers**: Pages cannot send HTTP headers, so the Content Security Policy is also injected as a `<meta>` tag at build time (`csp.ts`, `vite.config.ts`; build only, because the dev server needs looser rules). `tests/csp.test.ts` keeps it identical to the nginx header, apart from `frame-ancestors`, which a meta tag cannot carry. Other nginx headers (cache control, `nosniff`, referrer policy) do not apply on Pages.
+- **Licence files**: `LICENSE.txt`, `NOTICE.txt` and `THIRD-PARTY-LICENSES.txt` are generated at build time as plain `.txt` files, because Pages serves extension-less and `.md` files as downloads.
+- **Not gated on the unit tests**: the deploy depends on the Pages build job only. The four known layout-tiling unit tests (see Spec 001) are not part of it, so the site deploys even while CI's unit job is red.
+
 ## Verification status
 
 - `docker compose config` validates the compose file.

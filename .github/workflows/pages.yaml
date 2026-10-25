@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (C) 2026 briggsyj and contributors
+
+# Builds the static site and publishes it to GitHub Pages when master changes.
+# One-time setup: repository Settings > Pages > Build and deployment > Source: GitHub Actions.
+name: GitHub Pages
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and check under a sub-path
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+      # Pages serves a project site at /<repo>/ with no custom headers. Run the key
+      # user flows against the real build served that way: assets, workers, the
+      # CSP <meta> tag, offline use and the licence links.
+      - run: npx playwright install --with-deps chromium
+      - name: Smoke test at /PhotoCollage/
+        run: |
+          node scripts/serve-subpath.mjs dist /PhotoCollage/ 4174 &
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:4174/PhotoCollage/ >/dev/null && break
+            sleep 0.5
+          done
+          E2E_BASE_URL=http://localhost:4174/PhotoCollage/ npx playwright test --project=chromium \
+            --grep "saves a PNG|network disconnected|another language|About dialog|other origins|right way up"
+
+      # Only a real deployment needs the Pages site to exist and be enabled.
+      - uses: actions/configure-pages@v6
+        if: github.event_name != 'pull_request'
+      - uses: actions/upload-pages-artifact@v5
+        if: github.event_name != 'pull_request'
+        with:
+          path: dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

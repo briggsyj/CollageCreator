@@ -73,5 +73,7 @@ with licence texts is built into the app as `THIRD-PARTY-LICENSES.txt`.
 ## Source availability
 
 The complete corresponding source of this program is in the repository above.
+This applies to every way the program is distributed: the GitHub Pages site and
+the Docker image both link back to it.
 The About dialog links to it, and the Docker image carries it as the
 `org.opencontainers.image.source` label.
