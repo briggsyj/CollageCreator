@@ -23,7 +23,7 @@ export interface SavedSession {
   settings: PosterSettings;
 }
 
-const DB_NAME = "collage-web";
+const DB_NAME = "collage-creator";
 const FILES = "files";
 const META = "meta";
 const SESSION_KEY = "session";

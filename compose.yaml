@@ -5,7 +5,7 @@
 services:
   photocollage:
     build: .
-    image: collage-web:latest
+    image: collage-creator:latest
     ports:
       - "${HOST_PORT:-8080}:8080"
     restart: unless-stopped

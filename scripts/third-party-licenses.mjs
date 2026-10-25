@@ -60,10 +60,10 @@ if (bad.length) {
 }
 
 const out = [
-  "Third-party software bundled in Collage Web",
+  "Third-party software bundled in Collage Creator",
   "===========================================",
   "",
-  "Collage Web itself is GPL-2.0-or-later; see LICENSE and NOTICE.md.",
+  "Collage Creator itself is GPL-2.0-or-later; see LICENSE and NOTICE.md.",
   "The libraries below are shipped in the built application.",
   "",
 ];

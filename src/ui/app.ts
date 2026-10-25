@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2014 Adrien Vergé
 //
-// This file is part of Collage Web, a modified version of PhotoCollage
+// This file is part of Collage Creator, a modified version of PhotoCollage
 // (https://github.com/adrienverge/PhotoCollage). It was CHANGED on 2026-10-25:
 // it replaces the GTK window of photocollage/gtkgui.py (add images,
 // regenerate, settings for size and border, save, swap photos by clicking two
@@ -66,7 +66,7 @@ function el<T extends HTMLElement>(id: string): T {
   return found as T;
 }
 
-const LANG_KEY = "collage-web.language";
+const LANG_KEY = "collage-creator.language";
 
 function readStoredLanguage(): string | null {
   try {
