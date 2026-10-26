@@ -137,15 +137,16 @@ const TAB_TITLES: Record<Tab, string> = {
 const GROUP_TITLES: Record<SizeGroup, string> = {
   screen: "Screen",
   print: "Print",
-  social: "Social",
 };
 
 const SWATCHES: { name: string; color: string }[] = [
   { name: "White", color: "#ffffff" },
   { name: "Black", color: "#111111" },
-  { name: "Warm grey", color: "#bdb8ad" },
   { name: "Cream", color: "#f1e7d0" },
-  { name: "Navy", color: "#1d2b4a" },
+  // Muted, so the photos stay the focus: a green, a cool blue and a warm clay.
+  { name: "Sage", color: "#a3b18a" },
+  { name: "Dusty blue", color: "#8aa1b5" },
+  { name: "Terracotta", color: "#c8785a" },
 ];
 
 const CORNER_LABELS: { value: CornerStyle; label: string }[] = [
@@ -167,6 +168,7 @@ export function startApp(): void {
     tabs: el<HTMLElement>("tabs"),
     util: el<HTMLElement>("util"),
     sheet: el<HTMLElement>("sheet"),
+    saveBlock: el<HTMLElement>("save-block"),
     sheetTitle: el<HTMLElement>("sheet-title"),
     sheetClose: el<HTMLButtonElement>("sheet-close"),
     saveClose: el<HTMLButtonElement>("save-close"),
@@ -308,6 +310,7 @@ export function startApp(): void {
     if (state.photos.length === 0) {
       return t("Add photos to start. Then drag to pan or choose Swap.");
     }
+    if (state.spaceHeld && state.mode === "swap") return t("Panning while Space is held.");
     return state.mode === "pan"
       ? t("Drag to pan, scroll to zoom. Choose Swap to exchange photos.")
       : t("Click a photo, then another, to swap them. Hold Space to pan.");
@@ -480,10 +483,59 @@ export function startApp(): void {
     }
     ui.sheetTitle.textContent = t(TAB_TITLES[tab]);
     if (tab !== previousTab) ui.sheet.scrollTop = 0;
-    if (open) closeMenu();
+    syncTabsLift();
+    if (open) {
+      closeMenu();
+      if (tab !== previousTab || !wasOpen) rise(tab === "save" ? ui.saveBlock : ui.sheet);
+    }
+  }
+
+  /** Raise a sheet from the bottom of the screen (see .rise in the stylesheet). */
+  function rise(sheet: HTMLElement): void {
+    sheet.classList.remove("rise");
+    void sheet.offsetWidth;
+    sheet.classList.add("rise");
+  }
+
+  /** Pull a sheet down by its head to put it away; a short pull springs back. */
+  function initSheetDrag(): void {
+    for (const sheet of [ui.sheet, ui.saveBlock]) {
+      const head = sheet.querySelector<HTMLElement>(".sheet-head");
+      if (!head) continue;
+      let from: number | null = null;
+      head.addEventListener("pointerdown", (e) => {
+        if ((e.target as Element).closest("button")) return;
+        from = e.clientY;
+        head.setPointerCapture(e.pointerId);
+        sheet.classList.remove("rise");
+      });
+      head.addEventListener("pointermove", (e) => {
+        if (from === null) return;
+        sheet.style.setProperty("--drag", `${Math.max(0, e.clientY - from)}px`);
+      });
+      const end = (e: PointerEvent) => {
+        if (from === null) return;
+        const pulled = e.clientY - from;
+        from = null;
+        sheet.style.removeProperty("--drag");
+        if (pulled > 60) setTab(state.tab, true);
+      };
+      head.addEventListener("pointerup", end);
+      head.addEventListener("pointercancel", () => {
+        from = null;
+        sheet.style.removeProperty("--drag");
+      });
+    }
+  }
+
+  /** On wide screens the tab bar floats over the step once it is scrolled (see .tabs.lifted). */
+  function syncTabsLift(): void {
+    ui.tabs.classList.toggle("lifted", ui.sheet.scrollTop > 1);
   }
 
   function initTabs(): void {
+    initSheetDrag();
+    ui.sheet.addEventListener("scroll", syncTabsLift, { passive: true });
     for (const name of Object.keys(tabButtons) as Tab[]) {
       tabButtons[name].addEventListener("click", () => setTab(name, true));
     }
@@ -780,8 +832,10 @@ export function startApp(): void {
     ui.photoList.querySelectorAll("button.tile").forEach((tile, i) => {
       tile.setAttribute("aria-pressed", String(i === state.selected));
     });
-    ui.modePan.setAttribute("aria-pressed", String(state.mode === "pan"));
-    ui.modeSwap.setAttribute("aria-pressed", String(state.mode === "swap"));
+    // Holding Space makes Pan the active tool for as long as it is held; Swap comes back after.
+    const panActive = state.mode === "pan" || state.spaceHeld;
+    ui.modePan.setAttribute("aria-pressed", String(panActive));
+    ui.modeSwap.setAttribute("aria-pressed", String(!panActive));
     ui.box.classList.toggle("pan-mode", state.mode === "pan");
     for (const button of [ui.modePan, ui.modeSwap, ui.zoomIn, ui.zoomOut, ui.shuffle]) {
       button.disabled = none;
@@ -1081,7 +1135,6 @@ export function startApp(): void {
         label.className = "group-label";
         label.textContent = t(GROUP_TITLES[group]);
         ui.sizeChoices.append(label);
-        if (group === "social") ui.sizeChoices.append(instagramChip());
       }
       const button = document.createElement("button");
       button.type = "button";
@@ -1097,15 +1150,17 @@ export function startApp(): void {
       });
       ui.sizeChoices.append(button);
     }
+    const social = document.createElement("p");
+    social.className = "group-label";
+    social.textContent = t("Social");
+    ui.sizeChoices.append(social, instagramChip());
     const custom = document.createElement("button");
     custom.type = "button";
     custom.className = "chip wide-chip";
     custom.dataset.choice = "custom";
     const name = document.createElement("span");
     name.textContent = t("Custom");
-    const small = document.createElement("small");
-    small.textContent = t("Set your own width and height");
-    custom.append(name, small);
+    custom.append(name);
     custom.addEventListener("click", () => {
       state.customSize = true;
       syncSizeFields();
@@ -1141,7 +1196,7 @@ export function startApp(): void {
       if (id === "post") return;
       if (choice && small) {
         const size = sizeOf(choice, shape);
-        small.textContent = `${size.width} × ${size.height}${choice.note ? ` · ${choice.note}` : ""}`;
+        small.textContent = `${size.width} × ${size.height}`;
       }
     });
     syncSaveSummary();
@@ -1548,6 +1603,11 @@ export function startApp(): void {
       state.spaceHeld = held;
       ui.box.classList.toggle("pan-ready", held);
       if (!held) endPan();
+      if (state.mode === "swap") {
+        clearTimeout(statusTimer);
+        ui.hint.textContent = modeHint();
+      }
+      updateControls();
     };
 
     ui.canvas.addEventListener("pointerdown", (e) => {

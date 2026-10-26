@@ -163,6 +163,13 @@
             >
               No photos yet. Add a few and the collage builds itself.
             </p>
+            <button type="button" id="regenerate" class="wide">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20 11a8 8 0 1 0-2.3 5.7" />
+                <path d="M20 4v7h-7" />
+              </svg>
+              <span data-i18n="Shuffle layout">Shuffle layout</span>
+            </button>
             <ul id="photo-list" class="photo-list"></ul>
           </section>
 
@@ -193,12 +200,12 @@
               </fieldset>
               <div class="size-row">
                 <label class="field">
-                  <span data-i18n="Width">Width</span>
+                  <span><span data-i18n="Width">Width</span> (px)</span>
                   <input id="width" type="number" min="1" step="1" inputmode="numeric" />
                 </label>
                 <span class="times" aria-hidden="true">×</span>
                 <label class="field">
-                  <span data-i18n="Height">Height</span>
+                  <span><span data-i18n="Height">Height</span> (px)</span>
                   <input id="height" type="number" min="1" step="1" inputmode="numeric" />
                 </label>
               </div>
@@ -230,9 +237,6 @@
                 </label>
                 <p id="split-hint" class="hint"></p>
               </div>
-              <p class="unit" data-i18n="pixels. Typing your own numbers switches to Custom.">
-                pixels. Typing your own numbers switches to Custom.
-              </p>
               <p id="size-note" class="hint"></p>
               <p id="split-note" class="hint" hidden></p>
               <!-- The list behind the buttons above: kept in step with them, for keyboards and tests. -->
@@ -241,7 +245,16 @@
                 <select id="preset" tabindex="-1"></select>
               </label>
             </section>
+          </section>
 
+          <!-- Step 3: Style -->
+          <section
+            class="tabpanel"
+            id="panel-style"
+            role="tabpanel"
+            aria-labelledby="tab-style"
+            hidden
+          >
             <section aria-labelledby="layout-h">
               <h3 id="layout-h" data-i18n="Layout">Layout</h3>
               <fieldset class="cards group" id="layout-cards" aria-labelledby="layout-h">
@@ -299,13 +312,8 @@
                 </div>
                 <p id="columns-note" class="hint"></p>
               </div>
-              <p
-                id="gallery-note"
-                class="hint"
-                hidden
-                data-i18n="Gallery sizes the panels itself, so it has no column setting."
-              >
-                Gallery sizes the panels itself, so it has no column setting.
+              <p id="gallery-note" class="hint" hidden data-i18n="Gallery sizes its panels itself.">
+                Gallery sizes its panels itself.
               </p>
               <p class="trim">
                 <strong id="crop-note"></strong>
@@ -315,54 +323,6 @@
               </p>
             </section>
 
-            <section aria-labelledby="arr-h">
-              <h3 id="arr-h" data-i18n="Arrangement">Arrangement</h3>
-              <button type="button" id="regenerate" class="wide">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M20 11a8 8 0 1 0-2.3 5.7" />
-                  <path d="M20 4v7h-7" />
-                </svg>
-                <span data-i18n="Shuffle layout">Shuffle layout</span>
-              </button>
-              <p
-                class="hint"
-                data-i18n="Shuffles the photos once. Photos you made wider or taller keep their size."
-              >
-                Shuffles the photos once. Photos you made wider or taller keep their size.
-              </p>
-            </section>
-
-            <details id="technical" class="technical">
-              <summary data-i18n="Technical configuration">Technical configuration</summary>
-              <label class="field">
-                <span data-i18n="Seed">Seed</span>
-                <input
-                  id="seed"
-                  type="number"
-                  min="0"
-                  max="4294967295"
-                  step="1"
-                  inputmode="numeric"
-                />
-              </label>
-              <p
-                class="hint"
-                data-i18n="The same photos, seed and number of columns always give the same layout. When photos are added, the seed of the best of 30 tries is shown here."
-              >
-                The same photos, seed and number of columns always give the same layout. When photos
-                are added, the seed of the best of 30 tries is shown here.
-              </p>
-            </details>
-          </section>
-
-          <!-- Step 3: Style -->
-          <section
-            class="tabpanel"
-            id="panel-style"
-            role="tabpanel"
-            aria-labelledby="tab-style"
-            hidden
-          >
             <section aria-labelledby="bw-h">
               <div class="rowhead">
                 <h3 id="bw-h" data-i18n="Border thickness">Border thickness</h3>
@@ -422,6 +382,28 @@
                 Turn off to keep the border only between photos.
               </p>
             </section>
+
+            <details id="technical" class="technical">
+              <summary data-i18n="Technical configuration">Technical configuration</summary>
+              <label class="field">
+                <span data-i18n="Seed">Seed</span>
+                <input
+                  id="seed"
+                  type="number"
+                  min="0"
+                  max="4294967295"
+                  step="1"
+                  inputmode="numeric"
+                />
+              </label>
+              <p
+                class="hint"
+                data-i18n="The same photos, seed and number of columns always give the same layout. When photos are added, the seed of the best of 30 tries is shown here."
+              >
+                The same photos, seed and number of columns always give the same layout. When photos
+                are added, the seed of the best of 30 tries is shown here.
+              </p>
+            </details>
           </section>
         </div>
 
@@ -500,11 +482,6 @@
             </label>
             <button type="button" id="about-open" class="link" data-i18n="About">About</button>
           </div>
-          <p class="credit">
-            Collage Creator is a modified web version of
-            <a href="https://github.com/adrienverge/PhotoCollage" rel="noopener">PhotoCollage</a>
-            by Adrien Vergé and contributors, released under the GNU GPL v2 or later. No warranty.
-          </p>
         </div>
       </aside>
 

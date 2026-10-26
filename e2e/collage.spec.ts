@@ -1316,11 +1316,9 @@ test.describe("Asking for a photo to be bigger", () => {
 });
 
 test.describe("Small text styles", () => {
-  test("the pixels label is plain hint text, with no accent bar or background", async ({
-    page,
-  }) => {
+  test("hint text is plain, with no accent bar or background", async ({ page }) => {
     await page.click("#tab-poster");
-    const unit = await page.locator(".unit").evaluate((el) => {
+    const unit = await page.locator("#size-note").evaluate((el) => {
       const s = getComputedStyle(el);
       return { bar: s.borderLeftWidth, background: s.backgroundColor };
     });
@@ -1340,7 +1338,37 @@ test.describe("Collage Creator: layout, modes, sizes and notices", () => {
     await expect(page.locator("h1")).toHaveText("Collage Creator");
     await expect(page.locator("#empty-state")).toBeVisible();
     await expect(page.locator("#empty-state")).toContainText("Drop photos here");
-    await expect(page.locator(".credit")).toContainText("PhotoCollage");
+    // The credit lives in the About dialog only, not in the sidebar.
+    await expect(page.locator(".credit")).toHaveCount(0);
+  });
+
+  test("the tab bar floats over the step once it is scrolled", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 500 });
+    await addPhotos(page, await makeImages(page, SIX));
+    await page.click("#tab-style");
+    const tabs = page.locator("#tabs");
+    await expect(tabs).not.toHaveClass(/lifted/);
+    const before = await tabs.boundingBox();
+    await page.evaluate(() => {
+      const sheet = document.getElementById("sheet") as HTMLElement;
+      sheet.scrollTop = sheet.scrollHeight;
+    });
+    await expect(tabs).toHaveClass(/lifted/);
+    expect(await tabs.boundingBox()).toEqual(before);
+    await page.click("#tab-photos");
+    await expect(tabs).not.toHaveClass(/lifted/);
+  });
+
+  test("Shuffle is in the Photos step, Layout in Style, and Poster is only about size", async ({
+    page,
+  }) => {
+    await addPhotos(page, await makeImages(page, TWO));
+    await expect(page.locator("#panel-photos #regenerate")).toBeVisible();
+    await expect(page.locator("#panel-style #layout-cards")).toHaveCount(1);
+    await expect(page.locator("#panel-style #columns-block")).toHaveCount(1);
+    await expect(page.locator("#panel-style #seed")).toHaveCount(1);
+    await expect(page.locator("#panel-poster #layout-cards")).toHaveCount(0);
+    await expect(page.locator("#panel-poster #regenerate")).toHaveCount(0);
   });
 
   test("Pan is the default; Pan and Swap are exclusive", async ({ page }) => {
@@ -1388,10 +1416,14 @@ test.describe("Collage Creator: layout, modes, sizes and notices", () => {
     const from = await posterPoint(page, 0.5, 0.5);
     await page.mouse.move(from.x, from.y);
     await page.keyboard.down("Space");
+    // While Space is held Pan is the selected tool; it goes back to Swap on release.
+    await expect(page.locator("#mode-pan")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("#mode-swap")).toHaveAttribute("aria-pressed", "false");
     await page.mouse.down();
     await page.mouse.move(from.x + 40, from.y + 30, { steps: 4 });
     await page.mouse.up();
     await page.keyboard.up("Space");
+    await expect(page.locator("#mode-pan")).toHaveAttribute("aria-pressed", "false");
     await expect.poll(async () => (await posterRect(page)).x).toBeGreaterThan(start.x + 20);
     await expect(page.locator("#mode-swap")).toHaveAttribute("aria-pressed", "true");
   });
@@ -1408,12 +1440,18 @@ test.describe("Collage Creator: layout, modes, sizes and notices", () => {
     await expect(page.locator('[data-choice="a4"]')).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator("#orient-portrait")).toHaveAttribute("aria-pressed", "true");
 
-    await page.click('[data-choice="story"]');
-    await expect(page.locator("#width")).toHaveValue("1080");
-    await expect(page.locator("#height")).toHaveValue("1920");
+    await page.click('[data-choice="small"]');
+    await expect(page.locator("#width")).toHaveValue("600");
+    await expect(page.locator("#height")).toHaveValue("800");
 
     await page.click("#orient-landscape");
-    await expect(page.locator("#width")).toHaveValue("1920");
+    await expect(page.locator("#width")).toHaveValue("800");
+
+    // Square is a plain screen size, not an Instagram one; there is no story size.
+    await expect(page.locator('[data-choice="story"]')).toHaveCount(0);
+    await page.click('[data-choice="square"]');
+    await expect(page.locator("#width")).toHaveValue("1080");
+    await expect(page.locator("#height")).toHaveValue("1080");
 
     // Typing your own numbers switches to Custom.
     await page.fill("#width", "1234");
@@ -1429,7 +1467,7 @@ test.describe("Collage Creator: layout, modes, sizes and notices", () => {
     await setSize(page, 400, 300);
     await page.fill("#border-width", "0");
     await addPhotos(page, await makeImages(page, SIX));
-    await page.click("#tab-poster");
+    await page.click("#tab-style");
     await expect(page.locator("#layout-mosaic")).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator("#columns-block")).toBeVisible();
 
@@ -1510,6 +1548,31 @@ test.describe("Collage Creator on a phone", () => {
     await expect(page.locator("#format-seg")).toBeVisible();
     await page.click("#tab-save");
     await expect(page.locator("#save-block")).toBeHidden();
+  });
+
+  test("a step rises from the bottom when opened or switched to, and can be pulled down to close", async ({
+    page,
+  }) => {
+    await page.click("#tab-photos");
+    await expect(page.locator(".sheet")).toHaveClass(/rise/);
+    await page.click("#tab-poster");
+    await expect(page.locator(".sheet")).toHaveClass(/rise/);
+    await expect(page.locator("#sheet-title")).toHaveText("Poster");
+    const head = await page.locator(".sheet .sheet-head").boundingBox();
+    expect(head).not.toBeNull();
+    const x = (head?.x ?? 0) + (head?.width ?? 0) / 2;
+    const y = (head?.y ?? 0) + 10;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x, y + 40, { steps: 4 });
+    await page.mouse.up();
+    // A short pull springs back.
+    await expect(page.locator(".sheet")).toBeVisible();
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x, y + 140, { steps: 6 });
+    await page.mouse.up();
+    await expect(page.locator(".sheet")).toBeHidden();
   });
 
   test("the menu holds Language and About", async ({ page }) => {
