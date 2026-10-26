@@ -1,4 +1,5 @@
 <!-- SPDX-License-Identifier: GPL-2.0-or-later -->
+<!-- Copyright (C) 2026 John Briggs -->
 <script lang="ts">
   import { app } from "./app-state.svelte";
   import { tr } from "./tr.svelte";

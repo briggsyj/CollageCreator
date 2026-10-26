@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2026 John Briggs
 
 /**
  * A small ZIP writer. Images are already compressed, so files are stored as they are

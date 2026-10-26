@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2026 John Briggs
 
 import { describe, expect, it } from "vitest";
 import { parseSeed, withSeed } from "../src/ui/url";

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2026 John Briggs
 
 /**
  * Pull a sheet down by its head to put it away; a short pull springs back.

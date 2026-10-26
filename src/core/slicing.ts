@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2026 John Briggs
 
 import { type Rng, shuffle } from "./rng";
 import type { Layout, LayoutPage, LayoutPhoto, Placement, Rect } from "./types";

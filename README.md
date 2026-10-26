@@ -109,8 +109,9 @@ npm run build          # production build in dist/
 npm run bench          # layout benchmark
 ```
 
-Every source file starts with the line `SPDX-License-Identifier: GPL-2.0-or-later`; this
-project adds no copyright notice of its own. A file derived from the original must also keep
+Every source file starts with the line `SPDX-License-Identifier: GPL-2.0-or-later` and the
+line `Copyright (C) 2026 John Briggs` for the changes and additions in this project. A file
+derived from the original must also keep
 the original author's copyright line and carry a dated "CHANGED on" notice (see a ported file
 such as `src/core/layout.ts`). `npm run check:headers`, also run in CI, enforces both.
 
@@ -134,7 +135,7 @@ feature has a `spec.md`, `plan.md` and `tasks.md` under [specs/](specs/); [specs
 Copyright © 2013–2014 Adrien Vergé (original PhotoCollage), and the translators
 credited in [NOTICE.md](NOTICE.md) for their translation files.
 
-The changes in Collage Creator carry no separate copyright notice; they are offered
+Copyright © 2026 John Briggs, for the changes and additions in Collage Creator, offered
 under the same licence.
 
 This program is free software; you can redistribute it and/or modify it under

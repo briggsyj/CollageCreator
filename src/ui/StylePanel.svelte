@@ -1,4 +1,5 @@
 <!-- SPDX-License-Identifier: GPL-2.0-or-later -->
+<!-- Copyright (C) 2026 John Briggs -->
 <script lang="ts">
   import { MAX_COLUMNS, normaliseColumns } from "../core/layout";
   import type { CornerStyle } from "../core/types";
