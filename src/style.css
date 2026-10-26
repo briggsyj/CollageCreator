@@ -549,17 +549,51 @@ select {
   display: block;
 }
 
+/* An accordion: a recessed row with a chevron that turns when it opens. */
+.technical {
+  padding: 0 14px;
+  background: var(--inset-bg);
+  box-shadow: var(--inset-shadow);
+  border-radius: var(--r-ctl);
+}
+
 .technical summary {
-  min-height: 36px;
+  min-height: 48px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  list-style: none;
   cursor: pointer;
   font-weight: 600;
   font-size: 0.95rem;
 }
 
-.technical[open] summary {
-  margin-bottom: 8px;
+.technical summary::-webkit-details-marker {
+  display: none;
+}
+
+.technical summary::after {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-right: 4px;
+  border-right: 2px solid var(--sub);
+  border-bottom: 2px solid var(--sub);
+  transform: rotate(45deg);
+  transition: transform var(--t) ease;
+}
+
+.technical[open] summary::after {
+  transform: translateY(3px) rotate(-135deg);
+}
+
+.technical[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 14px;
 }
 
 /* Sliders. The filled part is set from script (--p). */
