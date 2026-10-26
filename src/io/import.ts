@@ -35,11 +35,13 @@ export interface ImportedPhoto extends Photo {
   colour: string;
 }
 
-/** Extensions browsers can generally decode (a subset of the original's PIL list). */
+/** Extensions browsers can generally decode (a subset of the original's PIL list), plus HEIC, which a bundled decoder handles where the browser cannot. */
 export const SUPPORTED_EXTENSIONS = [
   "avif",
   "bmp",
   "gif",
+  "heic",
+  "heif",
   "jfif",
   "jpe",
   "jpeg",

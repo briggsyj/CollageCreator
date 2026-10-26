@@ -68,7 +68,8 @@ changes are dated 2026-10-25 or later and are recorded in git history.
 
 ## Third-party software
 
-The built application bundles `canvas-size` (MIT). A complete, generated list
+The built application bundles `canvas-size` (MIT) and `libheif-js` (LGPL-3.0, the
+libheif HEIC decoder compiled to WebAssembly; loaded only when a HEIC photo is added). A complete, generated list
 with licence texts is built into the app as `THIRD-PARTY-LICENSES.txt`.
 
 ## Source availability

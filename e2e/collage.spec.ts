@@ -16,12 +16,14 @@ import {
   posterRect,
   previewColor,
   previewDifference,
+  previewIdle,
   readZip,
   removeFromList,
   SIX,
   saveAndRead,
   setSeed,
   setSize,
+  settle,
   stitch,
   swapMode,
 } from "./helpers";
@@ -184,6 +186,119 @@ test.describe("Files that cannot be used", () => {
     await page.setInputFiles("#file-input", [path]);
     await expect(page.locator("#messages")).toContainText("dup.png");
     await expect(page.locator("#photo-list li")).toHaveCount(1);
+  });
+});
+
+test.describe("Cropping the selected photo", () => {
+  /** A 200 x 100 photo, red on the left and blue on the right, in a square poster with no border. */
+  async function setUp(page: import("@playwright/test").Page) {
+    await setSize(page, 400, 400);
+    await page.fill("#border-width", "0");
+    await addPhotos(page, [await makeOrientedJpeg(page, "halves.jpg", 1)]);
+    await settle(page);
+    const p = await posterPoint(page, 0.5, 0.5);
+    await page.mouse.click(p.x, p.y);
+    await expect(page.locator("#span-group")).toBeVisible();
+    await page.click("#crop-toggle");
+    await expect(page.locator("#crop-tools")).toBeVisible();
+  }
+
+  test("zooming in and dragging changes which part shows, and never leaves a gap", async ({
+    page,
+  }) => {
+    await setUp(page);
+    // Plain fit: the middle of the photo, red on the left of the cell and blue on the right.
+    await settle(page);
+    expect(near(await previewColor(page, 0.1, 0.5), COLORS.red, 60)).toBe(true);
+    expect(near(await previewColor(page, 0.9, 0.5), COLORS.blue, 60)).toBe(true);
+
+    await page.locator("#crop-zoom").fill("3");
+    await expect(page.locator("#preview")).toHaveAttribute("data-crop", /^3\.000,/);
+    await settle(page);
+    // Drag the photo far to the right: its left side (red) fills the cell.
+    // Start near the poster's left edge so the whole drag stays inside the window.
+    const from = await posterPoint(page, 0.05, 0.5);
+    await page.evaluate(() => {
+      const log: number[][] = [];
+      (window as unknown as { __moves: number[][] }).__moves = log;
+      document
+        .getElementById("preview")
+        ?.addEventListener("pointermove", (e) => log.push([e.clientX, e.buttons]));
+    });
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(from.x + 600, from.y, { steps: 12 });
+    await page.mouse.up();
+    // It moved a good way towards the photo's left edge (x is 0.5 when centred, 0 at the edge).
+    const seen = async () =>
+      page.evaluate(() => ({
+        crop: document.getElementById("preview")?.dataset.crop,
+        moves: (window as unknown as { __moves: number[][] }).__moves,
+      }));
+    await expect
+      .poll(
+        async () => {
+          const info = await seen();
+          return Number((info.crop ?? "").split(",")[1]);
+        },
+        { message: "crop x after the drag" },
+      )
+      .toBeLessThan(0.4)
+      .catch(async (err) => {
+        throw new Error(`${err.message}\n${JSON.stringify(await seen())}`);
+      });
+    await settle(page);
+    expect(near(await previewColor(page, 0.9, 0.5), COLORS.red, 60)).toBe(true);
+    // It stopped at the photo's edge: the corners are the photo, not the white page or the border.
+    for (const [x, y] of [
+      [0.01, 0.01],
+      [0.99, 0.01],
+      [0.01, 0.99],
+      [0.99, 0.99],
+    ] as const) {
+      expect(near(await previewColor(page, x, y), COLORS.red, 60), `${x},${y}`).toBe(true);
+    }
+
+    // The saved image shows the same crop.
+    const png = await saveAndRead(page);
+    expect(await previewDifference(page, png)).toBeLessThan(8);
+
+    await page.click("#crop-reset");
+    await settle(page);
+    expect(near(await previewColor(page, 0.9, 0.5), COLORS.blue, 60)).toBe(true);
+  });
+
+  test("the crop is kept after a refresh", async ({ page }) => {
+    await setUp(page);
+    await page.locator("#crop-zoom").fill("3");
+    await settle(page);
+    const before = await previewColor(page, 0.5, 0.5);
+    await page.waitForTimeout(700);
+    await page.reload();
+    await expect(page.locator("#photo-list li")).toHaveCount(1);
+    await expect(page.locator("#preview")).toHaveAttribute("data-poster", /.+/);
+    await settle(page);
+    expect(near(await previewColor(page, 0.5, 0.5), before, 20)).toBe(true);
+    // Zoomed 3x on the centre of the photo, so the red half's edge is far from the cell's edge.
+    expect(near(await previewColor(page, 0.05, 0.5), COLORS.red, 60)).toBe(true);
+  });
+});
+
+test.describe("HEIC photos", () => {
+  test("are added and saved with the right colours, whichever decoder the browser uses", async ({
+    page,
+  }) => {
+    await setSize(page, 320, 240);
+    await page.fill("#border-width", "0");
+    await addPhotos(page, ["e2e/fixtures/rb.heic"]);
+    await expect(page.locator("#photo-list li")).toContainText("rb.heic");
+    const png = await saveAndRead(page);
+    const { colors } = await analyse(page, png, [
+      [0.15, 0.5],
+      [0.85, 0.5],
+    ]);
+    expect(near(colors[0]!, COLORS.red, 60)).toBe(true);
+    expect(near(colors[1]!, COLORS.blue, 60)).toBe(true);
   });
 });
 
@@ -465,6 +580,7 @@ test.describe("Choosing the number of columns", () => {
     await page.fill("#columns", "1");
     for (let i = 0; i < 3; i++) {
       await page.click("#regenerate");
+      await settle(page);
       const { left, right } = await bandColours(page);
       for (let k = 0; k < left.length; k++) {
         expect(near(left[k] as number[], right[k] as number[], 30)).toBe(true);
@@ -490,6 +606,7 @@ test.describe("Choosing the number of columns", () => {
   test("the same seed with the same columns gives the same layout", async ({ page }) => {
     await addPhotos(page, await makeImages(page, SIX));
     const grid = async () => {
+      await settle(page);
       const out: number[][] = [];
       for (const y of [0.15, 0.5, 0.85]) {
         for (const x of [0.15, 0.5, 0.85]) out.push(await previewColor(page, x, y));
@@ -1085,6 +1202,7 @@ test.describe("Border around the whole collage", () => {
     expect(near(await seam(), [0, 255, 0], 30)).toBe(true);
 
     await page.uncheck("#outer-border");
+    await settle(page);
     // Off: the photo reaches the edge, and the line between the two photos is still there.
     expect(near(await edge(), [0, 255, 0], 60)).toBe(false);
     expect(near(await edge(), await middle(), 30)).toBe(true);
@@ -1101,7 +1219,7 @@ test.describe("Border around the whole collage", () => {
     expect(near(saved.colors[2] as number[], [0, 255, 0], 30)).toBe(true);
   });
 
-  test("off, with rounded photos: gaps between them keep the colour, the outer corners do not", async ({
+  test("off, with rounded photos: the gaps between them stay, the outer edge has no border", async ({
     page,
   }) => {
     await setSize(page, 400, 800);
@@ -1109,14 +1227,46 @@ test.describe("Border around the whole collage", () => {
     await page.locator("#border-color").fill("#00ff00");
     await addPhotos(page, await makeImages(page, TWO));
     await page.fill("#columns", "1");
-    await page.selectOption("#corner-style", "rounded");
+    for (const corner of ["slight", "rounded"]) {
+      await page.selectOption("#corner-style", corner);
+      // On: the whole poster behind the photos is the border colour, so the poster's corner is too.
+      await page.check("#outer-border");
+      await settle(page);
+      expect(near(await previewColor(page, 0.003, 0.003), [0, 255, 0], 30), corner).toBe(true);
+      const gapOn = await previewColor(page, 0.5, 0.5);
+      expect(near(gapOn, [0, 255, 0], 30), corner).toBe(true);
+      // Off: the photo runs to the poster's corner (square there), and the gap between the two
+      // photos is exactly what it was.
+      await page.uncheck("#outer-border");
+      await settle(page);
+      const photo = await previewColor(page, 0.5, 0.25);
+      expect(near(await previewColor(page, 0.003, 0.003), photo, 30), corner).toBe(true);
+      expect(near(await previewColor(page, 0.997, 0.003), photo, 30), corner).toBe(true);
+      expect(near(await previewColor(page, 0.5, 0.5), gapOn, 30), corner).toBe(true);
+      // The photos' corners that face the gap are still rounded: the green shows in them.
+      expect(near(await previewColor(page, 0.003, 0.5 - 0.002), [0, 255, 0], 60), corner).toBe(
+        true,
+      );
+    }
+  });
 
-    // On: the whole poster behind the photos is the border colour.
-    expect(near(await previewColor(page, 0.003, 0.003), [0, 255, 0], 30)).toBe(true);
-    await page.uncheck("#outer-border");
-    // Off: the poster's corner is plain white, but the gap between the two photos is still green.
-    expect(near(await previewColor(page, 0.003, 0.003), [255, 255, 255], 15)).toBe(true);
-    expect(near(await previewColor(page, 0.5, 0.5), [0, 255, 0], 30)).toBe(true);
+  test("a border of 0%: photos stay flush, and rounded corners show the border colour", async ({
+    page,
+  }) => {
+    await setSize(page, 400, 800);
+    await page.fill("#border-width", "0");
+    await page.locator("#border-color").fill("#00ff00");
+    await addPhotos(page, await makeImages(page, TWO));
+    await page.fill("#columns", "1");
+    await page.selectOption("#corner-style", "rounded");
+    // Flush: right at the join the top photo ends and the bottom photo begins, with nothing between.
+    const top = await previewColor(page, 0.5, 0.25);
+    const bottom = await previewColor(page, 0.5, 0.75);
+    expect(near(await previewColor(page, 0.5, 0.498), top, 30)).toBe(true);
+    expect(near(await previewColor(page, 0.5, 0.502), bottom, 30)).toBe(true);
+    // The wedges the rounded corners leave are the border colour, not white.
+    expect(near(await previewColor(page, 0.004, 0.499), [0, 255, 0], 40)).toBe(true);
+    expect(near(await previewColor(page, 0.004, 0.499), [255, 255, 255], 40)).toBe(false);
   });
 
   test("the saved image matches the preview with it off, for every corner style", async ({
@@ -1144,6 +1294,7 @@ test.describe("Asking for a photo to be bigger", () => {
 
   /** Click the photo whose colour is `rgb` (found by scanning the preview). */
   async function selectPhoto(page: import("@playwright/test").Page, rgb: readonly number[]) {
+    await settle(page);
     for (let y = 0.05; y < 1; y += 0.1) {
       for (let x = 0.05; x < 1; x += 0.1) {
         if (near(await previewColor(page, x, y), rgb, 40)) {
@@ -1159,6 +1310,7 @@ test.describe("Asking for a photo to be bigger", () => {
 
   /** The share of the poster's height, down its middle, that is `rgb`. */
   async function shareDown(page: import("@playwright/test").Page, rgb: readonly number[]) {
+    await settle(page);
     let hits = 0;
     const n = 40;
     for (let i = 0; i < n; i++) {
@@ -1674,6 +1826,7 @@ test.describe("Address, saved work and language", () => {
     expect(await grid()).not.toBe(first);
     await page.goBack();
     await expect(page.locator("#seed")).toHaveValue("31");
+    await settle(page);
     expect(await grid()).toBe(first);
   });
 
@@ -1706,17 +1859,51 @@ test.describe("Address, saved work and language", () => {
     await expect(page.locator("#save")).toBeEnabled();
   });
 
+  test("while saved photos are coming back there is a loading display, and new photos wait for them", async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    await addPhotos(page, await makeImages(page, SIX.slice(0, 3)));
+    await page.waitForTimeout(700);
+    // Make reading each photo slow, as it can be with many large photos.
+    await page.addInitScript(() => {
+      const post = Worker.prototype.postMessage;
+      Worker.prototype.postMessage = function (...args: [unknown, ...unknown[]]) {
+        setTimeout(() => post.apply(this, args as never), 900);
+      };
+    });
+    await page.reload();
+    const loading = page.locator("#panel-photos .restoring");
+    await expect(loading).toBeVisible();
+    await expect(loading).toContainText("Bringing back your photos");
+    await expect(page.locator("#empty-state .restoring-stage")).toBeVisible();
+    await expect(page.locator("#add")).toBeDisabled();
+    await expect(page.locator("#add-empty")).toHaveCount(0);
+
+    // Photos added meanwhile are kept until the saved ones are back, then added after them.
+    await page.setInputFiles(
+      "#file-input",
+      await makeImages(page, [{ name: "late.png", w: 300, h: 200, color: "red" }]),
+    );
+    await expect(page.locator("#photo-list li")).toHaveCount(4, { timeout: 20000 });
+    await expect(loading).toHaveCount(0);
+    await expect(page.locator("#add")).toBeEnabled();
+    await expect(page.locator("#photo-list li .name").last()).toHaveText("late.png");
+  });
+
   test("a refresh gives back the same picture", async ({ page }) => {
     await setSize(page, 480, 360);
     await addPhotos(page, await makeImages(page, SIX));
     await setSeed(page, 9);
     const grid = () =>
       page.evaluate(() => (document.getElementById("preview") as HTMLCanvasElement).toDataURL());
+    await settle(page);
     const before = await grid();
     await page.waitForTimeout(700);
     await page.reload();
-    await expect(page.locator("#photo-list li")).toHaveCount(6);
+    await expect(page.locator("#photo-list li")).toHaveCount(6, { timeout: 20_000 });
     await expect(page.locator("#preview")).toHaveAttribute("data-poster", /.+/);
+    await settle(page);
     expect(await grid()).toBe(before);
   });
 
@@ -1763,6 +1950,7 @@ test.describe("Instagram post: one collage cut into square images", () => {
 
   /** How many pixels, in a thin column above the poster at `x`, differ from the plain background. */
   async function marksAbove(page: import("@playwright/test").Page, cut: number) {
+    await previewIdle(page);
     return page.evaluate((fraction) => {
       const canvas = document.getElementById("preview") as HTMLCanvasElement;
       const scale = canvas.width / canvas.clientWidth;

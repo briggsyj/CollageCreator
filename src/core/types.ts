@@ -18,9 +18,27 @@ export interface PhotoSpan {
 
 export const NO_SPAN: PhotoSpan = { columns: 1, rows: 1 };
 
+/**
+ * Which part of a photo shows in its cell. `zoom` 1 is the plain cover fit (the whole photo
+ * filling the cell, the overflow cropped); more magnifies it. `x` and `y` say where the visible
+ * window sits in the room the photo has to spare: 0 is the left / top edge, 1 the right / bottom
+ * edge, 0.5 the middle. Because they are shares of the spare room, any value from 0 to 1 and any
+ * zoom of 1 or more always covers the cell, whatever shape the cell has, so a crop survives a
+ * new arrangement.
+ */
+export interface PhotoCrop {
+  zoom: number;
+  x: number;
+  y: number;
+}
+
+export const NO_CROP: PhotoCrop = { zoom: 1, x: 0.5, y: 0.5 };
+
 /** A photo as the layout sees it: its shape, and optionally the room it asks for. */
 export interface LayoutPhoto extends PhotoSize {
   span?: PhotoSpan;
+  /** Does not affect the arrangement: only what is shown inside the photo's cell. */
+  crop?: PhotoCrop;
 }
 
 export interface Photo extends LayoutPhoto {

@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-import { startApp } from "./ui/app";
+import { mount } from "svelte";
+import App from "./ui/App.svelte";
 
-startApp();
+const target = document.getElementById("root");
+if (!target) throw new Error("missing #root");
+mount(App, { target });

@@ -143,6 +143,7 @@ export async function setSeed(page: Page, seed: number): Promise<void> {
   await openTechnical(page);
   await page.fill("#seed", String(seed));
   await page.locator("#seed").press("Tab");
+  await settle(page);
 }
 
 export async function saveAndRead(page: Page): Promise<Buffer> {
@@ -245,12 +246,61 @@ export async function previewDifference(page: Page, image: Buffer): Promise<numb
   }, image.toString("base64"));
 }
 
-/** Preview colour at a fractional point of the poster. */
+/**
+ * Waits until the preview has stopped changing, so a read right after a click sees the redraw
+ * that click caused (slow runners draw a frame or two later).
+ */
+export async function settle(page: Page): Promise<void> {
+  let last = "";
+  await expect
+    .poll(async () => {
+      const now = await page.evaluate(
+        () =>
+          new Promise<string>((done) =>
+            requestAnimationFrame(() =>
+              requestAnimationFrame(() => {
+                const c = document.getElementById("preview") as HTMLCanvasElement;
+                const px = (c.getContext("2d") as CanvasRenderingContext2D).getImageData(
+                  0,
+                  0,
+                  c.width,
+                  c.height,
+                ).data;
+                // A canvas that has not been drawn yet is not settled, however still it is.
+                done(px.some((v, i) => i % 4 === 3 && v > 0) ? c.toDataURL() : "");
+              }),
+            ),
+          ),
+      );
+      const same = now !== "" && now === last;
+      last = now;
+      return same;
+    })
+    .toBe(true);
+}
+
+/** Wait until no redraw of the preview is waiting for its frame. */
+export async function previewIdle(page: Page): Promise<void> {
+  await page.evaluate(
+    () =>
+      new Promise<void>((done) =>
+        // Any redraw a state change asked for was requested before this frame is.
+        requestAnimationFrame(() => {
+          const canvas = document.getElementById("preview") as HTMLCanvasElement;
+          const check = () => (canvas.dataset.pending === "1" ? setTimeout(check, 10) : done());
+          check();
+        }),
+      ),
+  );
+}
+
+/** Preview colour at a fractional point of the poster, after any redraw it is waiting for. */
 export async function previewColor(
   page: Page,
   fx: number,
   fy: number,
 ): Promise<[number, number, number]> {
+  await previewIdle(page);
   return page.evaluate(
     ([fx, fy]) => {
       const c = document.getElementById("preview") as HTMLCanvasElement;

@@ -934,6 +934,41 @@ dialog h3 {
   font-weight: 600;
 }
 
+/* Saved photos being brought back: shown only if it takes more than a moment. */
+.restoring {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--inset-bg);
+  box-shadow: var(--inset-shadow);
+  border-radius: var(--r-ctl);
+  animation: fade-in var(--t-sheet) ease 0.3s both;
+}
+
+.restoring p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.restoring-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  animation: fade-in var(--t-sheet) ease 0.3s both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
 .notices {
   display: flex;
   flex-direction: column;
@@ -1018,8 +1053,24 @@ dialog h3 {
   color: var(--press-text);
 }
 
+.span-group #crop-toggle,
 .span-group #remove-selected {
   grid-column: 1 / -1;
+}
+
+.crop-tools {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.crop-tools .hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--sub);
 }
 
 .save-block {
@@ -1135,6 +1186,10 @@ label.inline select {
 
 .canvas-box.panning #preview {
   cursor: grabbing;
+}
+
+.canvas-box.cropping #preview {
+  cursor: move;
 }
 
 body.dragging .canvas-box {
@@ -1281,6 +1336,15 @@ dialog::backdrop {
 progress {
   width: 100%;
   margin-bottom: 12px;
+}
+
+.restoring progress {
+  margin: 0;
+}
+
+.restoring-stage progress {
+  width: min(240px, 70%);
+  margin: 0;
 }
 
 .button-row {

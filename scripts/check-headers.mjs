@@ -16,7 +16,17 @@ const SPDX = "SPDX-License-Identifier: GPL-2.0-or-later";
 const DERIVED = /a modified version of\s+PhotoCollage/;
 const ORIGINAL_COPYRIGHT = /Copyright \(C\) \d{4}[^\n]*Adrien Vergé/;
 const CHANGE_NOTICE = /CHANGED on \d{4}-\d{2}-\d{2}/;
-const EXTENSIONS = new Set([".ts", ".js", ".mjs", ".css", ".html", ".yaml", ".yml", ".conf"]);
+const EXTENSIONS = new Set([
+  ".ts",
+  ".js",
+  ".mjs",
+  ".css",
+  ".html",
+  ".svelte",
+  ".yaml",
+  ".yml",
+  ".conf",
+]);
 const NAMES = new Set(["Dockerfile", ".dockerignore"]);
 // Third-party or data files that carry their own notices.
 const SKIP = [/^src\/i18n\/po\//, /^public\/icon\.svg$/, /^LICENSE$/, /^package-lock\.json$/];

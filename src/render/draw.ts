@@ -23,7 +23,8 @@
 // with this program; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-import type { CornerStyle, Layout, Rect } from "../core/types";
+import { coverGeometry } from "../core/crop";
+import type { CornerStyle, Layout, PhotoCrop, Rect } from "../core/types";
 
 export type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
@@ -116,40 +117,95 @@ export function insetCell(
   };
 }
 
+/** Which corners of a photo are left square. */
+export interface SquareCorners {
+  topLeft: boolean;
+  topRight: boolean;
+  bottomRight: boolean;
+  bottomLeft: boolean;
+}
+
+const ALL_ROUND: SquareCorners = {
+  topLeft: false,
+  topRight: false,
+  bottomRight: false,
+  bottomLeft: false,
+};
+
+/**
+ * The corners to leave square. With a border around the whole collage every corner is rounded.
+ * Without it the photos at the poster's edge run right up to that edge, so a corner on the edge
+ * stays square: rounding it would open a gap there, which would look like a border around the
+ * collage again. Corners that face another photo are rounded either way, so the gaps between
+ * photos look the same whether or not the outer border is on.
+ */
+export function squareCorners(
+  cell: Rect,
+  width: number,
+  height: number,
+  outer: boolean,
+): SquareCorners {
+  if (outer) return ALL_ROUND;
+  const left = cell.x <= 0;
+  const top = cell.y <= 0;
+  const right = cell.x + cell.w >= width;
+  const bottom = cell.y + cell.h >= height;
+  return {
+    topLeft: left || top,
+    topRight: right || top,
+    bottomRight: right || bottom,
+    bottomLeft: left || bottom,
+  };
+}
+
 /** Trace the outline of a photo of this style in `r`. */
-function tracePhotoShape(ctx: Ctx2D, r: Rect, style: CornerStyle): void {
+function tracePhotoShape(
+  ctx: Ctx2D,
+  r: Rect,
+  style: CornerStyle,
+  square: SquareCorners = ALL_ROUND,
+): void {
   ctx.beginPath();
   const radius = cornerRadius(style, r.w, r.h);
   if (radius <= 0) {
     ctx.rect(r.x, r.y, r.w, r.h);
     return;
   }
-  ctx.moveTo(r.x + radius, r.y);
-  ctx.arcTo(r.x + r.w, r.y, r.x + r.w, r.y + r.h, radius);
-  ctx.arcTo(r.x + r.w, r.y + r.h, r.x, r.y + r.h, radius);
-  ctx.arcTo(r.x, r.y + r.h, r.x, r.y, radius);
-  ctx.arcTo(r.x, r.y, r.x + r.w, r.y, radius);
+  const tl = square.topLeft ? 0 : radius;
+  const tr = square.topRight ? 0 : radius;
+  const br = square.bottomRight ? 0 : radius;
+  const bl = square.bottomLeft ? 0 : radius;
+  const right = r.x + r.w;
+  const bottom = r.y + r.h;
+  ctx.moveTo(r.x + tl, r.y);
+  ctx.lineTo(right - tr, r.y);
+  if (tr > 0) ctx.arcTo(right, r.y, right, r.y + tr, tr);
+  else ctx.lineTo(right, r.y);
+  ctx.lineTo(right, bottom - br);
+  if (br > 0) ctx.arcTo(right, bottom, right - br, bottom, br);
+  else ctx.lineTo(right, bottom);
+  ctx.lineTo(r.x + bl, bottom);
+  if (bl > 0) ctx.arcTo(r.x, bottom, r.x, bottom - bl, bl);
+  else ctx.lineTo(r.x, bottom);
+  ctx.lineTo(r.x, r.y + tl);
+  if (tl > 0) ctx.arcTo(r.x, r.y, r.x + tl, r.y, tl);
+  else ctx.lineTo(r.x, r.y);
   ctx.closePath();
 }
 
 /**
  * Fill the poster. With square photos it is plain white and the border is drawn
- * over the photos afterwards. With shaped photos the gaps between and around
- * them are the border, so the poster starts as the border colour; without an outer
- * border only the gaps between photos are, so it starts white and the seams between
- * the photos are drawn now.
+ * over the photos afterwards. With shaped photos the gaps between them (and around
+ * them, when there is an outer border) are the border, so the poster starts as the
+ * border colour, whatever the thickness. The outer border switch only moves the photos at the poster's edge
+ * out to it (see `insetCell`); it never changes the gaps between photos.
  */
-export function drawBackground(
-  ctx: Ctx2D,
-  width: number,
-  height: number,
-  frame?: Frame,
-  rects: readonly Rect[] = [],
-): void {
-  const shaped = frame !== undefined && frame.corners !== "none" && frame.border > 0;
-  ctx.fillStyle = shaped && frame.outer ? frame.color : "#ffffff";
+export function drawBackground(ctx: Ctx2D, width: number, height: number, frame?: Frame): void {
+  // Even with no border the gaps left by rounded corners are the border colour, so the
+  // photos stay flush and what shows between them reflects the colour that was chosen.
+  const shaped = frame !== undefined && frame.corners !== "none";
+  ctx.fillStyle = shaped ? frame.color : "#ffffff";
   ctx.fillRect(0, 0, width, height);
-  if (shaped && !frame.outer) drawSeams(ctx, rects, width, height, frame.border, frame.color);
 }
 
 /**
@@ -166,39 +222,48 @@ export function drawPhoto(
   width: number,
   height: number,
   frame: Frame,
+  crop?: PhotoCrop,
 ): void {
   if (frame.corners === "none") {
-    drawPhotoCover(ctx, source, sourceW, sourceH, cell);
+    drawPhotoCover(ctx, source, sourceW, sourceH, cell, crop);
     return;
   }
   const inner = insetCell(cell, width, height, frame.border, frame.outer);
   if (inner.w <= 0 || inner.h <= 0) return;
   ctx.save();
-  tracePhotoShape(ctx, inner, frame.corners);
+  tracePhotoShape(ctx, inner, frame.corners, squareCorners(cell, width, height, frame.outer));
   ctx.clip();
-  drawPhotoCover(ctx, source, sourceW, sourceH, inner);
+  drawPhotoCover(ctx, source, sourceW, sourceH, inner, crop);
   ctx.restore();
 }
 
-/** Draw `source` so it covers `cell`, centred and cropped to it. */
+/**
+ * Draw `source` so it covers `cell`, cropped to it: centred, or as `crop` says (zoomed in and
+ * slid within the room the photo has to spare, so it never leaves a gap).
+ */
 export function drawPhotoCover(
   ctx: Ctx2D,
   source: CanvasImageSource,
   sourceW: number,
   sourceH: number,
   cell: Rect,
+  crop?: PhotoCrop,
 ): void {
   if (cell.w <= 0 || cell.h <= 0) return;
-  const scale = Math.max(cell.w / sourceW, cell.h / sourceH);
-  const w = sourceW * scale;
-  const h = sourceH * scale;
+  const { w, h, spareX, spareY } = coverGeometry(sourceW, sourceH, cell.w, cell.h, crop?.zoom);
   ctx.save();
   ctx.beginPath();
   ctx.rect(cell.x, cell.y, cell.w, cell.h);
   ctx.clip();
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(source, cell.x + (cell.w - w) / 2, cell.y + (cell.h - h) / 2, w, h);
+  ctx.drawImage(
+    source,
+    cell.x - spareX * (crop?.x ?? 0.5),
+    cell.y - spareY * (crop?.y ?? 0.5),
+    w,
+    h,
+  );
   ctx.restore();
 }
 

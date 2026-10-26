@@ -16,9 +16,9 @@
   "scripts": {
     "dev": "vite",
     "prebuild": "node scripts/third-party-licenses.mjs",
-    "build": "tsc --noEmit && vite build",
+    "build": "npm run typecheck && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "svelte-check --tsconfig ./tsconfig.json",
     "lint": "biome check .",
     "format": "biome check --write .",
     "check:headers": "node scripts/check-headers.mjs",
@@ -27,13 +27,17 @@
     "bench": "tsx scripts/bench-layout.ts"
   },
   "dependencies": {
-    "canvas-size": "^2.0.0"
+    "canvas-size": "^2.0.0",
+    "libheif-js": "^1.23.5",
+    "svelte": "^5.57.2"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",
     "@playwright/test": "^1.64.1",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@types/node": "^26.6.5",
     "fast-check": "^4.10.2",
+    "svelte-check": "^4.7.7",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
     "vite": "^8.3.5",
