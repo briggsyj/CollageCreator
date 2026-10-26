@@ -336,7 +336,26 @@ export class Page {
     col.cells.push(new Cell([col], photo));
   }
 
+  /**
+   * Whether two neighbouring columns can be joined by one cell without leaving a hole: they are
+   * level, or the shorter one ends in a plain cell that can be stretched to meet the taller.
+   */
+  canJoin(a: Column, b: Column): boolean {
+    const [short, tall] = a.h <= b.h ? [a, b] : [b, a];
+    if (tall.h - short.h < 1e-9) return true;
+    const last = short.cells[short.cells.length - 1];
+    return last instanceof Cell && last.extent === null;
+  }
+
+  /** Stretch the shorter column's last cell so both columns end at the same height. */
+  private level(a: Column, b: Column): void {
+    const [short, tall] = a.h <= b.h ? [a, b] : [b, a];
+    const last = short.cells[short.cells.length - 1];
+    if (last instanceof Cell && last.extent === null) last.h += tall.h - short.h;
+  }
+
   addCellMultiCol(col1: Column, col2: Column, photo: PagePhoto): void {
+    this.level(col1, col2);
     const cell = new Cell([col1, col2], photo);
     const extent = new CellExtent(cell);
     col1.cells.push(cell);
@@ -351,8 +370,13 @@ export class Page {
     if (photo.forceSpan) {
       // Asked for: span two columns whatever the usual rule says, with the neighbour whose
       // height is closest so the mismatch to absorb is as small as possible.
+      // One that can be joined without a hole is preferred.
       const neighbours = [left, right].filter((c): c is Column => c !== undefined);
-      neighbours.sort((a, b) => Math.abs(col.h - a.h) - Math.abs(col.h - b.h));
+      neighbours.sort(
+        (a, b) =>
+          Number(this.canJoin(col, b)) - Number(this.canJoin(col, a)) ||
+          Math.abs(col.h - a.h) - Math.abs(col.h - b.h),
+      );
       const chosen = neighbours[0];
       if (chosen !== undefined) {
         if (chosen === left) this.addCellMultiCol(chosen, col, photo);
@@ -361,11 +385,11 @@ export class Page {
       }
     }
     if (2 * this.rng.random() > photo.ratio) {
-      if (left && Math.abs(col.h - left.h) < 0.5 * col.w) {
+      if (left && Math.abs(col.h - left.h) < 0.5 * col.w && this.canJoin(left, col)) {
         this.addCellMultiCol(left, col, photo);
         return;
       }
-      if (right && Math.abs(col.h - right.h) < 0.5 * col.w) {
+      if (right && Math.abs(col.h - right.h) < 0.5 * col.w && this.canJoin(col, right)) {
         this.addCellMultiCol(col, right, photo);
         return;
       }
@@ -388,6 +412,13 @@ export class Page {
    * extended cell above it.
    */
   removeBottomHoles(): void {
+    // A move can open a hole in a column already visited, so go over the columns again until none.
+    for (let pass = 0; pass <= this.cols.length && this.removeBottomHolesPass(); pass++);
+  }
+
+  /** One pass over the columns; whether anything was moved. */
+  private removeBottomHolesPass(): boolean {
+    let changed = false;
     for (const col of this.cols) {
       const cell = col.cells[col.cells.length - 1];
       if (!cell || cell === col.cells[0]) continue;
@@ -400,12 +431,14 @@ export class Page {
           // Case A1: extend cell to right
           right.cells.push(new CellExtent(cell));
           cell.parents = [col, right];
+          changed = true;
         } else if (top instanceof CellExtent && top.origin.bottomNeighbor() === undefined) {
           // Case A2: extend cell to left
           col.cells.splice(col.cells.indexOf(cell), 1);
           left.cells.push(cell);
           col.cells.push(new CellExtent(cell));
           cell.parents = [left, col];
+          changed = true;
         }
       } else if (
         cell instanceof Cell &&
@@ -426,6 +459,7 @@ export class Page {
           right.cells.push(cell);
           rightRight.cells.push(extent);
           cell.parents = [right, rightRight];
+          changed = true;
         } else if (top instanceof CellExtent && top.origin.bottomNeighbor() === undefined) {
           // Case B2: move cell to left
           col.cells.splice(col.cells.indexOf(cell), 1);
@@ -433,9 +467,11 @@ export class Page {
           left.cells.push(cell);
           col.cells.push(extent);
           cell.parents = [left, col];
+          changed = true;
         }
       }
     }
+    return changed;
   }
 
   /** Set all columns' heights to the same value (width * target ratio). */
@@ -447,6 +483,8 @@ export class Page {
   adjust(): void {
     this.removeEmptyCols();
     this.removeBottomHoles();
+    // Moving a cell (cases B1, B2) can leave a column empty.
+    this.removeEmptyCols();
     this.adjustColsHeights();
   }
 
