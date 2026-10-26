@@ -608,6 +608,7 @@ select {
   width: 52px;
   height: 32px;
   margin: 0;
+  border: 0;
   border-radius: 16px;
   background: var(--track);
   box-shadow: var(--field-shadow);

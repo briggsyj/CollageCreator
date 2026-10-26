@@ -143,9 +143,11 @@ const GROUP_TITLES: Record<SizeGroup, string> = {
 const SWATCHES: { name: string; color: string }[] = [
   { name: "White", color: "#ffffff" },
   { name: "Black", color: "#111111" },
-  { name: "Warm grey", color: "#bdb8ad" },
   { name: "Cream", color: "#f1e7d0" },
-  { name: "Navy", color: "#1d2b4a" },
+  // Muted, so the photos stay the focus: a green, a cool blue and a warm clay.
+  { name: "Sage", color: "#a3b18a" },
+  { name: "Dusty blue", color: "#8aa1b5" },
+  { name: "Terracotta", color: "#c8785a" },
 ];
 
 const CORNER_LABELS: { value: CornerStyle; label: string }[] = [
