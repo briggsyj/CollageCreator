@@ -8,6 +8,7 @@ import {
   analyse,
   autoReveal,
   COLORS,
+  clickPhoto,
   makeImages,
   makeOrientedJpeg,
   near,
@@ -197,8 +198,7 @@ test.describe("Cropping the selected photo", () => {
     await page.fill("#border-width", "0");
     await addPhotos(page, [await makeOrientedJpeg(page, "halves.jpg", 1)]);
     await settle(page);
-    const p = await posterPoint(page, 0.5, 0.5);
-    await page.mouse.click(p.x, p.y);
+    await clickPhoto(page, 0.5, 0.5);
     await expect(page.locator("#span-group")).toBeVisible();
     await page.click("#crop-toggle");
     await expect(page.locator("#crop-tools")).toBeVisible();
@@ -282,8 +282,7 @@ test.describe("Cropping the selected photo", () => {
     );
     await page.fill("#columns", "1");
     await settle(page);
-    const top = await posterPoint(page, 0.5, 0.25);
-    await page.mouse.click(top.x, top.y);
+    await clickPhoto(page, 0.5, 0.25);
     await expect(page.locator("#span-group")).toBeVisible();
     const first = await page.locator("#dock-name").textContent();
     await page.click("#crop-toggle");
@@ -883,8 +882,7 @@ test.describe("Preview area, zoom and pan", () => {
     await hover(page, 0.5, 0.5);
     await page.mouse.wheel(0, -300);
     await expect(page.locator("#reset-view")).toBeEnabled();
-    const p = await posterPoint(page, 0.5, 0.5);
-    await page.mouse.click(p.x, p.y);
+    await clickPhoto(page, 0.5, 0.5);
     await expect(page.locator("#messages")).toContainText("Selected");
   });
 
@@ -1001,8 +999,8 @@ test.describe("Removing photos", () => {
         return n;
       });
     // A click selects a photo (blue ring) and does not draw the orange one on the first photo.
+    await clickPhoto(page, 0.5, 0.5);
     const p = await posterPoint(page, 0.5, 0.5);
-    await page.mouse.click(p.x, p.y);
     await expect(page.locator("#span-group")).toBeVisible();
     await previewIdle(page);
     expect(await orange()).toBe(0);
@@ -1032,8 +1030,7 @@ test.describe("Removing photos", () => {
   }) => {
     await addPhotos(page, await makeImages(page, SIX));
     await expect(page.locator("#remove-selected")).toBeHidden();
-    const p = await posterPoint(page, 0.5, 0.5);
-    await page.mouse.click(p.x, p.y);
+    await clickPhoto(page, 0.5, 0.5);
     await expect(page.locator("#remove-selected")).toBeVisible();
     const picked = /Selected (.+?)\./.exec(
       (await page.locator("#messages").textContent()) ?? "",
@@ -1048,8 +1045,7 @@ test.describe("Removing photos", () => {
 
   test("Delete removes the clicked photo rather than the focused one", async ({ page }) => {
     await addPhotos(page, await makeImages(page, SIX));
-    const p = await posterPoint(page, 0.5, 0.5);
-    await page.mouse.click(p.x, p.y);
+    await clickPhoto(page, 0.5, 0.5);
     const picked = /Selected (.+?)\./.exec(
       (await page.locator("#messages").textContent()) ?? "",
     )?.[1];
@@ -1401,8 +1397,7 @@ test.describe("Asking for a photo to be bigger", () => {
     for (let y = 0.05; y < 1; y += 0.1) {
       for (let x = 0.05; x < 1; x += 0.1) {
         if (near(await previewColor(page, x, y), rgb, 40)) {
-          const p = await posterPoint(page, x, y);
-          await page.mouse.click(p.x, p.y);
+          await clickPhoto(page, x, y);
           await expect(page.locator("#span-group")).toBeVisible();
           return;
         }
@@ -1476,7 +1471,7 @@ test.describe("Asking for a photo to be bigger", () => {
     await page.fill("#columns", "2");
 
     await selectPhoto(page, COLORS.red);
-    await page.getByRole("button", { name: "Wider" }).click();
+    await page.locator("#span-wider").click();
     await expect(page.locator("#span-wider")).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator("#photo-list li").first()).toContainText("wider");
     // Still selected, so the buttons are still there.
@@ -1493,7 +1488,7 @@ test.describe("Asking for a photo to be bigger", () => {
     };
     expect(await bothSides()).toBe(true);
 
-    await page.getByRole("button", { name: "Wider" }).click();
+    await page.locator("#span-wider").click();
     await expect(page.locator("#span-wider")).toHaveAttribute("aria-pressed", "false");
     await expect(page.locator("#photo-list li").first()).not.toContainText("wider");
   });
@@ -1686,7 +1681,9 @@ test.describe("Collage Creator: layout, modes, sizes and notices", () => {
     await expect.poll(async () => (await posterRect(page)).w).toBeGreaterThan(before.w * 1.3);
   }
 
-  test("in Pan mode a drag moves the collage and a click selects a photo", async ({ page }) => {
+  test("in Pan mode a drag moves the collage and a click does not select a photo", async ({
+    page,
+  }) => {
     await addPhotos(page, await makeImages(page, TWO));
     await zoomInUntilPannable(page);
     const start = await posterRect(page);
@@ -1698,7 +1695,11 @@ test.describe("Collage Creator: layout, modes, sizes and notices", () => {
     // The view is redrawn on the next frame, which WebKit on CI can be slow to reach.
     await expect.poll(async () => (await posterRect(page)).x).toBeGreaterThan(start.x + 20);
     await expect(page.locator("#remove-selected")).toBeHidden();
+    // A click in Pan mode picks nothing: only the Select tool does.
     await page.mouse.click(from.x + 40, from.y + 30);
+    await previewIdle(page);
+    await expect(page.locator("#remove-selected")).toBeHidden();
+    await clickPhoto(page, 0.5, 0.5);
     await expect(page.locator("#remove-selected")).toBeVisible();
   });
 

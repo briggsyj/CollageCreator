@@ -213,6 +213,15 @@ export async function posterPoint(
   return { x: box.x + poster.x + fx * poster.w, y: box.y + poster.y + fy * poster.h };
 }
 
+/** Pick the photo at a fractional point of the poster, with the Select tool (the only way to pick one). */
+export async function clickPhoto(page: Page, fx: number, fy: number): Promise<void> {
+  if ((await page.getAttribute("#mode-select", "aria-pressed")) !== "true") {
+    await page.click("#mode-select");
+  }
+  const p = await posterPoint(page, fx, fy);
+  await page.mouse.click(p.x, p.y);
+}
+
 /** Mean absolute RGB difference (0..255) between the poster in the preview and an exported image. */
 export async function previewDifference(page: Page, image: Buffer): Promise<number> {
   return page.evaluate(async (base64) => {
