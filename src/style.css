@@ -226,7 +226,7 @@ body:has(.app[data-empty="true"]) {
 .modes,
 .pill,
 .zoomers .sq,
-.shuffle,
+.help-btn,
 .dock,
 dialog {
   background: var(--chrome-bg);
@@ -551,14 +551,14 @@ select {
 
 /* An accordion: a recessed row with a chevron that turns when it opens. */
 .technical {
-  padding: 0 14px;
+  padding: 0 16px;
   background: var(--inset-bg);
   box-shadow: var(--inset-shadow);
   border-radius: var(--r-ctl);
 }
 
 .technical summary {
-  min-height: 48px;
+  min-height: 52px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -592,8 +592,13 @@ select {
 .technical[open] {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding-bottom: 14px;
+  gap: 12px;
+  padding-bottom: 18px;
+}
+
+.technical[open] summary {
+  min-height: 44px;
+  margin-top: 4px;
 }
 
 /* Sliders. The filled part is set from script (--p). */
@@ -770,8 +775,37 @@ input[type="color"] {
   font-size: 1.3rem;
 }
 
-.menu-btn {
+.brand-actions {
   display: none;
+}
+
+.help-btn {
+  width: 40px;
+  min-height: 40px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.help-fab {
+  position: absolute;
+  z-index: 3;
+  left: 16px;
+  bottom: 16px;
+}
+
+.help-list {
+  margin: 0 0 12px;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  line-height: 1.4;
+}
+
+dialog h3 {
+  margin: 14px 0 6px;
 }
 
 .icon-btn {
@@ -1180,8 +1214,7 @@ body.dragging .canvas-box {
   max-width: calc(100% - 120px);
 }
 
-.status-pill,
-.shuffle {
+.status-pill {
   display: none;
 }
 
@@ -1256,6 +1289,14 @@ progress {
   gap: 8px;
 }
 
+dialog p.help-note {
+  margin-top: 14px;
+}
+
+dialog .button-row {
+  margin-top: 16px;
+}
+
 /* ------------------------------------------------------------------ narrow */
 
 @media (max-width: 760px) {
@@ -1294,8 +1335,18 @@ progress {
     padding: 0 6px 0 18px;
   }
 
+  .brand-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
   .menu-btn {
     display: inline-flex;
+  }
+
+  .help-fab {
+    display: none;
   }
 
   .tabs {
@@ -1434,18 +1485,6 @@ progress {
     min-height: 52px;
   }
 
-  .shuffle {
-    position: absolute;
-    z-index: 3;
-    left: var(--inset);
-    bottom: calc(var(--inset) + 128px);
-    display: inline-flex;
-    min-height: 48px;
-    padding: 0 18px;
-    border-radius: 24px;
-    font-weight: 600;
-  }
-
   .status-pill {
     position: absolute;
     z-index: 3;
@@ -1461,7 +1500,6 @@ progress {
     display: none;
   }
 
-  .app[data-open="true"] .shuffle,
   .app[data-open="true"] .status-pill {
     display: none;
   }

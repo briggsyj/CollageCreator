@@ -20,16 +20,27 @@
       <aside class="side panel" aria-label="Controls">
         <div class="brand">
           <h1>Collage Creator</h1>
-          <button
-            type="button"
-            id="menu-open"
-            class="icon-btn menu-btn"
-            aria-expanded="false"
-            aria-controls="util"
-            aria-label="Menu: language and about"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
-          </button>
+          <div class="brand-actions">
+            <button
+              type="button"
+              id="help-open-head"
+              class="icon-btn help-btn"
+              aria-haspopup="dialog"
+              aria-label="Help"
+            >
+              ?
+            </button>
+            <button
+              type="button"
+              id="menu-open"
+              class="icon-btn menu-btn"
+              aria-expanded="false"
+              aria-controls="util"
+              aria-label="Menu: language and about"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+            </button>
+          </div>
         </div>
 
         <div class="tabs" id="tabs" role="tablist" aria-label="Settings">
@@ -551,13 +562,14 @@
             <button type="button" id="add-empty" data-i18n="Choose photos…">Choose photos…</button>
           </section>
         </div>
-        <button type="button" id="shuffle" class="shuffle">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M3 7h3a5 5 0 0 1 4 2l4 6a5 5 0 0 0 4 2h3M3 17h3a5 5 0 0 0 4-2M14 9a5 5 0 0 1 4-2h3M18 4l3 3-3 3M18 14l3 3-3 3"
-            />
-          </svg>
-          <span data-i18n="Shuffle layout">Shuffle layout</span>
+        <button
+          type="button"
+          id="help-open"
+          class="help-btn help-fab"
+          aria-haspopup="dialog"
+          aria-label="Help"
+        >
+          ?
         </button>
         <p id="status-line" class="pill status-pill"></p>
         <div id="messages" class="sr-only" role="status" aria-live="polite"></div>
@@ -570,6 +582,51 @@
       <progress id="progress" max="100" value="0"></progress>
       <div class="button-row">
         <button type="button" id="cancel" data-i18n="Cancel">Cancel</button>
+      </div>
+    </dialog>
+
+    <dialog id="help-dialog" aria-labelledby="help-title">
+      <h2 id="help-title" data-i18n="Help">Help</h2>
+      <h3 data-i18n="Moving around">Moving around</h3>
+      <ul class="help-list">
+        <li>
+          <strong data-i18n="Pan">Pan</strong>:
+          <span data-i18n="drag the collage to move it. Hold Space to pan from any tool."
+            >drag the collage to move it. Hold Space to pan from any tool.</span
+          >
+        </li>
+        <li>
+          <strong data-i18n="Zoom">Zoom</strong>:
+          <span
+            data-i18n="scroll over the collage, or use + and − at the top right. Fit shows it all."
+            >scroll over the collage, or use + and − at the top right. Fit shows it all.</span
+          >
+        </li>
+      </ul>
+      <h3 data-i18n="Changing photos">Changing photos</h3>
+      <ul class="help-list">
+        <li>
+          <strong data-i18n="Swap">Swap</strong>:
+          <span data-i18n="click a photo, then another, to swap them."
+            >click a photo, then another, to swap them.</span
+          >
+        </li>
+        <li>
+          <strong data-i18n="Select">Select</strong>:
+          <span
+            data-i18n="click a photo to select it in the Photos step, then make it wider or taller."
+            >click a photo to select it in the Photos step, then make it wider or taller.</span
+          >
+        </li>
+      </ul>
+      <p
+        class="hint help-note"
+        data-i18n="Everything runs in your browser. Your photos are never uploaded."
+      >
+        Everything runs in your browser. Your photos are never uploaded.
+      </p>
+      <div class="button-row">
+        <button type="button" id="help-close" class="primary" data-i18n="Close">Close</button>
       </div>
     </dialog>
 
