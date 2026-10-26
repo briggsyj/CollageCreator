@@ -22,6 +22,7 @@ import {
   saveAndRead,
   setSeed,
   setSize,
+  settle,
   stitch,
   swapMode,
 } from "./helpers";
@@ -465,6 +466,7 @@ test.describe("Choosing the number of columns", () => {
     await page.fill("#columns", "1");
     for (let i = 0; i < 3; i++) {
       await page.click("#regenerate");
+      await settle(page);
       const { left, right } = await bandColours(page);
       for (let k = 0; k < left.length; k++) {
         expect(near(left[k] as number[], right[k] as number[], 30)).toBe(true);
@@ -1085,6 +1087,7 @@ test.describe("Border around the whole collage", () => {
     expect(near(await seam(), [0, 255, 0], 30)).toBe(true);
 
     await page.uncheck("#outer-border");
+    await settle(page);
     // Off: the photo reaches the edge, and the line between the two photos is still there.
     expect(near(await edge(), [0, 255, 0], 60)).toBe(false);
     expect(near(await edge(), await middle(), 30)).toBe(true);
@@ -1113,12 +1116,14 @@ test.describe("Border around the whole collage", () => {
       await page.selectOption("#corner-style", corner);
       // On: the whole poster behind the photos is the border colour, so the poster's corner is too.
       await page.check("#outer-border");
+      await settle(page);
       expect(near(await previewColor(page, 0.003, 0.003), [0, 255, 0], 30), corner).toBe(true);
       const gapOn = await previewColor(page, 0.5, 0.5);
       expect(near(gapOn, [0, 255, 0], 30), corner).toBe(true);
       // Off: the photo runs to the poster's corner (square there), and the gap between the two
       // photos is exactly what it was.
       await page.uncheck("#outer-border");
+      await settle(page);
       const photo = await previewColor(page, 0.5, 0.25);
       expect(near(await previewColor(page, 0.003, 0.003), photo, 30), corner).toBe(true);
       expect(near(await previewColor(page, 0.997, 0.003), photo, 30), corner).toBe(true);
@@ -1704,6 +1709,7 @@ test.describe("Address, saved work and language", () => {
     expect(await grid()).not.toBe(first);
     await page.goBack();
     await expect(page.locator("#seed")).toHaveValue("31");
+    await settle(page);
     expect(await grid()).toBe(first);
   });
 

@@ -245,6 +245,31 @@ export async function previewDifference(page: Page, image: Buffer): Promise<numb
   }, image.toString("base64"));
 }
 
+/**
+ * Waits until the preview has stopped changing, so a read right after a click sees the redraw
+ * that click caused (slow runners draw a frame or two later).
+ */
+export async function settle(page: Page): Promise<void> {
+  let last = "";
+  await expect
+    .poll(async () => {
+      const now = await page.evaluate(
+        () =>
+          new Promise<string>((done) =>
+            requestAnimationFrame(() =>
+              requestAnimationFrame(() =>
+                done((document.getElementById("preview") as HTMLCanvasElement).toDataURL()),
+              ),
+            ),
+          ),
+      );
+      const same = now === last;
+      last = now;
+      return same;
+    })
+    .toBe(true);
+}
+
 /** Preview colour at a fractional point of the poster. */
 export async function previewColor(
   page: Page,
