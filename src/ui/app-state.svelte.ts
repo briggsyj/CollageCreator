@@ -184,6 +184,8 @@ export class AppState {
   /** True while Space is held over the preview: dragging then pans instead of picking photos. */
   spaceHeld = $state(false);
   canvasFocused = $state(false);
+  /** Show the orange keyboard ring on the focused photo: only once the keyboard is in use. */
+  focusRing = $state(false);
   /** What the last removal took out and where, so it can be undone. */
   removed = $state.raw<{ photo: ImportedPhoto; index: number }[] | null>(null);
 
