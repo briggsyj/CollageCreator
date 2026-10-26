@@ -1198,6 +1198,7 @@ test.describe("Asking for a photo to be bigger", () => {
 
   /** Click the photo whose colour is `rgb` (found by scanning the preview). */
   async function selectPhoto(page: import("@playwright/test").Page, rgb: readonly number[]) {
+    await settle(page);
     for (let y = 0.05; y < 1; y += 0.1) {
       for (let x = 0.05; x < 1; x += 0.1) {
         if (near(await previewColor(page, x, y), rgb, 40)) {
@@ -1213,6 +1214,7 @@ test.describe("Asking for a photo to be bigger", () => {
 
   /** The share of the poster's height, down its middle, that is `rgb`. */
   async function shareDown(page: import("@playwright/test").Page, rgb: readonly number[]) {
+    await settle(page);
     let hits = 0;
     const n = 40;
     for (let i = 0; i < n; i++) {

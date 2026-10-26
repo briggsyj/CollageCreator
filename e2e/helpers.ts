@@ -143,6 +143,7 @@ export async function setSeed(page: Page, seed: number): Promise<void> {
   await openTechnical(page);
   await page.fill("#seed", String(seed));
   await page.locator("#seed").press("Tab");
+  await settle(page);
 }
 
 export async function saveAndRead(page: Page): Promise<Buffer> {
