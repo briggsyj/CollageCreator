@@ -1340,7 +1340,25 @@ test.describe("Collage Creator: layout, modes, sizes and notices", () => {
     await expect(page.locator("h1")).toHaveText("Collage Creator");
     await expect(page.locator("#empty-state")).toBeVisible();
     await expect(page.locator("#empty-state")).toContainText("Drop photos here");
-    await expect(page.locator(".credit")).toContainText("PhotoCollage");
+    // The credit lives in the About dialog only, not in the sidebar.
+    await expect(page.locator(".credit")).toHaveCount(0);
+  });
+
+  test("the tab bar floats over the step once it is scrolled", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 500 });
+    await addPhotos(page, await makeImages(page, SIX));
+    await page.click("#tab-style");
+    const tabs = page.locator("#tabs");
+    await expect(tabs).not.toHaveClass(/lifted/);
+    const before = await tabs.boundingBox();
+    await page.evaluate(() => {
+      const sheet = document.getElementById("sheet") as HTMLElement;
+      sheet.scrollTop = sheet.scrollHeight;
+    });
+    await expect(tabs).toHaveClass(/lifted/);
+    expect(await tabs.boundingBox()).toEqual(before);
+    await page.click("#tab-photos");
+    await expect(tabs).not.toHaveClass(/lifted/);
   });
 
   test("Pan is the default; Pan and Swap are exclusive", async ({ page }) => {

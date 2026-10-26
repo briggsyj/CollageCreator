@@ -480,10 +480,17 @@ export function startApp(): void {
     }
     ui.sheetTitle.textContent = t(TAB_TITLES[tab]);
     if (tab !== previousTab) ui.sheet.scrollTop = 0;
+    syncTabsLift();
     if (open) closeMenu();
   }
 
+  /** On wide screens the tab bar floats over the step once it is scrolled (see .tabs.lifted). */
+  function syncTabsLift(): void {
+    ui.tabs.classList.toggle("lifted", ui.sheet.scrollTop > 1);
+  }
+
   function initTabs(): void {
+    ui.sheet.addEventListener("scroll", syncTabsLift, { passive: true });
     for (const name of Object.keys(tabButtons) as Tab[]) {
       tabButtons[name].addEventListener("click", () => setTab(name, true));
     }

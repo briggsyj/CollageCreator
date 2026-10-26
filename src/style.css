@@ -971,11 +971,27 @@ label.inline select {
   font-size: 0.9rem;
 }
 
-.credit {
-  margin: 0;
-  font-size: 0.75rem;
-  line-height: 1.4;
-  color: var(--sub);
+/* Wide screens: the tab bar floats over the step's content. At the top it sits where it always
+   did; once the step is scrolled the content passes beneath it (script adds .lifted). */
+@media (min-width: 761px) {
+  .tabs {
+    position: relative;
+    z-index: 3;
+    height: 48px;
+    margin-bottom: -48px;
+    transition: box-shadow 0.15s;
+  }
+
+  .tabs.lifted {
+    background: linear-gradient(var(--inset-bg), var(--inset-bg)), var(--solid-bg);
+    -webkit-backdrop-filter: var(--chrome-filter);
+    backdrop-filter: var(--chrome-filter);
+    box-shadow: var(--chrome-shadow);
+  }
+
+  .sheet {
+    padding-top: 48px;
+  }
 }
 
 /* ------------------------------------------------------------------ the stage */

@@ -71,7 +71,7 @@ The content boards (names without `Style` in front) use an older flat look; take
 - **Trim figure**: replace "Cropped on average: N%" with "N% of each photo is trimmed to fit." plus "Lower means more of each photo is visible." in the Poster step. Remove the caption under the preview.
 - **Selected photo**: keep Wider, Taller, Normal and Remove in the Photos step (desktop dock below the grid; mobile action bar), tied to the same `state.selected`.
 - **Notices**: a region at the top of the Photos panel summarising skipped files with an expandable list, dismissible; errors persist until dismissed; "already added" clears itself after about ten seconds.
-- **Credit footer, About dialog, progress dialog**: keep the content and behaviour, rename to Collage Creator, restyle with the glass tokens. The credit moves to the bottom of the page (or the About dialog on phones) but must remain visible on desktop.
+- **Credit footer, About dialog, progress dialog**: keep the content and behaviour, rename to Collage Creator, restyle with the glass tokens. The sidebar no longer shows the credit; it lives in the About dialog only (one click from the sidebar footer or the phone menu).
 - **Backdrop**: a `<div class="backdrop" aria-hidden="true">` behind the app with 12 children. Colours are set with `style.setProperty("--c", …)` from the sampled colours in upload order. Blur, opacity and saturation come from tokens. Empty: neutral blocks.
 - **Responsive**: one breakpoint near 760 px. Wider: sidebar layout. Narrower: collage fills the screen, the bottom bar replaces the tabs, and each panel becomes a sheet. Reuse the same panel markup; do not duplicate controls. Ensure no horizontal overflow from 340 px (the existing test does this for the sidebar).
 

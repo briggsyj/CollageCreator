@@ -6,7 +6,7 @@ The design is a canvas Artifact (see [plan.md](plan.md), "Design reference"). Wh
 
 ## User stories
 
-- **P1** As a user, the app is called **Collage Creator** everywhere I see it, and the credit to PhotoCollage and its licence notice are still shown.
+- **P1** As a user, the app is called **Collage Creator** everywhere I see it, and the credit to PhotoCollage and its licence notice are still shown in the About dialog.
 - **P1** As a user on a wide screen, I see one sidebar with the app name at its top and three steps, **Photos**, **Poster** and **Style**, with the collage beside it. There is no separate header bar. Language and About are small links at the bottom of the sidebar.
 - **P1** As a user on a phone, the collage fills the screen and a bottom bar opens the same three steps (and Save) as sheets that slide up.
 - **P1** As a user, I choose between **Pan** and **Swap** with a toggle at the top right of the collage. Pan is the default. Holding Space pans temporarily while Swap is on. Zoom in, Zoom out and Fit are separate one-shot buttons under it.
@@ -21,7 +21,7 @@ The design is a canvas Artifact (see [plan.md](plan.md), "Design reference"). Wh
 
 ## Requirements
 
-- **Name**: every user-visible "Collage Web" becomes "Collage Creator" (page title, heading, About, credit footer, README). The credit footer and About dialog keep the PhotoCollage attribution, the licence and the no-warranty statement (constitution principle 10).
+- **Name**: every user-visible "Collage Web" becomes "Collage Creator" (page title, heading, About, README). The About dialog keeps the PhotoCollage attribution, the licence and the no-warranty statement (constitution principle 10).
 - **Steps**:
   - **Photos**: Add photos, the drop tip ("or drop photos anywhere on this page"), the photo grid with names and Wider/Taller tags, Undo remove, Remove all, and the selected-photo controls (Normal, Wider, Taller, Remove).
   - **Poster**: size, orientation, layout style (with columns for Mosaic), the trim figure, Try another arrangement, and Technical configuration (seed).
