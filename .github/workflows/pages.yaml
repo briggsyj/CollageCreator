@@ -7,11 +7,24 @@ name: GitHub Pages
 on:
   push:
     branches: [master]
+    paths-ignore:
+      - "**.md"
+      - "specs/**"
+      - ".specify/**"
   pull_request:
+    paths-ignore:
+      - "**.md"
+      - "specs/**"
+      - ".specify/**"
   workflow_dispatch:
 
 permissions:
   contents: read
+
+# A newer commit on the same branch makes the older run pointless.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 jobs:
   build:
