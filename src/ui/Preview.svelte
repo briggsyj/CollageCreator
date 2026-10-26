@@ -75,6 +75,12 @@
     // Where the poster is, in CSS pixels from the canvas's top-left (used by tests and tooling).
     canvas.dataset.poster = [ox, oy, pw, ph].map((n) => (n / dpr).toFixed(1)).join(",");
 
+    // The selected photo's crop (used by tests and tooling).
+    const crop = app.selectedPhoto?.crop;
+    canvas.dataset.crop = crop
+      ? [crop.zoom, crop.x, crop.y].map((n) => n.toFixed(3)).join(",")
+      : "";
+
     const layout = app.layout;
     if (!layout) {
       lastRects = [];

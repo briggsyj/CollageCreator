@@ -212,6 +212,7 @@ test.describe("Cropping the selected photo", () => {
     expect(near(await previewColor(page, 0.9, 0.5), COLORS.blue, 60)).toBe(true);
 
     await page.locator("#crop-zoom").fill("3");
+    await expect(page.locator("#preview")).toHaveAttribute("data-crop", /^3\.000,/);
     await settle(page);
     // Drag the photo far to the right: its left side (red) fills the cell.
     const from = await posterPoint(page, 0.3, 0.5);
@@ -219,6 +220,12 @@ test.describe("Cropping the selected photo", () => {
     await page.mouse.down();
     await page.mouse.move(from.x + 600, from.y, { steps: 6 });
     await page.mouse.up();
+    // It moved a good way towards the photo's left edge (x is 0.5 when centred, 0 at the edge).
+    await expect
+      .poll(async () =>
+        Number(((await page.locator("#preview").getAttribute("data-crop")) ?? "").split(",")[1]),
+      )
+      .toBeLessThan(0.4);
     await settle(page);
     expect(near(await previewColor(page, 0.9, 0.5), COLORS.red, 60)).toBe(true);
     // It stopped at the photo's edge: the corners are the photo, not the white page or the border.
