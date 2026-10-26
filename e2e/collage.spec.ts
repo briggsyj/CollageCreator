@@ -16,6 +16,7 @@ import {
   posterRect,
   previewColor,
   previewDifference,
+  previewIdle,
   readZip,
   removeFromList,
   SIX,
@@ -1900,7 +1901,7 @@ test.describe("Address, saved work and language", () => {
     const before = await grid();
     await page.waitForTimeout(700);
     await page.reload();
-    await expect(page.locator("#photo-list li")).toHaveCount(6);
+    await expect(page.locator("#photo-list li")).toHaveCount(6, { timeout: 20_000 });
     await expect(page.locator("#preview")).toHaveAttribute("data-poster", /.+/);
     await settle(page);
     expect(await grid()).toBe(before);
@@ -1949,6 +1950,7 @@ test.describe("Instagram post: one collage cut into square images", () => {
 
   /** How many pixels, in a thin column above the poster at `x`, differ from the plain background. */
   async function marksAbove(page: import("@playwright/test").Page, cut: number) {
+    await previewIdle(page);
     return page.evaluate((fraction) => {
       const canvas = document.getElementById("preview") as HTMLCanvasElement;
       const scale = canvas.width / canvas.clientWidth;

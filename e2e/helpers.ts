@@ -279,12 +279,28 @@ export async function settle(page: Page): Promise<void> {
     .toBe(true);
 }
 
-/** Preview colour at a fractional point of the poster. */
+/** Wait until no redraw of the preview is waiting for its frame. */
+export async function previewIdle(page: Page): Promise<void> {
+  await page.evaluate(
+    () =>
+      new Promise<void>((done) =>
+        // Any redraw a state change asked for was requested before this frame is.
+        requestAnimationFrame(() => {
+          const canvas = document.getElementById("preview") as HTMLCanvasElement;
+          const check = () => (canvas.dataset.pending === "1" ? setTimeout(check, 10) : done());
+          check();
+        }),
+      ),
+  );
+}
+
+/** Preview colour at a fractional point of the poster, after any redraw it is waiting for. */
 export async function previewColor(
   page: Page,
   fx: number,
   fy: number,
 ): Promise<[number, number, number]> {
+  await previewIdle(page);
   return page.evaluate(
     ([fx, fy]) => {
       const c = document.getElementById("preview") as HTMLCanvasElement;

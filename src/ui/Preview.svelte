@@ -48,9 +48,15 @@
   function requestDraw(): void {
     if (frameRequested) return;
     frameRequested = true;
+    // Tells tests (and tooling) that a redraw is on its way.
+    canvas.dataset.pending = "1";
     requestAnimationFrame(() => {
       frameRequested = false;
-      draw();
+      try {
+        draw();
+      } finally {
+        canvas.dataset.pending = "0";
+      }
     });
   }
 
