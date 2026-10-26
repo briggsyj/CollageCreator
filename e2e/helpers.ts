@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 import { readFile } from "node:fs/promises";
-import { type Download, expect, type Page } from "@playwright/test";
+import { type Download, expect, type Locator, type Page } from "@playwright/test";
 
 export interface Fixture {
   name: string;
@@ -127,34 +127,7 @@ export async function addPhotos(
   });
 }
 
-export type TabName = "photos" | "poster" | "style";
-
-/** Switch the sidebar to a tab, as a user would to reach its controls. */
-export async function showTab(page: Page, name: TabName): Promise<void> {
-  const tab = page.locator(`#tab-${name}`);
-  if ((await tab.getAttribute("aria-selected")) !== "true") await tab.click();
-}
-
-export async function setCorner(page: Page, style: string): Promise<void> {
-  await showTab(page, "style");
-  await page.locator(`[data-corner="${style}"]`).click();
-}
-
-/** Open "Export & save" if it is closed, then pick the file type. */
-export async function setFormat(page: Page, format: "png" | "jpeg"): Promise<void> {
-  if (await page.locator("#export-options").isHidden()) await page.click("#export-toggle");
-  await page.click(`#format-${format}`);
-}
-
-/** Select the nth photo in the grid and remove it with "Remove this photo". */
-export async function removePhoto(page: Page, index: number): Promise<void> {
-  await showTab(page, "photos");
-  await page.locator("#photo-list li").nth(index).getByRole("button").click();
-  await page.click("#remove-selected");
-}
-
 export async function setSize(page: Page, width: number, height: number): Promise<void> {
-  await showTab(page, "poster");
   await page.fill("#width", String(width));
   await page.fill("#height", String(height));
   await page.locator("#height").press("Tab");
@@ -162,7 +135,6 @@ export async function setSize(page: Page, width: number, height: number): Promis
 
 /** Open the "Technical configuration" section, as a user would to reach the seed. */
 export async function openTechnical(page: Page): Promise<void> {
-  await showTab(page, "poster");
   const open = await page.locator("#technical").evaluate((el) => (el as HTMLDetailsElement).open);
   if (!open) await page.locator("#technical summary").click();
 }
@@ -310,6 +282,110 @@ export const SIX = [
   { name: "cyan.png", w: 640, h: 480, color: "cyan" as const },
 ];
 
+/** Locator methods that act on an element and so need it to be visible. */
+const ACTIONS = new Set([
+  "check",
+  "click",
+  "dblclick",
+  "fill",
+  "focus",
+  "hover",
+  "press",
+  "selectOption",
+  "setInputFiles",
+  "uncheck",
+]);
+
+/** Show the step (tab) that holds a control, as a person would before using it. */
+async function reveal(page: Page, selector: string): Promise<void> {
+  // A tab pressed before the page's script has run does nothing, and WebKit can be that early.
+  await page.waitForSelector('html[data-app-ready="true"]', { state: "attached" });
+  const panel = await page
+    .locator(selector)
+    .first()
+    .evaluate(
+      (el) =>
+        el.closest('[role="tabpanel"]')?.id ?? (el.closest(".save-opts") ? "panel-style" : null),
+      undefined,
+      { timeout: 2000 },
+    )
+    .catch(() => null);
+  if (!panel) return;
+  const hidden = await page.locator(`#${panel}`).evaluate((el) => (el as HTMLElement).hidden);
+  if (hidden) await page.locator(`#tab-${panel.replace("panel-", "")}`).click();
+}
+
+type Wrapped<T> = T;
+
+function isLocator(value: unknown): value is Locator {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as Locator).fill === "function" &&
+    typeof (value as Locator).locator === "function"
+  );
+}
+
+function wrapLocator<T extends Locator>(page: Page, locator: T, selector: string): Wrapped<T> {
+  return new Proxy(locator, {
+    get(target, prop) {
+      const value = Reflect.get(target, prop, target);
+      if (typeof value !== "function") return value;
+      if (typeof prop === "string" && ACTIONS.has(prop)) {
+        return async (...args: unknown[]) => {
+          await reveal(page, selector);
+          return value.apply(target, args);
+        };
+      }
+      return (...args: unknown[]) => {
+        const out = value.apply(target, args);
+        return isLocator(out) ? wrapLocator(page, out, selector) : out;
+      };
+    },
+  });
+}
+
+/**
+ * The controls live in three steps and only one is shown at a time. Make every call that
+ * acts on a control (by selector) first show the step it is in, so tests read as they
+ * always did: "fill the border width".
+ */
+export function autoReveal(page: Page): void {
+  // The glass look is blur on blur; WebKit's software rendering on CI cannot paint that fast
+  // enough for Playwright's "stable" checks (a few frames in a row). Turn the blur off for tests.
+  // A constructable stylesheet is not blocked by the page's `style-src 'self'`.
+  void page.addInitScript(() => {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(
+      "*{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}.backdrop{filter:none!important}",
+    );
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+  });
+  const original = page.locator.bind(page);
+  page.locator = ((selector: string, options?: Parameters<Page["locator"]>[1]) =>
+    wrapLocator(page, original(selector, options), selector)) as Page["locator"];
+  for (const method of ["fill", "selectOption", "check", "uncheck", "click", "press"] as const) {
+    const base = (page[method] as (...args: unknown[]) => Promise<unknown>).bind(page);
+    (page as unknown as Record<string, unknown>)[method] = async (
+      selector: string,
+      ...rest: unknown[]
+    ) => {
+      await reveal(page, selector);
+      return base(selector, ...rest);
+    };
+  }
+}
+
+/** Switch the preview to Swap mode, where clicking two photos swaps them. */
+export async function swapMode(page: Page): Promise<void> {
+  await page.click("#mode-swap");
+}
+
+/** Take the photo in the list at `index` out: select it, then press Remove selected photo. */
+export async function removeFromList(page: Page, index: number): Promise<void> {
+  await page.locator("#photo-list li button").nth(index).click();
+  await page.click("#remove-selected");
+}
 /** The files in a ZIP archive, in the order they are listed (stored or deflated entries are read as stored). */
 export function readZip(zip: Buffer): { name: string; data: Buffer }[] {
   const end = zip.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));

@@ -10,7 +10,7 @@ original authors.
 | Original authors     | Adrien Vergé and contributors (listed below)                                                           |
 | Original source      | <https://github.com/adrienverge/PhotoCollage>                                                          |
 | Original licence     | GNU General Public License, version 2 or (at your option) any later version (SPDX: `GPL-2.0-or-later`) |
-| This project         | <https://github.com/briggsyj/PhotoCollage>                                                             |
+| This project         | <https://github.com/briggsyj/CollageCreator>                                                           |
 | This project licence | `GPL-2.0-or-later`, the same terms (full text in `LICENSE`)                                            |
 
 The original's file headers say "either version 2 of the License, or (at your
@@ -78,3 +78,8 @@ This applies to every way the program is distributed: the GitHub Pages site and
 the Docker image both link back to it.
 The About dialog links to it, and the Docker image carries it as the
 `org.opencontainers.image.source` label.
+
+The app is named Collage Creator. Besides the ported layout algorithm (Mosaic) it
+has a second, new layout style (Gallery, a slicing tree) that is not derived from
+the original, and a redesigned interface; the original's translations are reused
+unchanged and new strings are in English.

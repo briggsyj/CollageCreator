@@ -32,8 +32,25 @@ export interface Photo extends LayoutPhoto {
 
 export type ImageFormat = "png" | "jpeg";
 
-/** Shape of each photo's corners: square, slightly rounded, rounded, or an ellipse touching all four sides. */
-export type CornerStyle = "none" | "slight" | "rounded" | "circle";
+/** Shape of each photo's corners: square, slightly rounded, or rounded. */
+export type CornerStyle = "none" | "slight" | "rounded";
+
+/** How photos are arranged: in columns of different heights, or in panels cut from the poster. */
+export type LayoutStyle = "mosaic" | "gallery";
+
+/**
+ * What the app needs from an arrangement, whichever style made it. `Page` (Mosaic) and
+ * `SlicingPage` (Gallery) both provide it.
+ */
+export interface LayoutPage {
+  toLayout(): Layout;
+  /** Swap the photos shown by the cells holding photo indexes `a` and `b`. */
+  swapPhotos(a: number, b: number): void;
+  /** Change the poster shape (height / width) without changing which photo is where. */
+  setTargetRatio(ratio: number): void;
+  /** Number of columns in use; only Mosaic has columns. */
+  readonly noCols?: number;
+}
 
 export interface PosterSettings {
   /** Output width in pixels. */

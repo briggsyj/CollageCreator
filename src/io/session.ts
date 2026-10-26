@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 import { normaliseSplit } from "../core/split";
-import { NO_SPAN, type PhotoSpan, type PosterSettings } from "../core/types";
+import { type LayoutStyle, NO_SPAN, type PhotoSpan, type PosterSettings } from "../core/types";
 
 /**
  * Keeps the editor's state in this browser (IndexedDB), so a refresh brings back the
@@ -21,6 +21,8 @@ export interface SavedSession {
   photos: SavedPhoto[];
   seed: number;
   columns: number | undefined;
+  /** Mosaic or Gallery; absent in work saved before Gallery existed (that was Mosaic). */
+  layoutStyle?: LayoutStyle;
   settings: PosterSettings;
 }
 
@@ -165,10 +167,7 @@ export function checkSettings(raw: unknown, defaults: PosterSettings): PosterSet
       typeof r.borderColor === "string" && /^#[0-9a-f]{6}$/i.test(r.borderColor)
         ? r.borderColor
         : defaults.borderColor,
-    cornerStyle:
-      r.cornerStyle === "slight" || r.cornerStyle === "rounded" || r.cornerStyle === "circle"
-        ? r.cornerStyle
-        : "none",
+    cornerStyle: r.cornerStyle === "slight" || r.cornerStyle === "rounded" ? r.cornerStyle : "none",
     outerBorder: typeof r.outerBorder === "boolean" ? r.outerBorder : defaults.outerBorder,
     splitImages: splitOf(r.splitImages, r.width, r.height),
     format: r.format === "jpeg" ? "jpeg" : "png",
@@ -193,6 +192,7 @@ export function checkSession(raw: unknown, defaults: PosterSettings): SavedSessi
         ? seed
         : 0,
     columns: typeof r.columns === "number" && r.columns >= 1 ? Math.floor(r.columns) : undefined,
+    layoutStyle: r.layoutStyle === "gallery" ? "gallery" : "mosaic",
     settings: checkSettings(r.settings, defaults),
   };
 }

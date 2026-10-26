@@ -14,59 +14,90 @@
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
-    <header class="topbar">
-      <h1>Collage Creator</h1>
-      <div class="topbar-actions">
-        <label class="inline">
-          <span data-i18n="Language">Language</span>
-          <select id="language"></select>
-        </label>
-        <button type="button" id="about-open" data-i18n="About">About</button>
-      </div>
-    </header>
+    <div class="backdrop" id="backdrop" aria-hidden="true"></div>
 
-    <main class="layout">
-      <aside class="side" aria-label="Controls">
-        <div class="tabs" role="tablist" aria-label="Settings">
+    <div class="app" id="app" data-tab="photos" data-open="false" data-empty="true">
+      <aside class="side panel" aria-label="Controls">
+        <div class="brand">
+          <h1>Collage Creator</h1>
+          <button
+            type="button"
+            id="menu-open"
+            class="icon-btn menu-btn"
+            aria-expanded="false"
+            aria-controls="util"
+            aria-label="Menu: language and about"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+          </button>
+        </div>
+
+        <div class="tabs" id="tabs" role="tablist" aria-label="Settings">
           <button
             type="button"
             role="tab"
             id="tab-photos"
-            data-tab="photos"
             aria-controls="panel-photos"
             aria-selected="true"
-            data-i18n="Photos"
           >
-            Photos
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="14" rx="2" />
+              <circle cx="9" cy="10" r="1.5" />
+              <path d="m21 16-5-5-9 8" />
+            </svg>
+            <span><span class="num">1. </span><span data-i18n="Photos">Photos</span></span>
           </button>
           <button
             type="button"
             role="tab"
             id="tab-poster"
-            data-tab="poster"
             aria-controls="panel-poster"
             aria-selected="false"
-            tabindex="-1"
-            data-i18n="Poster"
           >
-            Poster
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M12 3v18M3 12h9M12 8h9" />
+            </svg>
+            <span><span class="num">2. </span><span data-i18n="Poster">Poster</span></span>
           </button>
           <button
             type="button"
             role="tab"
             id="tab-style"
-            data-tab="style"
             aria-controls="panel-style"
             aria-selected="false"
-            tabindex="-1"
-            data-i18n="Style"
           >
-            Style
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M12 3a9 9 0 1 0 0 18c1.5 0 2-1 2-2s-1-1.5-1-2.5S14 15 15 15h2a4 4 0 0 0 4-4c0-4.4-4-8-9-8z"
+              />
+            </svg>
+            <span><span class="num">3. </span><span data-i18n="Style">Style</span></span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="tab-save"
+            class="tab-save"
+            aria-controls="save-block"
+            aria-selected="false"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 4v11M7 11l5 5 5-5M5 20h14" />
+            </svg>
+            <span data-i18n="Save">Save</span>
           </button>
         </div>
 
-        <div class="panels">
-          <div id="panel-photos" class="tab-panel" role="tabpanel" aria-labelledby="tab-photos">
+        <div class="sheet" id="sheet">
+          <div class="sheet-head">
+            <span class="grab" aria-hidden="true"></span>
+            <h2 id="sheet-title">Photos</h2>
+            <button type="button" id="sheet-close" class="link" data-i18n="Close">Close</button>
+          </div>
+
+          <!-- Step 1: Photos -->
+          <section class="tabpanel" id="panel-photos" role="tabpanel" aria-labelledby="tab-photos">
             <button
               type="button"
               id="add"
@@ -76,29 +107,51 @@
             >
               Add images...
             </button>
+            <input id="file-input" type="file" accept="image/*" multiple hidden />
+            <p class="drop-tip" data-i18n="or drop photos anywhere on this page">
+              or drop photos anywhere on this page
+            </p>
             <p
               id="privacy-note"
-              class="privacy"
-              data-i18n="Everything runs in your browser. Your photos are never uploaded; they stay on your device, saved in this browser until you remove them."
+              class="sr-only"
+              data-i18n="Everything runs in your browser. Your photos are never uploaded."
             >
-              Everything runs in your browser. Your photos are never uploaded; they stay on your
-              device, saved in this browser until you remove them.
+              Everything runs in your browser. Your photos are never uploaded.
             </p>
-            <input id="file-input" type="file" accept="image/*" multiple hidden />
+
+            <div id="notices" class="notices" hidden>
+              <p id="notices-summary" class="notices-summary"></p>
+              <div class="notices-actions">
+                <button
+                  type="button"
+                  id="notices-details"
+                  class="link"
+                  aria-expanded="false"
+                  aria-controls="notices-list"
+                  data-i18n="Details"
+                >
+                  Details
+                </button>
+                <button type="button" id="notices-dismiss" class="link" data-i18n="Dismiss">
+                  Dismiss
+                </button>
+              </div>
+              <ul id="notices-list" class="notices-list" hidden></ul>
+            </div>
+
             <div class="rowhead">
-              <!-- biome-ignore lint/a11y/useHeadingContent: the script fills in the count -->
-              <h2 id="photo-count" aria-live="polite"></h2>
-              <div class="rowhead-actions">
+              <h3 id="photo-count">Photos</h3>
+              <div>
                 <button
                   type="button"
                   id="undo-remove"
-                  class="quiet"
+                  class="link"
                   disabled
                   data-i18n="Undo remove"
                 >
                   Undo remove
                 </button>
-                <button type="button" id="remove-all" class="quiet" disabled data-i18n="Remove all">
+                <button type="button" id="remove-all" class="link" disabled data-i18n="Remove all">
                   Remove all
                 </button>
               </div>
@@ -106,55 +159,55 @@
             <p
               id="empty-hint"
               class="hint"
-              data-i18n="Drop photos anywhere on this page, or use Add images."
+              data-i18n="No photos yet. Add a few and the collage builds itself."
             >
-              Drop photos anywhere on this page, or use Add images.
+              No photos yet. Add a few and the collage builds itself.
             </p>
-            <ul id="photo-list" class="photo-grid"></ul>
-            <p
-              id="select-hint"
-              class="hint"
-              data-i18n="Select a photo to make it wider or taller, or to remove it."
-            >
-              Select a photo to make it wider or taller, or to remove it.
-            </p>
-          </div>
+            <ul id="photo-list" class="photo-list"></ul>
+          </section>
 
-          <div
+          <!-- Step 2: Poster -->
+          <section
+            class="tabpanel"
             id="panel-poster"
-            class="tab-panel"
             role="tabpanel"
             aria-labelledby="tab-poster"
             hidden
           >
-            <section aria-labelledby="size-heading">
-              <h2 id="size-heading" data-i18n="Size">Size</h2>
-              <div id="presets" class="chips" role="group" aria-labelledby="size-heading"></div>
+            <section aria-labelledby="size-h">
+              <h3 id="size-h" data-i18n="Output image size">Output image size</h3>
+              <fieldset id="size-choices" class="choices group" aria-labelledby="size-h"></fieldset>
+              <fieldset class="seg group" id="orientation" aria-label="Orientation">
+                <button type="button" id="orient-landscape" aria-pressed="true">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="6" width="18" height="12" rx="2" />
+                  </svg>
+                  <span data-i18n="Landscape">Landscape</span>
+                </button>
+                <button type="button" id="orient-portrait" aria-pressed="false">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="6" y="3" width="12" height="18" rx="2" />
+                  </svg>
+                  <span data-i18n="Portrait">Portrait</span>
+                </button>
+              </fieldset>
+              <div class="size-row">
+                <label class="field">
+                  <span data-i18n="Width">Width</span>
+                  <input id="width" type="number" min="1" step="1" inputmode="numeric" />
+                </label>
+                <span class="times" aria-hidden="true">×</span>
+                <label class="field">
+                  <span data-i18n="Height">Height</span>
+                  <input id="height" type="number" min="1" step="1" inputmode="numeric" />
+                </label>
+              </div>
               <div id="split-controls" class="split-controls" hidden>
                 <div class="field">
-                  <span id="split-count-label" data-i18n="Images in the post"
-                    >Images in the post</span
-                  >
+                  <span data-i18n="Number of images">Number of images</span>
                   <div class="stepper">
-                    <button
-                      type="button"
-                      id="split-less"
-                      class="square"
-                      aria-label="Fewer images"
-                      data-i18n-label="Fewer images"
-                    >
-                      <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        aria-hidden="true"
-                      >
-                        <path d="M5 12h14" />
-                      </svg>
+                    <button type="button" id="split-less" class="sq" aria-label="Fewer images">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" /></svg>
                     </button>
                     <input
                       id="split-count"
@@ -163,119 +216,120 @@
                       max="20"
                       step="1"
                       inputmode="numeric"
-                      aria-labelledby="split-count-label"
                     />
-                    <button
-                      type="button"
-                      id="split-more"
-                      class="square"
-                      aria-label="More images"
-                      data-i18n-label="More images"
-                    >
-                      <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        aria-hidden="true"
-                      >
+                    <button type="button" id="split-more" class="sq" aria-label="More images">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M12 5v14M5 12h14" />
                       </svg>
                     </button>
                   </div>
                 </div>
                 <label class="field">
-                  <span data-i18n="Size of each square image (pixels)"
-                    >Size of each square image (pixels)</span
-                  >
+                  <span data-i18n="Size of each image (px)">Size of each image (px)</span>
                   <input id="split-size" type="number" min="16" step="1" inputmode="numeric" />
                 </label>
                 <p id="split-hint" class="hint"></p>
               </div>
-              <div class="size-row">
-                <label class="field">
-                  <span data-i18n="Width">Width</span>
-                  <input id="width" type="number" min="1" step="1" inputmode="numeric" />
-                </label>
-                <label class="field">
-                  <span data-i18n="Height">Height</span>
-                  <input id="height" type="number" min="1" step="1" inputmode="numeric" />
-                </label>
-                <span class="unit" data-i18n="pixels">pixels</span>
-              </div>
+              <p class="unit" data-i18n="pixels. Typing your own numbers switches to Custom.">
+                pixels. Typing your own numbers switches to Custom.
+              </p>
+              <p id="size-note" class="hint"></p>
+              <p id="split-note" class="hint" hidden></p>
+              <!-- The list behind the buttons above: kept in step with them, for keyboards and tests. -->
+              <label class="sr-only">
+                <span data-i18n="Apply a template:">Apply a template:</span>
+                <select id="preset" tabindex="-1"></select>
+              </label>
             </section>
 
-            <section aria-labelledby="columns-heading">
-              <h2 id="columns-heading" data-i18n="Columns">Columns</h2>
-              <div class="seg" role="group" aria-labelledby="columns-heading">
-                <button type="button" id="columns-auto" aria-pressed="true" data-i18n="Automatic">
-                  Automatic
-                </button>
-                <button
-                  type="button"
-                  id="columns-custom"
-                  aria-pressed="false"
-                  data-i18n="Choose a number"
-                >
-                  Choose a number
-                </button>
-              </div>
-              <div class="stepper" role="group" aria-labelledby="columns-heading">
-                <button
-                  type="button"
-                  id="columns-less"
-                  class="square"
-                  aria-label="Fewer columns"
-                  data-i18n-label="Fewer columns"
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M5 12h14" />
+            <section aria-labelledby="layout-h">
+              <h3 id="layout-h" data-i18n="Layout">Layout</h3>
+              <fieldset class="cards group" id="layout-cards" aria-labelledby="layout-h">
+                <button type="button" class="card" id="layout-mosaic" aria-pressed="true">
+                  <svg viewBox="0 0 40 30" aria-hidden="true">
+                    <rect x="1" y="1" width="8" height="12" rx="1.5" />
+                    <rect x="1" y="15" width="8" height="14" rx="1.5" />
+                    <rect x="11" y="1" width="8" height="16" rx="1.5" />
+                    <rect x="11" y="19" width="8" height="10" rx="1.5" />
+                    <rect x="21" y="1" width="8" height="9" rx="1.5" />
+                    <rect x="21" y="12" width="8" height="17" rx="1.5" />
+                    <rect x="31" y="1" width="8" height="13" rx="1.5" />
+                    <rect x="31" y="16" width="8" height="13" rx="1.5" />
                   </svg>
-                </button>
-                <input
-                  id="columns"
-                  type="number"
-                  min="1"
-                  step="1"
-                  inputmode="numeric"
-                  placeholder="Auto"
-                  aria-labelledby="columns-heading"
-                />
-                <button
-                  type="button"
-                  id="columns-more"
-                  class="square"
-                  aria-label="More columns"
-                  data-i18n-label="More columns"
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    aria-hidden="true"
+                  <b data-i18n="Mosaic">Mosaic</b>
+                  <small data-i18n="Photos fill columns of different heights."
+                    >Photos fill columns of different heights.</small
                   >
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
                 </button>
+                <button type="button" class="card" id="layout-gallery" aria-pressed="false">
+                  <svg viewBox="0 0 40 30" aria-hidden="true">
+                    <rect x="1" y="1" width="17" height="16" rx="1.5" />
+                    <rect x="1" y="19" width="8" height="10" rx="1.5" />
+                    <rect x="11" y="19" width="7" height="10" rx="1.5" />
+                    <rect x="20" y="1" width="19" height="9" rx="1.5" />
+                    <rect x="20" y="12" width="9" height="17" rx="1.5" />
+                    <rect x="31" y="12" width="8" height="17" rx="1.5" />
+                  </svg>
+                  <b data-i18n="Gallery">Gallery</b>
+                  <small data-i18n="The poster is split into panels, one per photo."
+                    >The poster is split into panels, one per photo.</small
+                  >
+                </button>
+              </fieldset>
+              <div id="columns-block" class="columns-block">
+                <label class="field" for="columns">
+                  <span data-i18n="Columns">Columns</span>
+                </label>
+                <div class="stepper">
+                  <button type="button" id="columns-less" class="sq" aria-label="Fewer columns">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" /></svg>
+                  </button>
+                  <input
+                    id="columns"
+                    type="number"
+                    min="1"
+                    step="1"
+                    inputmode="numeric"
+                    placeholder="Auto"
+                  />
+                  <button type="button" id="columns-more" class="sq" aria-label="More columns">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                  </button>
+                  <button type="button" id="columns-auto" data-i18n="Automatic">Automatic</button>
+                </div>
+                <p id="columns-note" class="hint"></p>
               </div>
-              <p id="columns-note" class="hint"></p>
-              <p id="crop-note" class="hint"></p>
+              <p
+                id="gallery-note"
+                class="hint"
+                hidden
+                data-i18n="Gallery sizes the panels itself, so it has no column setting."
+              >
+                Gallery sizes the panels itself, so it has no column setting.
+              </p>
+              <p class="trim">
+                <strong id="crop-note"></strong>
+                <span class="hint" data-i18n="Lower means more of each photo is visible."
+                  >Lower means more of each photo is visible.</span
+                >
+              </p>
+            </section>
+
+            <section aria-labelledby="arr-h">
+              <h3 id="arr-h" data-i18n="Arrangement">Arrangement</h3>
+              <button type="button" id="regenerate" class="wide">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M20 11a8 8 0 1 0-2.3 5.7" />
+                  <path d="M20 4v7h-7" />
+                </svg>
+                <span data-i18n="Shuffle layout">Shuffle layout</span>
+              </button>
+              <p
+                class="hint"
+                data-i18n="Shuffles the photos once. Photos you made wider or taller keep their size."
+              >
+                Shuffles the photos once. Photos you made wider or taller keep their size.
+              </p>
             </section>
 
             <details id="technical" class="technical">
@@ -299,27 +353,29 @@
                 are added, the seed of the best of 30 tries is shown here.
               </p>
             </details>
-          </div>
+          </section>
 
-          <div
+          <!-- Step 3: Style -->
+          <section
+            class="tabpanel"
             id="panel-style"
-            class="tab-panel"
             role="tabpanel"
             aria-labelledby="tab-style"
             hidden
           >
-            <section aria-labelledby="thickness-heading">
+            <section aria-labelledby="bw-h">
               <div class="rowhead">
-                <h2 id="thickness-heading" data-i18n="Border thickness">Border thickness</h2>
-                <output id="border-width-out" for="border-width"></output>
+                <h3 id="bw-h" data-i18n="Border thickness">Border thickness</h3>
+                <output id="border-output" for="border-width"></output>
               </div>
               <input
                 id="border-width"
+                class="range"
                 type="range"
                 min="0"
-                max="10"
+                max="20"
                 step="0.1"
-                aria-labelledby="thickness-heading"
+                aria-labelledby="bw-h"
               />
               <p
                 class="hint"
@@ -329,211 +385,201 @@
               </p>
             </section>
 
-            <section aria-labelledby="colour-heading">
-              <h2 id="colour-heading" data-i18n="Border colour">Border colour</h2>
-              <div id="swatches" class="swatches" role="group" aria-labelledby="colour-heading">
-                <button
-                  type="button"
-                  class="swatch"
-                  data-colour="#ffffff"
-                  aria-label="White"
-                  data-i18n-label="White"
-                  aria-pressed="false"
-                  style="background: #ffffff"
-                ></button>
-                <button
-                  type="button"
-                  class="swatch"
-                  data-colour="#111111"
-                  aria-label="Black"
-                  data-i18n-label="Black"
-                  aria-pressed="false"
-                  style="background: #111111"
-                ></button>
-                <button
-                  type="button"
-                  class="swatch"
-                  data-colour="#bdb8ad"
-                  aria-label="Warm grey"
-                  data-i18n-label="Warm grey"
-                  aria-pressed="false"
-                  style="background: #bdb8ad"
-                ></button>
-                <button
-                  type="button"
-                  class="swatch"
-                  data-colour="#f1e7d0"
-                  aria-label="Cream"
-                  data-i18n-label="Cream"
-                  aria-pressed="false"
-                  style="background: #f1e7d0"
-                ></button>
-                <button
-                  type="button"
-                  class="swatch"
-                  data-colour="#1d2b4a"
-                  aria-label="Navy"
-                  data-i18n-label="Navy"
-                  aria-pressed="false"
-                  style="background: #1d2b4a"
-                ></button>
-                <label class="custom-colour" id="custom-colour">
-                  <span data-i18n="Custom...">Custom...</span>
-                  <input id="border-color" type="color" value="#ffffff" />
-                </label>
-              </div>
+            <section aria-labelledby="bc-h">
+              <h3 id="bc-h" data-i18n="Border colour">Border colour</h3>
+              <fieldset class="swatches group" id="swatches" aria-labelledby="bc-h"></fieldset>
+              <label class="custom-colour">
+                <span data-i18n="Custom…">Custom…</span>
+                <input id="border-color" type="color" value="#ffffff" />
+              </label>
             </section>
 
-            <section aria-labelledby="corners-heading">
-              <h2 id="corners-heading" data-i18n="Photo corners">Photo corners</h2>
-              <div id="corners" class="corner-tiles" role="group" aria-labelledby="corners-heading">
-                <button type="button" class="corner" data-corner="none" aria-pressed="true">
-                  <span class="shape" aria-hidden="true"></span
-                  ><span data-i18n="Square">Square</span>
-                </button>
-                <button type="button" class="corner" data-corner="slight" aria-pressed="false">
-                  <span class="shape" aria-hidden="true"></span
-                  ><span data-i18n="Slight">Slight</span>
-                </button>
-                <button type="button" class="corner" data-corner="rounded" aria-pressed="false">
-                  <span class="shape" aria-hidden="true"></span
-                  ><span data-i18n="Rounded">Rounded</span>
-                </button>
-                <button type="button" class="corner" data-corner="circle" aria-pressed="false">
-                  <span class="shape" aria-hidden="true"></span
-                  ><span data-i18n="Circle">Circle</span>
-                </button>
-              </div>
+            <section aria-labelledby="cs-h">
+              <h3 id="cs-h" data-i18n="Corner style">Corner style</h3>
+              <fieldset
+                class="cards corners group"
+                id="corner-cards"
+                aria-labelledby="cs-h"
+              ></fieldset>
+              <label class="sr-only">
+                <span data-i18n="Corner style">Corner style</span>
+                <select id="corner-style" tabindex="-1">
+                  <option value="none" data-i18n="None">None</option>
+                  <option value="slight" data-i18n="Slightly rounded">Slightly rounded</option>
+                  <option value="rounded" data-i18n="Rounded">Rounded</option>
+                </select>
+              </label>
             </section>
 
-            <section aria-labelledby="edges-heading">
-              <h2 id="edges-heading" data-i18n="Edges">Edges</h2>
-              <label class="check">
-                <input id="outer-border" type="checkbox" checked />
+            <section>
+              <label class="switch" for="outer-border">
                 <span data-i18n="Border around the whole collage"
                   >Border around the whole collage</span
                 >
+                <input id="outer-border" type="checkbox" checked />
               </label>
               <p class="hint" data-i18n="Turn off to keep the border only between photos.">
                 Turn off to keep the border only between photos.
               </p>
             </section>
-          </div>
+          </section>
         </div>
 
-        <section id="selection-dock" class="dock" aria-labelledby="selection-name" hidden>
+        <!-- Shown for the selected photo: under the list on wide screens, a bar above the tabs on phones. -->
+        <section class="dock" id="selected-dock" aria-label="Selected photo" hidden>
           <div class="rowhead">
-            <!-- biome-ignore lint/a11y/useHeadingContent: the script fills in the photo name -->
-            <h2 id="selection-name"></h2>
-            <button type="button" id="selection-done" class="quiet" data-i18n="Done">Done</button>
+            <h3 id="dock-name">Photo</h3>
+            <button type="button" id="dock-done" class="link" data-i18n="Done">Done</button>
           </div>
-          <div role="group" aria-labelledby="width-label" class="dock-group">
-            <p id="width-label" class="label" data-i18n="Width in the collage">
-              Width in the collage
-            </p>
-            <div class="seg">
-              <button type="button" id="span-w-normal" aria-pressed="true" data-i18n="Normal">
-                Normal
-              </button>
-              <button
-                type="button"
-                id="span-w-wider"
-                aria-pressed="false"
-                data-i18n="Wider (2 columns)"
-              >
-                Wider (2 columns)
-              </button>
-            </div>
-          </div>
-          <div role="group" aria-labelledby="height-label" class="dock-group">
-            <p id="height-label" class="label" data-i18n="Height in the collage">
-              Height in the collage
-            </p>
-            <div class="seg">
-              <button type="button" id="span-h-normal" aria-pressed="true" data-i18n="Normal">
-                Normal
-              </button>
-              <button type="button" id="span-h-taller" aria-pressed="false" data-i18n="Taller">
-                Taller
-              </button>
-              <button type="button" id="span-h-tallest" aria-pressed="false" data-i18n="Tallest">
-                Tallest
-              </button>
-            </div>
-          </div>
-          <button
-            type="button"
-            id="remove-selected"
-            class="danger wide"
-            data-i18n="Remove this photo"
-          >
-            Remove this photo
-          </button>
-        </section>
-
-        <div class="foot">
-          <div class="foot-meta">
-            <span id="output-summary"></span>
+          <fieldset id="span-group" class="span-group">
+            <legend class="sr-only" data-i18n="Size of the selected photo">
+              Size of the selected photo
+            </legend>
+            <button type="button" id="span-wider" aria-pressed="false" data-i18n="Wider">
+              Wider
+            </button>
+            <button type="button" id="span-taller">Taller</button>
+            <button type="button" id="span-reset" data-i18n="Normal size">Normal size</button>
             <button
               type="button"
-              id="export-toggle"
-              class="quiet"
-              aria-expanded="false"
-              aria-controls="export-options"
-              data-i18n="Export &amp; save"
+              id="remove-selected"
+              class="danger"
+              data-i18n="Remove selected photo"
             >
-              Export &amp; save
+              Remove selected photo
             </button>
+          </fieldset>
+        </section>
+
+        <div class="save-block" id="save-block">
+          <div class="sheet-head only-narrow">
+            <span class="grab" aria-hidden="true"></span>
+            <h2 data-i18n="Save image">Save image</h2>
+            <button type="button" id="save-close" class="link" data-i18n="Close">Close</button>
           </div>
-          <div id="export-options" class="export-options" hidden>
-            <div class="seg" role="group" aria-label="Format" data-i18n-label="Format">
+          <p id="save-summary" class="meta"></p>
+          <div class="save-opts">
+            <fieldset class="seg group" id="format-seg" aria-label="Format">
               <button type="button" id="format-png" aria-pressed="true">PNG</button>
               <button type="button" id="format-jpeg" aria-pressed="false">JPEG</button>
-            </div>
+            </fieldset>
+            <select id="format" class="sr-only" tabindex="-1" aria-label="Format">
+              <option value="png">PNG</option>
+              <option value="jpeg">JPEG</option>
+            </select>
             <label class="field" id="quality-field" hidden>
-              <span data-i18n="JPEG quality">JPEG quality</span>
-              <input id="quality" type="range" min="10" max="100" step="1" value="92" />
+              <span class="rowhead"
+                ><span data-i18n="JPEG quality">JPEG quality</span>
+                <output id="quality-output" for="quality"></output></span
+              >
+              <input
+                id="quality"
+                class="range"
+                type="range"
+                min="10"
+                max="100"
+                step="1"
+                value="92"
+              />
             </label>
           </div>
           <button type="button" id="save" class="primary wide" data-i18n="Save poster..." disabled>
             Save poster...
           </button>
         </div>
+
+        <div class="util" id="util">
+          <div class="util-row">
+            <label class="inline">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
+              </svg>
+              <span class="sr-only" data-i18n="Language">Language</span>
+              <select id="language"></select>
+            </label>
+            <button type="button" id="about-open" class="link" data-i18n="About">About</button>
+          </div>
+          <p class="credit">
+            Collage Creator is a modified web version of
+            <a href="https://github.com/adrienverge/PhotoCollage" rel="noopener">PhotoCollage</a>
+            by Adrien Vergé and contributors, released under the GNU GPL v2 or later. No warranty.
+          </p>
+        </div>
       </aside>
 
-      <section class="stage" aria-label="Preview">
+      <main class="stage" aria-label="Preview">
+        <p id="hint" class="pill hint-pill"></p>
+        <div class="tools" id="tools">
+          <fieldset class="modes group" id="modes" aria-label="Mode">
+            <button type="button" id="mode-pan" aria-pressed="true" aria-keyshortcuts="Space">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"
+                />
+              </svg>
+              <span data-i18n="Pan">Pan</span>
+            </button>
+            <button type="button" id="mode-swap" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7" />
+              </svg>
+              <span data-i18n="Swap">Swap</span>
+            </button>
+          </fieldset>
+          <fieldset class="zoomers group" aria-label="Zoom">
+            <button type="button" id="zoom-in" class="sq" aria-label="Zoom in">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+            </button>
+            <button type="button" id="zoom-out" class="sq" aria-label="Zoom out">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" /></svg>
+            </button>
+            <button
+              type="button"
+              id="reset-view"
+              class="sq"
+              data-i18n="Fit"
+              aria-label="Fit to window"
+            >
+              Fit
+            </button>
+            <span id="view-zoom" class="zoom-pct" aria-live="off"></span>
+          </fieldset>
+        </div>
+
         <div id="canvas-box" class="canvas-box">
           <!-- biome-ignore lint/a11y/noInteractiveElementToNoninteractiveRole: the canvas handles its own arrow-key navigation, so screen readers must pass keys through (application role) -->
           <canvas
             id="preview"
             tabindex="0"
             role="application"
-            aria-label="Collage preview. Use arrow keys to move between photos, Enter to pick one and Enter on another to swap them, Delete to remove the photo, Escape to cancel. Plus and minus zoom, Shift and arrow keys pan, zero fits the window. With a mouse, scroll to zoom and hold Space while dragging to pan."
+            aria-label="Collage preview. Use arrow keys to move between photos, Enter to pick one and Enter on another to swap them, Delete to remove the photo, Escape to cancel. Plus and minus zoom, Shift and arrow keys pan, zero fits the window. With a mouse, drag to pan, scroll to zoom, or choose Swap to click two photos and swap them."
           ></canvas>
+          <section id="empty-state" class="empty" aria-label="Drop photos here">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="14" rx="2" />
+              <circle cx="9" cy="10" r="1.5" />
+              <path d="m21 16-5-5-9 8" />
+            </svg>
+            <h2 data-i18n="Drop photos here">Drop photos here</h2>
+            <p data-i18n="Everything runs in your browser. Your photos are never uploaded.">
+              Everything runs in your browser. Your photos are never uploaded.
+            </p>
+            <button type="button" id="add-empty" data-i18n="Choose photos…">Choose photos…</button>
+          </section>
         </div>
-        <div class="view-bar">
-          <button type="button" id="shuffle" data-i18n="Shuffle layout">Shuffle layout</button>
-          <span class="hint" data-i18n="Scroll to zoom. Hold Space and drag to pan."
-            >Scroll to zoom. Hold Space and drag to pan.</span
-          >
-          <span id="view-zoom" class="hint"></span>
-          <button type="button" id="reset-view" hidden data-i18n="Fit to window">
-            Fit to window
-          </button>
-        </div>
-        <div id="messages" class="messages" role="status" aria-live="polite"></div>
-        <p id="size-note" class="hint"></p>
-        <p id="split-note" class="hint" hidden></p>
-      </section>
-    </main>
-
-    <footer class="credit">
-      <span>
-        Collage Creator is a modified web version of
-        <a href="https://github.com/adrienverge/PhotoCollage" rel="noopener">PhotoCollage</a>
-        by Adrien Vergé and contributors, released under the GNU GPL v2 or later. No warranty.
-      </span>
-    </footer>
+        <button type="button" id="shuffle" class="shuffle">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M3 7h3a5 5 0 0 1 4 2l4 6a5 5 0 0 0 4 2h3M3 17h3a5 5 0 0 0 4-2M14 9a5 5 0 0 1 4-2h3M18 4l3 3-3 3M18 14l3 3-3 3"
+            />
+          </svg>
+          <span data-i18n="Shuffle layout">Shuffle layout</span>
+        </button>
+        <p id="status-line" class="pill status-pill"></p>
+        <div id="messages" class="sr-only" role="status" aria-live="polite"></div>
+      </main>
+    </div>
 
     <dialog id="progress-dialog" aria-labelledby="progress-title">
       <h2 id="progress-title" data-i18n="Please wait">Please wait</h2>
@@ -570,7 +616,7 @@
         <span data-i18n="Your photos never leave your device."
           >Your photos never leave your device.</span
         >
-        <a href="https://github.com/briggsyj/PhotoCollage" rel="noopener" data-i18n="Source code"
+        <a href="https://github.com/briggsyj/CollageCreator" rel="noopener" data-i18n="Source code"
           >Source code</a
         >
         ·

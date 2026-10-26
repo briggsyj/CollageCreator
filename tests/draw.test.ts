@@ -12,9 +12,8 @@ const overlaps = (a: Rect, b: Rect) =>
   Math.min(a.y + a.h, b.y + b.h) > Math.max(a.y, b.y);
 
 describe("cornerRadius", () => {
-  it("is 0 for square photos and for the circle (which is an ellipse, not a radius)", () => {
+  it("is 0 for square photos", () => {
     expect(cornerRadius("none", 200, 100)).toBe(0);
-    expect(cornerRadius("circle", 200, 100)).toBe(0);
   });
 
   it("scales with the shorter side, rounded more than slightly rounded", () => {

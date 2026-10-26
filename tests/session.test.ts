@@ -23,7 +23,7 @@ describe("checkSettings", () => {
       height: 600,
       borderWidth: 0.02,
       borderColor: "#112233",
-      cornerStyle: "circle",
+      cornerStyle: "rounded",
       outerBorder: false,
       splitImages: 0,
       format: "jpeg",

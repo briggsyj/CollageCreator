@@ -5,6 +5,7 @@ import { expect, test } from "@playwright/test";
 import {
   addPhotos,
   analyse,
+  autoReveal,
   COLORS,
   makeImages,
   makeOrientedJpeg,
@@ -16,18 +17,17 @@ import {
   previewColor,
   previewDifference,
   readZip,
-  removePhoto,
+  removeFromList,
   SIX,
   saveAndRead,
-  setCorner,
-  setFormat,
   setSeed,
   setSize,
-  showTab,
   stitch,
+  swapMode,
 } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
+  autoReveal(page);
   // Relative, so the suite also works against a site served under a sub-path (GitHub Pages).
   await page.goto("./");
 });
@@ -69,7 +69,7 @@ test.describe("User story: add photos, see a collage, save it", () => {
 
   test("saves a JPEG when asked", async ({ page }) => {
     await setSize(page, 320, 240);
-    await setFormat(page, "jpeg");
+    await page.selectOption("#format", "jpeg");
     await expect(page.locator("#quality-field")).toBeVisible();
     await addPhotos(page, await makeImages(page, SIX.slice(0, 3)));
     const file = await saveAndRead(page);
@@ -78,7 +78,6 @@ test.describe("User story: add photos, see a collage, save it", () => {
 
   test("a single photo fills the whole poster", async ({ page }) => {
     await setSize(page, 300, 200);
-    await showTab(page, "style");
     await page.fill("#border-width", "0");
     await addPhotos(
       page,
@@ -98,8 +97,7 @@ test.describe("User story: add photos, see a collage, save it", () => {
 
 test.describe("User story: choose the poster size", () => {
   test("presets fill in the pixel fields", async ({ page }) => {
-    await showTab(page, "poster");
-    await page.getByRole("button", { name: /A4 portrait/ }).click();
+    await page.selectOption("#preset", { label: "A4 portrait (300 DPI)" });
     await expect(page.locator("#width")).toHaveValue("2480");
     await expect(page.locator("#height")).toHaveValue("3508");
   });
@@ -135,18 +133,18 @@ test.describe("User story: try different arrangements", () => {
     expect(b).not.toBe(a1);
   });
 
-  test("Shuffle layout picks a new seed", async ({ page }) => {
+  test("Regenerate picks a new seed", async ({ page }) => {
     await addPhotos(page, await makeImages(page, SIX));
     await setSeed(page, 5);
-    await page.click("#shuffle");
+    await page.click("#regenerate");
     await expect(page.locator("#seed")).not.toHaveValue("5");
   });
 
   test("removing a photo updates the collage", async ({ page }) => {
     await addPhotos(page, await makeImages(page, SIX));
-    await removePhoto(page, 0);
+    await removeFromList(page, 0);
     await expect(page.locator("#photo-list li")).toHaveCount(5);
-    await removePhoto(page, 0);
+    await removeFromList(page, 0);
     await expect(page.locator("#photo-list li")).toHaveCount(4);
   });
 
@@ -193,7 +191,6 @@ test.describe("Photos are shown the right way up", () => {
   test("EXIF orientation 6 (rotate 90 degrees clockwise)", async ({ page }) => {
     const photo = await makeOrientedJpeg(page, "turned.jpg", 6);
     await setSize(page, 100, 200);
-    await showTab(page, "style");
     await page.fill("#border-width", "0");
     await addPhotos(page, [photo]);
     const png = await saveAndRead(page);
@@ -209,7 +206,6 @@ test.describe("Photos are shown the right way up", () => {
   test("a photo with no orientation data is left as it is", async ({ page }) => {
     const photo = await makeOrientedJpeg(page, "plain.jpg", 1);
     await setSize(page, 200, 100);
-    await showTab(page, "style");
     await page.fill("#border-width", "0");
     await addPhotos(page, [photo]);
     const png = await saveAndRead(page);
@@ -225,9 +221,7 @@ test.describe("Photos are shown the right way up", () => {
 test.describe("Collage editing: borders and swapping", () => {
   test("the border colour and thickness show in the saved image", async ({ page }) => {
     await setSize(page, 400, 300);
-    await showTab(page, "style");
     await page.fill("#border-width", "5");
-    await showTab(page, "style");
     await page.locator("#border-color").fill("#00ff00");
     await addPhotos(
       page,
@@ -244,9 +238,7 @@ test.describe("Collage editing: borders and swapping", () => {
 
   test("preview and saved image match, with a border", async ({ page }) => {
     await setSize(page, 640, 480);
-    await showTab(page, "style");
     await page.fill("#border-width", "2");
-    await showTab(page, "style");
     await page.locator("#border-color").fill("#202020");
     await addPhotos(page, await makeImages(page, SIX));
     const png = await saveAndRead(page);
@@ -255,7 +247,6 @@ test.describe("Collage editing: borders and swapping", () => {
 
   test("clicking two photos swaps them, in preview and in the saved image", async ({ page }) => {
     await setSize(page, 400, 400);
-    await showTab(page, "style");
     await page.fill("#border-width", "0");
     const four = await makeImages(page, [
       { name: "r.png", w: 400, h: 400, color: "red" },
@@ -265,6 +256,7 @@ test.describe("Collage editing: borders and swapping", () => {
     ]);
     await addPhotos(page, four);
     await setSeed(page, 1);
+    await swapMode(page);
 
     // Find two points in different cells.
     const candidates: [number, number][] = [
@@ -310,7 +302,6 @@ test.describe("Collage editing: borders and swapping", () => {
   });
 
   test("changing the poster size keeps the same photos in the same order", async ({ page }) => {
-    await showTab(page, "style");
     await page.fill("#border-width", "0");
     await setSize(page, 400, 300);
     await addPhotos(page, await makeImages(page, SIX));
@@ -395,8 +386,6 @@ test.describe("Progress, cancel, offline and language", () => {
   test("can be shown in another language", async ({ page }) => {
     await page.selectOption("#language", "fr");
     await expect(page.locator("#add")).toHaveText("Ajouter des images...");
-    await expect(page.locator("#shuffle")).toHaveText("Shuffle layout");
-    await expect(page.locator("#save")).toHaveText("Enregistrer le poster...");
     await expect(page.locator("html")).toHaveAttribute("lang", "fr");
   });
 
@@ -409,7 +398,7 @@ test.describe("Progress, cancel, offline and language", () => {
     await expect(dialog).toContainText("NO WARRANTY");
     await expect(dialog.getByRole("link", { name: "Source code" })).toHaveAttribute(
       "href",
-      "https://github.com/briggsyj/PhotoCollage",
+      "https://github.com/briggsyj/CollageCreator",
     );
   });
 });
@@ -439,11 +428,9 @@ test.describe("Choosing the number of columns", () => {
     page,
   }) => {
     await setSize(page, 400, 400);
-    await showTab(page, "style");
     await page.fill("#border-width", "0");
     await addPhotos(page, await makeImages(page, FOUR));
 
-    await showTab(page, "poster");
     await page.fill("#columns", "1");
     await expect(page.locator("#columns-note")).toContainText("1");
 
@@ -473,13 +460,11 @@ test.describe("Choosing the number of columns", () => {
 
   test("the choice is kept when generating a new arrangement", async ({ page }) => {
     await setSize(page, 400, 400);
-    await showTab(page, "style");
     await page.fill("#border-width", "0");
     await addPhotos(page, await makeImages(page, FOUR));
-    await showTab(page, "poster");
     await page.fill("#columns", "1");
     for (let i = 0; i < 3; i++) {
-      await page.click("#shuffle");
+      await page.click("#regenerate");
       const { left, right } = await bandColours(page);
       for (let k = 0; k < left.length; k++) {
         expect(near(left[k] as number[], right[k] as number[], 30)).toBe(true);
@@ -492,12 +477,10 @@ test.describe("Choosing the number of columns", () => {
     page,
   }) => {
     await addPhotos(page, await makeImages(page, SIX));
-    await showTab(page, "poster");
     await page.fill("#columns", "2");
     await expect(page.locator("#columns-note")).toHaveText(/Columns in use: [12]$/);
     const forced = await page.locator("#columns-note").textContent();
 
-    await showTab(page, "poster");
     await page.fill("#columns", "");
     await expect(page.locator("#columns-note")).toHaveText(/Columns in use: \d+$/);
     // Automatic picks more than two columns for six photos on a 4:3 poster.
@@ -514,13 +497,10 @@ test.describe("Choosing the number of columns", () => {
       return JSON.stringify(out);
     };
     await setSeed(page, 21);
-    await showTab(page, "poster");
     await page.fill("#columns", "3");
     const first = await grid();
-    await showTab(page, "poster");
     await page.fill("#columns", "2");
     const other = await grid();
-    await showTab(page, "poster");
     await page.fill("#columns", "3");
     expect(await grid()).toBe(first);
     expect(other).not.toBe(first);
@@ -528,25 +508,18 @@ test.describe("Choosing the number of columns", () => {
 
   test("out-of-range values are tidied to the allowed range", async ({ page }) => {
     await addPhotos(page, await makeImages(page, SIX));
-    await showTab(page, "poster");
     await page.fill("#columns", "500");
-    await showTab(page, "poster");
     await page.locator("#columns").press("Tab");
     await expect(page.locator("#columns")).toHaveValue("100");
-    await showTab(page, "poster");
     await page.fill("#columns", "0");
-    await showTab(page, "poster");
     await page.locator("#columns").press("Tab");
     await expect(page.locator("#columns")).toHaveValue("1");
-    await showTab(page, "poster");
     await page.fill("#columns", "3.9");
-    await showTab(page, "poster");
     await page.locator("#columns").press("Tab");
     await expect(page.locator("#columns")).toHaveValue("3");
   });
 
   test("works before any photos are added", async ({ page }) => {
-    await showTab(page, "poster");
     await page.fill("#columns", "4");
     await expect(page.locator("#columns-note")).toHaveText("");
     await addPhotos(page, await makeImages(page, SIX));
@@ -557,8 +530,8 @@ test.describe("Choosing the number of columns", () => {
 test.describe("Privacy note at the upload controls", () => {
   const NOTE = /never uploaded/;
 
-  test("is shown next to Add images before any photo is added", async ({ page }) => {
-    const note = page.locator("#privacy-note");
+  test("is shown in the drop area before any photo is added", async ({ page }) => {
+    const note = page.locator("#empty-state");
     await expect(note).toBeVisible();
     await expect(note).toContainText("Everything runs in your browser");
     await expect(note).toContainText("never uploaded");
@@ -568,9 +541,12 @@ test.describe("Privacy note at the upload controls", () => {
     await expect(page.locator("#add")).toHaveAccessibleDescription(NOTE);
   });
 
-  test("stays visible after photos are added", async ({ page }) => {
+  test("is still announced with Add images after photos are added, when the drop area is gone", async ({
+    page,
+  }) => {
     await addPhotos(page, await makeImages(page, SIX.slice(0, 2)));
-    await expect(page.locator("#privacy-note")).toBeVisible();
+    await expect(page.locator("#empty-state")).toBeHidden();
+    await expect(page.locator("#add")).toHaveAccessibleDescription(NOTE);
   });
 
   test("is true: adding and saving photos sends nothing anywhere", async ({ page }) => {
@@ -616,21 +592,22 @@ test.describe("Preview area, zoom and pan", () => {
   test("has a plain background, not a checkerboard", async ({ page }) => {
     const style = await page.locator("#canvas-box").evaluate((el) => {
       const s = getComputedStyle(el);
-      return { image: s.backgroundImage, colour: s.backgroundColor };
+      return { image: s.backgroundImage, page: getComputedStyle(document.body).backgroundColor };
     });
     expect(style.image).toBe("none");
-    expect(style.colour).not.toBe("rgba(0, 0, 0, 0)");
+    // The glass backdrop shows through the preview area; behind it the page has a plain colour.
+    expect(style.page).not.toBe("rgba(0, 0, 0, 0)");
   });
 
   test("scrolling zooms in and out, and Fit to window brings it back", async ({ page }) => {
     await addPhotos(page, await makeImages(page, FOUR));
     const fit = await posterRect(page);
-    await expect(page.locator("#reset-view")).toBeHidden();
+    await expect(page.locator("#reset-view")).toBeDisabled();
 
     await hover(page, 0.5, 0.5);
     await page.mouse.wheel(0, -400);
     await expect.poll(async () => (await posterRect(page)).w).toBeGreaterThan(fit.w * 1.2);
-    await expect(page.locator("#reset-view")).toBeVisible();
+    await expect(page.locator("#reset-view")).toBeEnabled();
     await expect(page.locator("#view-zoom")).toContainText("Zoom:");
 
     await page.mouse.wheel(0, 1200);
@@ -638,7 +615,7 @@ test.describe("Preview area, zoom and pan", () => {
 
     await page.click("#reset-view");
     await expect.poll(async () => (await posterRect(page)).w).toBeCloseTo(fit.w, 0);
-    await expect(page.locator("#reset-view")).toBeHidden();
+    await expect(page.locator("#reset-view")).toBeDisabled();
     await expect(page.locator("#view-zoom")).toHaveText("");
   });
 
@@ -680,8 +657,9 @@ test.describe("Preview area, zoom and pan", () => {
     await expect(page.locator("#messages")).not.toContainText("Selected");
   });
 
-  test("dragging without Space does not move the collage", async ({ page }) => {
+  test("in Swap mode, dragging without Space does not move the collage", async ({ page }) => {
     await addPhotos(page, await makeImages(page, FOUR));
+    await swapMode(page);
     const start = await posterRect(page);
     const from = await hover(page, 0.5, 0.5);
     await page.mouse.down();
@@ -723,7 +701,7 @@ test.describe("Preview area, zoom and pan", () => {
     await addPhotos(page, await makeImages(page, FOUR));
     await hover(page, 0.5, 0.5);
     await page.mouse.wheel(0, -300);
-    await expect(page.locator("#reset-view")).toBeVisible();
+    await expect(page.locator("#reset-view")).toBeEnabled();
     const p = await posterPoint(page, 0.5, 0.5);
     await page.mouse.click(p.x, p.y);
     await expect(page.locator("#messages")).toContainText("Selected");
@@ -734,7 +712,7 @@ test.describe("Preview area, zoom and pan", () => {
     await addPhotos(page, await makeImages(page, FOUR));
     await hover(page, 0.5, 0.5);
     await page.mouse.wheel(0, -500);
-    await expect(page.locator("#reset-view")).toBeVisible();
+    await expect(page.locator("#reset-view")).toBeEnabled();
     const png = await saveAndRead(page);
     const result = await analyse(page, png);
     expect([result.width, result.height]).toEqual([320, 240]);
@@ -747,42 +725,19 @@ test.describe("Border default and corner style", () => {
   test("defaults to a 0.5 % white border and square corners", async ({ page }) => {
     await expect(page.locator("#border-width")).toHaveValue("0.5");
     await expect(page.locator("#border-color")).toHaveValue("#ffffff");
-    await expect(page.locator('[data-corner="none"]')).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("#corner-style")).toHaveValue("none");
   });
 
-  test("offers square, slight, rounded and circle", async ({ page }) => {
-    const options = (await page.locator("#corners .corner").allTextContents()).map((t) => t.trim());
-    expect(options).toEqual(["Square", "Slight", "Rounded", "Circle"]);
-  });
-
-  test("circle: the photo is an ellipse, corners show the background", async ({ page }) => {
-    await setSize(page, 400, 300);
-    await showTab(page, "style");
-    await page.fill("#border-width", "0");
-    await addPhotos(page, await makeImages(page, RED));
-    await setCorner(page, "circle");
-
-    const corner = await previewColor(page, 0.02, 0.02);
-    const centre = await previewColor(page, 0.5, 0.5);
-    expect(near(corner, [255, 255, 255], 10)).toBe(true);
-    expect(near(centre, COLORS.red, 30)).toBe(true);
-
-    const png = await saveAndRead(page);
-    const saved = await analyse(page, png, [
-      [0.02, 0.02],
-      [0.5, 0.5],
-    ]);
-    expect(near(saved.colors[0] as number[], [255, 255, 255], 10)).toBe(true);
-    expect(near(saved.colors[1] as number[], COLORS.red, 30)).toBe(true);
+  test("offers none, slightly rounded and rounded", async ({ page }) => {
+    const options = await page.locator("#corner-style option").allTextContents();
+    expect(options).toEqual(["None", "Slightly rounded", "Rounded"]);
   });
 
   test("with a border, rounded corners are cut out of each photo and filled with the border colour", async ({
     page,
   }) => {
     await setSize(page, 400, 300);
-    await showTab(page, "style");
     await page.fill("#border-width", "5");
-    await showTab(page, "style");
     await page.locator("#border-color").fill("#00ff00");
     await addPhotos(page, await makeImages(page, RED));
 
@@ -792,8 +747,8 @@ test.describe("Border default and corner style", () => {
     // Square: the border is drawn over the photo's edge only, so this spot is still photo.
     expect(near(await previewColor(page, ...point), COLORS.red, 30)).toBe(true);
 
-    for (const style of ["slight", "rounded", "circle"]) {
-      await setCorner(page, style);
+    for (const style of ["slight", "rounded"]) {
+      await page.selectOption("#corner-style", style);
       expect(near(await previewColor(page, ...point), [0, 255, 0], 30), style).toBe(true);
       // The middle is still the photo, and the outer edge is still the border.
       expect(near(await previewColor(page, 0.5, 0.5), COLORS.red, 30), style).toBe(true);
@@ -808,13 +763,11 @@ test.describe("Border default and corner style", () => {
 
   test("the saved image matches the preview for every corner style", async ({ page }) => {
     await setSize(page, 480, 360);
-    await showTab(page, "style");
     await page.fill("#border-width", "2");
-    await showTab(page, "style");
     await page.locator("#border-color").fill("#202020");
     await addPhotos(page, await makeImages(page, SIX));
-    for (const style of ["none", "slight", "rounded", "circle"]) {
-      await setCorner(page, style);
+    for (const style of ["none", "slight", "rounded"]) {
+      await page.selectOption("#corner-style", style);
       const png = await saveAndRead(page);
       expect(await previewDifference(page, png), style).toBeLessThan(8);
     }
@@ -825,19 +778,18 @@ test.describe("Removing photos", () => {
   const names = async (page: import("@playwright/test").Page) =>
     page.locator("#photo-list .name").allTextContents();
 
-  test("Remove this photo takes the selected photo out, and Undo remove brings it back in place", async ({
+  test("selecting a photo in the list and pressing Remove selected photo takes it out, and Undo remove brings it back in place", async ({
     page,
   }) => {
     await addPhotos(page, await makeImages(page, SIX));
     const all = await names(page);
     await expect(page.locator("#undo-remove")).toBeDisabled();
 
-    await removePhoto(page, 2);
+    await removeFromList(page, 2);
     await expect(page.locator("#photo-list li")).toHaveCount(5);
     await expect(page.locator("#messages")).toContainText("Removed");
     expect(await names(page)).toEqual(all.filter((_, i) => i !== 2));
 
-    await showTab(page, "photos");
     await page.click("#undo-remove");
     await expect(page.locator("#photo-list li")).toHaveCount(6);
     expect(await names(page)).toEqual(all);
@@ -863,7 +815,7 @@ test.describe("Removing photos", () => {
     const p = await posterPoint(page, 0.5, 0.5);
     await page.mouse.click(p.x, p.y);
     await expect(page.locator("#remove-selected")).toBeVisible();
-    const picked = /Selected (.+)\. Choose another/.exec(
+    const picked = /Selected (.+?)\./.exec(
       (await page.locator("#messages").textContent()) ?? "",
     )?.[1];
     expect(picked).toBeTruthy();
@@ -878,7 +830,7 @@ test.describe("Removing photos", () => {
     await addPhotos(page, await makeImages(page, SIX));
     const p = await posterPoint(page, 0.5, 0.5);
     await page.mouse.click(p.x, p.y);
-    const picked = /Selected (.+)\. Choose another/.exec(
+    const picked = /Selected (.+?)\./.exec(
       (await page.locator("#messages").textContent()) ?? "",
     )?.[1];
     await page.keyboard.press("Delete");
@@ -891,13 +843,11 @@ test.describe("Removing photos", () => {
   }) => {
     await addPhotos(page, await makeImages(page, SIX));
     const all = await names(page);
-    await showTab(page, "photos");
     await page.click("#remove-all");
     await expect(page.locator("#photo-list li")).toHaveCount(0);
     await expect(page.locator("#save")).toBeDisabled();
     await expect(page.locator("#remove-all")).toBeDisabled();
 
-    await showTab(page, "photos");
     await page.click("#undo-remove");
     await expect(page.locator("#photo-list li")).toHaveCount(6);
     expect(await names(page)).toEqual(all);
@@ -920,10 +870,9 @@ test.describe("Removing photos", () => {
     const path = testInfo.outputPath("again.png");
     await writeFile(path, one!.buffer);
     await addPhotos(page, [path]);
-    await removePhoto(page, 0);
+    await removeFromList(page, 0);
     await expect(page.locator("#photo-list li")).toHaveCount(0);
     await addPhotos(page, [path]);
-    await showTab(page, "photos");
     await page.click("#undo-remove");
     await expect(page.locator("#photo-list li")).toHaveCount(1);
   });
@@ -931,9 +880,8 @@ test.describe("Removing photos", () => {
   test("a new removal replaces what Undo remove would restore", async ({ page }) => {
     await addPhotos(page, await makeImages(page, SIX));
     const all = await names(page);
-    await removePhoto(page, 0);
-    await removePhoto(page, 0);
-    await showTab(page, "photos");
+    await removeFromList(page, 0);
+    await removeFromList(page, 0);
     await page.click("#undo-remove");
     // Only the second removal comes back.
     await expect(page.locator("#photo-list li")).toHaveCount(5);
@@ -944,9 +892,7 @@ test.describe("Removing photos", () => {
 test.describe("The poster's edge", () => {
   test("border seams stay inside the poster", async ({ page }) => {
     await setSize(page, 480, 360);
-    await showTab(page, "style");
     await page.fill("#border-width", "5");
-    await showTab(page, "style");
     await page.locator("#border-color").fill("#000000");
     await addPhotos(page, await makeImages(page, SIX));
 
@@ -986,10 +932,8 @@ test.describe("Technical configuration", () => {
     await expect(page.locator("#technical summary")).toHaveText("Technical configuration");
     await expect(page.locator("#technical")).not.toHaveAttribute("open", "");
     await expect(page.locator("#seed")).toBeHidden();
-    await showTab(page, "poster");
     await page.locator("#technical summary").click();
     await expect(page.locator("#seed")).toBeVisible();
-    await showTab(page, "poster");
     await page.locator("#technical summary").click();
     await expect(page.locator("#seed")).toBeHidden();
   });
@@ -1010,7 +954,7 @@ test.describe("Technical configuration", () => {
     expect(seed).toMatch(/^\d+$/);
     const first = await grid();
     const note = await page.locator("#crop-note").textContent();
-    expect(note).toMatch(/^Cropped on average: \d+%$/);
+    expect(note).toMatch(/^\d+% of each photo is trimmed to fit\.$/);
 
     // Another seed gives another arrangement; the first one's seed brings the first one back.
     await setSeed(page, Number(seed) === 5 ? 6 : 5);
@@ -1020,11 +964,11 @@ test.describe("Technical configuration", () => {
     expect(await page.locator("#crop-note").textContent()).toBe(note);
   });
 
-  test("Shuffle layout makes one new arrangement with a new seed", async ({ page }) => {
+  test("Regenerate makes one new arrangement with a new seed", async ({ page }) => {
     await addPhotos(page, await makeImages(page, SIX));
     await openTechnical(page);
     const before = await page.inputValue("#seed");
-    await page.click("#shuffle");
+    await page.click("#regenerate");
     await expect(page.locator("#seed")).not.toHaveValue(before);
     // One generation: the shown seed is simply the new one, and typing it back changes nothing.
     const after = await page.inputValue("#seed");
@@ -1040,7 +984,7 @@ test.describe("Technical configuration", () => {
     const first = await page.inputValue("#seed");
     await addPhotos(page, all.slice(3));
     expect(await page.inputValue("#seed")).not.toBe(first);
-    await expect(page.locator("#crop-note")).toContainText("Cropped on average");
+    await expect(page.locator("#crop-note")).toContainText("of each photo is trimmed to fit");
   });
 });
 
@@ -1056,35 +1000,43 @@ test.describe("Sidebar fits its bounds", () => {
         await makeImages(page, [{ name: longName, w: 100, h: 100, color: "red" }]),
       );
 
-      // With the photo selected, its name and controls show in the dock as well.
-      await showTab(page, "photos");
-      await page.locator("#photo-list li").first().getByRole("button").click();
-      for (const tab of ["photos", "poster", "style"] as const) {
-        await showTab(page, tab);
-        const overflow = await page.evaluate(() => {
-          const panel = document.querySelector("aside.side") as HTMLElement;
-          const box = panel.getBoundingClientRect();
-          const outside: string[] = [];
-          for (const el of panel.querySelectorAll<HTMLElement>("*")) {
+      if (width <= 760) {
+        // Narrow: the controls are floating panels over the collage. Nothing may stick out of the
+        // window, and the page itself must not scroll sideways.
+        await page.click("#tab-photos");
+        const outside = await page.evaluate(() => {
+          const found: string[] = [];
+          for (const el of document.querySelectorAll<HTMLElement>(
+            ".brand, .tabs, .sheet, .dock, .tools, .hint-pill, .shuffle",
+          )) {
             const r = el.getBoundingClientRect();
             if (r.width === 0 || r.height === 0) continue;
-            // Inside a scrolling panel, only sideways overflow matters.
-            if (r.right > box.right + 1 || r.left < box.left - 1) {
-              outside.push(`${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ""}`);
-            }
+            if (r.right > window.innerWidth + 1 || r.left < -1) found.push(el.className);
           }
-          const scrolling = Array.from(panel.querySelectorAll<HTMLElement>("*")).some(
-            (el) =>
-              el.scrollWidth > el.clientWidth + 1 &&
-              getComputedStyle(el).overflowX === "visible" &&
-              el.clientWidth > 0 &&
-              !["SPAN", "A", "BUTTON", "LABEL", "SMALL", "OUTPUT", "H2"].includes(el.tagName),
-          );
-          return { outside, scrolls: panel.scrollWidth > panel.clientWidth + 1, scrolling };
+          return found;
         });
-        expect(overflow.outside, tab).toEqual([]);
-        expect(overflow.scrolls, tab).toBe(false);
+        expect(outside).toEqual([]);
+        const scrolls = await page.evaluate(
+          () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+        );
+        expect(scrolls).toBe(false);
+        return;
       }
+      const overflow = await page.evaluate(() => {
+        const panel = document.querySelector("aside.panel") as HTMLElement;
+        const box = panel.getBoundingClientRect();
+        const outside: string[] = [];
+        for (const el of panel.querySelectorAll<HTMLElement>("*")) {
+          const r = el.getBoundingClientRect();
+          if (r.width === 0 || r.height === 0) continue;
+          if (r.right > box.right + 1 || r.left < box.left - 1) {
+            outside.push(`${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ""}`);
+          }
+        }
+        return { outside, scrolls: panel.scrollWidth > panel.clientWidth + 1 };
+      });
+      expect(overflow.outside).toEqual([]);
+      expect(overflow.scrolls).toBe(false);
       // And the page itself does not scroll sideways.
       const pageScrolls = await page.evaluate(
         () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
@@ -1094,11 +1046,11 @@ test.describe("Sidebar fits its bounds", () => {
   }
 
   test("the width and height fields share the row evenly and stay inside it", async ({ page }) => {
-    await showTab(page, "poster");
+    await page.click("#tab-poster");
     const [w, h, panel] = await Promise.all([
       page.locator("#width").boundingBox(),
       page.locator("#height").boundingBox(),
-      page.locator("aside.side").boundingBox(),
+      page.locator("aside.panel").boundingBox(),
     ]);
     expect(w && h && panel).toBeTruthy();
     expect(h!.x + h!.width).toBeLessThanOrEqual(panel!.x + panel!.width);
@@ -1118,14 +1070,10 @@ test.describe("Border around the whole collage", () => {
 
   test("off: the border stays between photos but not around the collage", async ({ page }) => {
     await setSize(page, 400, 800);
-    await showTab(page, "style");
     await page.fill("#border-width", "5");
-    await showTab(page, "style");
     await page.locator("#border-color").fill("#00ff00");
-    await showTab(page, "poster");
     await page.fill("#columns", "1");
     await addPhotos(page, await makeImages(page, TWO));
-    await showTab(page, "poster");
     await page.fill("#columns", "1");
 
     // Whichever photo is on top, its edge and its middle are the same colour once the frame is off.
@@ -1136,7 +1084,6 @@ test.describe("Border around the whole collage", () => {
     expect(near(await edge(), [0, 255, 0], 30)).toBe(true);
     expect(near(await seam(), [0, 255, 0], 30)).toBe(true);
 
-    await showTab(page, "style");
     await page.uncheck("#outer-border");
     // Off: the photo reaches the edge, and the line between the two photos is still there.
     expect(near(await edge(), [0, 255, 0], 60)).toBe(false);
@@ -1158,18 +1105,14 @@ test.describe("Border around the whole collage", () => {
     page,
   }) => {
     await setSize(page, 400, 800);
-    await showTab(page, "style");
     await page.fill("#border-width", "5");
-    await showTab(page, "style");
     await page.locator("#border-color").fill("#00ff00");
     await addPhotos(page, await makeImages(page, TWO));
-    await showTab(page, "poster");
     await page.fill("#columns", "1");
-    await setCorner(page, "circle");
+    await page.selectOption("#corner-style", "rounded");
 
     // On: the whole poster behind the photos is the border colour.
     expect(near(await previewColor(page, 0.003, 0.003), [0, 255, 0], 30)).toBe(true);
-    await showTab(page, "style");
     await page.uncheck("#outer-border");
     // Off: the poster's corner is plain white, but the gap between the two photos is still green.
     expect(near(await previewColor(page, 0.003, 0.003), [255, 255, 255], 15)).toBe(true);
@@ -1180,15 +1123,12 @@ test.describe("Border around the whole collage", () => {
     page,
   }) => {
     await setSize(page, 480, 360);
-    await showTab(page, "style");
     await page.fill("#border-width", "2");
-    await showTab(page, "style");
     await page.locator("#border-color").fill("#202020");
     await addPhotos(page, await makeImages(page, SIX));
-    await showTab(page, "style");
     await page.uncheck("#outer-border");
-    for (const style of ["none", "slight", "rounded", "circle"]) {
-      await setCorner(page, style);
+    for (const style of ["none", "slight", "rounded"]) {
+      await page.selectOption("#corner-style", style);
       const png = await saveAndRead(page);
       expect(await previewDifference(page, png), style).toBeLessThan(8);
     }
@@ -1209,7 +1149,7 @@ test.describe("Asking for a photo to be bigger", () => {
         if (near(await previewColor(page, x, y), rgb, 40)) {
           const p = await posterPoint(page, x, y);
           await page.mouse.click(p.x, p.y);
-          await expect(page.locator("#selection-dock")).toBeVisible();
+          await expect(page.locator("#span-group")).toBeVisible();
           return;
         }
       }
@@ -1227,71 +1167,65 @@ test.describe("Asking for a photo to be bigger", () => {
     return hits / n;
   }
 
-  const wider = (page: import("@playwright/test").Page) => page.locator("#span-w-wider");
-  const taller = (page: import("@playwright/test").Page) => page.locator("#span-h-taller");
-  const tallest = (page: import("@playwright/test").Page) => page.locator("#span-h-tallest");
-
-  test("the size controls appear only while a photo is selected", async ({ page }) => {
+  test("the size buttons appear only while a photo is selected", async ({ page }) => {
     await addPhotos(page, await makeImages(page, THREE));
-    await expect(page.locator("#selection-dock")).toBeHidden();
+    await expect(page.locator("#span-group")).toBeHidden();
     await selectPhoto(page, COLORS.red);
-    await expect(page.locator("#selection-name")).toHaveText("r.png");
-    await expect(wider(page)).toBeVisible();
-    await expect(taller(page)).toBeVisible();
-    await expect(page.locator("#span-w-normal")).toHaveAttribute("aria-pressed", "true");
-    await expect(page.locator("#span-h-normal")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "Wider" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Taller" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Normal size" })).toBeDisabled();
     await page.keyboard.press("Escape");
     await page.locator("#preview").focus();
     await page.keyboard.press("Escape");
-    await expect(page.locator("#selection-dock")).toBeHidden();
+    await expect(page.locator("#span-group")).toBeHidden();
   });
 
-  test("Taller and Tallest give a photo more of the height, and Normal takes it back", async ({
+  test("Taller gives a photo more of the height, in steps, and Normal size takes it back", async ({
     page,
   }) => {
     await setSize(page, 400, 400);
-    await showTab(page, "style");
     await page.fill("#border-width", "0");
     await addPhotos(page, await makeImages(page, THREE));
-    await showTab(page, "poster");
     await page.fill("#columns", "1");
     const normal = await shareDown(page, COLORS.red);
     expect(normal).toBeGreaterThan(0.25);
     expect(normal).toBeLessThan(0.42);
 
     await selectPhoto(page, COLORS.red);
-    await taller(page).click();
-    await expect(taller(page)).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("button", { name: "Taller" }).click();
+    await expect(page.locator("#span-taller")).toHaveText("Taller ×2");
     const two = await shareDown(page, COLORS.red);
     expect(two).toBeGreaterThan(normal + 0.1);
     await expect(page.locator("#photo-list li").first()).toContainText("taller ×2");
 
-    await tallest(page).click();
-    await expect(tallest(page)).toHaveAttribute("aria-pressed", "true");
-    await expect(taller(page)).toHaveAttribute("aria-pressed", "false");
+    await page.locator("#span-taller").click();
+    await expect(page.locator("#span-taller")).toHaveText("Taller ×3");
     expect(await shareDown(page, COLORS.red)).toBeGreaterThan(two + 0.05);
-    await expect(page.locator("#photo-list li").first()).toContainText("taller ×3");
 
-    await page.locator("#span-h-normal").click();
-    await expect(page.locator("#span-h-normal")).toHaveAttribute("aria-pressed", "true");
+    // A third press goes back round to normal.
+    await page.locator("#span-taller").click();
+    await expect(page.locator("#span-taller")).toHaveText("Taller");
+    expect(await shareDown(page, COLORS.red)).toBeCloseTo(normal, 1);
+
+    await page.locator("#span-taller").click();
+    await page.getByRole("button", { name: "Normal size" }).click();
+    await expect(page.locator("#span-taller")).toHaveText("Taller");
     await expect(page.locator("#photo-list li").first()).not.toContainText("taller");
     expect(await shareDown(page, COLORS.red)).toBeCloseTo(normal, 1);
   });
 
   test("Wider makes a photo span two columns, and the photo stays selected", async ({ page }) => {
     await setSize(page, 400, 300);
-    await showTab(page, "style");
     await page.fill("#border-width", "0");
     await addPhotos(page, await makeImages(page, THREE));
-    await showTab(page, "poster");
     await page.fill("#columns", "2");
 
     await selectPhoto(page, COLORS.red);
-    await wider(page).click();
-    await expect(wider(page)).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("button", { name: "Wider" }).click();
+    await expect(page.locator("#span-wider")).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator("#photo-list li").first()).toContainText("wider");
-    // Still selected, so the controls are still there.
-    await expect(page.locator("#selection-dock")).toBeVisible();
+    // Still selected, so the buttons are still there.
+    await expect(page.locator("#span-group")).toBeVisible();
 
     // Somewhere down the poster the red photo covers both the left and the right edge.
     const bothSides = async () => {
@@ -1304,56 +1238,49 @@ test.describe("Asking for a photo to be bigger", () => {
     };
     expect(await bothSides()).toBe(true);
 
-    await page.locator("#span-w-normal").click();
-    await expect(wider(page)).toHaveAttribute("aria-pressed", "false");
+    await page.getByRole("button", { name: "Wider" }).click();
+    await expect(page.locator("#span-wider")).toHaveAttribute("aria-pressed", "false");
     await expect(page.locator("#photo-list li").first()).not.toContainText("wider");
   });
 
-  test("a requested size is kept when the collage is shuffled, resized or changed", async ({
+  test("a requested size is kept when the collage is regenerated, resized or changed", async ({
     page,
   }) => {
     await addPhotos(page, await makeImages(page, SIX));
-    await showTab(page, "poster");
     await page.fill("#columns", "3");
     await selectPhoto(page, COLORS.red);
-    await wider(page).click();
-    await taller(page).click();
+    await page.getByRole("button", { name: "Wider" }).click();
+    await page.locator("#span-taller").click();
     const tag = page.locator("#photo-list li").first();
     await expect(tag).toContainText("wider · taller ×2");
 
-    for (let i = 0; i < 3; i++) await page.click("#shuffle");
+    for (let i = 0; i < 3; i++) await page.click("#regenerate");
     await expect(tag).toContainText("wider · taller ×2");
 
     await setSize(page, 300, 400);
     await expect(tag).toContainText("wider · taller ×2");
 
     // Removing a different photo (a search for a new arrangement) keeps it too.
-    await removePhoto(page, 3);
+    await removeFromList(page, 3);
     await expect(page.locator("#photo-list li").first()).toContainText("wider · taller ×2");
-    await showTab(page, "photos");
     await page.click("#undo-remove");
     await expect(page.locator("#photo-list li").first()).toContainText("wider · taller ×2");
   });
 
-  test("redrawing does not replace a size button's text while it is pressed", async ({ page }) => {
+  test("redrawing does not replace the Taller button's text while it is pressed", async ({
+    page,
+  }) => {
     // WebKit drops a click when the button's text node is replaced between press and release,
-    // and the preview redraws (and refreshes the controls) when it loses focus on that press.
+    // and the preview redraws (and refreshes this label) when it loses focus on that press.
     await addPhotos(page, await makeImages(page, SIX));
     await selectPhoto(page, COLORS.red);
     const kept = await page.evaluate(() => {
-      const ids = [
-        "span-w-normal",
-        "span-w-wider",
-        "span-h-normal",
-        "span-h-taller",
-        "span-h-tallest",
-      ];
-      const buttons = ids.map((id) => document.getElementById(id) as HTMLButtonElement);
-      const before = buttons.map((b) => b.firstChild);
+      const button = document.getElementById("span-taller") as HTMLButtonElement;
+      const before = button.firstChild;
       const canvas = document.getElementById("preview") as HTMLCanvasElement;
       canvas.focus();
       canvas.blur();
-      return buttons.every((b, i) => b.firstChild === before[i]);
+      return button.firstChild === before;
     });
     expect(kept).toBe(true);
   });
@@ -1361,12 +1288,12 @@ test.describe("Asking for a photo to be bigger", () => {
   test("several photos can each keep their own size", async ({ page }) => {
     await addPhotos(page, await makeImages(page, SIX));
     await selectPhoto(page, COLORS.red);
-    await wider(page).click();
+    await page.getByRole("button", { name: "Wider" }).click();
     await page.keyboard.press("Escape");
     await page.locator("#preview").focus();
     await page.keyboard.press("Escape");
     await selectPhoto(page, COLORS.blue);
-    await taller(page).click();
+    await page.locator("#span-taller").click();
 
     await expect(page.locator("#photo-list li", { hasText: "red.png" })).toContainText("wider");
     await expect(page.locator("#photo-list li", { hasText: "blue.png" })).toContainText(
@@ -1381,164 +1308,225 @@ test.describe("Asking for a photo to be bigger", () => {
     await setSize(page, 480, 360);
     await addPhotos(page, await makeImages(page, SIX));
     await selectPhoto(page, COLORS.green);
-    await wider(page).click();
-    await taller(page).click();
+    await page.getByRole("button", { name: "Wider" }).click();
+    await page.locator("#span-taller").click();
     const png = await saveAndRead(page);
     expect(await previewDifference(page, png)).toBeLessThan(6);
   });
 });
 
-test.describe("The sidebar", () => {
-  test("controls are grouped in tabs: Photos, Poster and Style", async ({ page }) => {
-    await expect(page.getByRole("tab")).toHaveText(["Photos", "Poster", "Style"]);
-    await expect(page.locator("#panel-photos")).toBeVisible();
-    await expect(page.locator("#panel-poster")).toBeHidden();
-    await page.getByRole("tab", { name: "Poster" }).click();
-    await expect(page.locator("#panel-poster")).toBeVisible();
-    await expect(page.locator("#panel-photos")).toBeHidden();
-    await expect(page.getByRole("tab", { name: "Poster" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-  });
-
-  test("arrow keys move between tabs", async ({ page }) => {
-    await page.getByRole("tab", { name: "Photos" }).focus();
-    await page.keyboard.press("ArrowRight");
-    await expect(page.getByRole("tab", { name: "Poster" })).toBeFocused();
-    await expect(page.locator("#panel-poster")).toBeVisible();
-    await page.keyboard.press("End");
-    await expect(page.locator("#panel-style")).toBeVisible();
-    await page.keyboard.press("ArrowRight");
-    await expect(page.locator("#panel-photos")).toBeVisible();
-  });
-
-  test("Save, the file summary and the selected photo's controls stay in view on every tab", async ({
+test.describe("Small text styles", () => {
+  test("the pixels label is plain hint text, with no accent bar or background", async ({
     page,
   }) => {
-    await addPhotos(page, await makeImages(page, SIX));
-    for (const tab of ["photos", "poster", "style"] as const) {
-      await showTab(page, tab);
-      await expect(page.locator("#save")).toBeInViewport();
-      await expect(page.locator("#output-summary")).toHaveText("PNG, 1600 × 1200 px");
-    }
-  });
-
-  test("a size preset is a button; it fills the fields and shows as chosen", async ({ page }) => {
-    await showTab(page, "poster");
-    const a4 = page.getByRole("button", { name: /A4 landscape/ });
-    await expect(a4).toHaveAttribute("aria-pressed", "false");
-    await a4.click();
-    await expect(a4).toHaveAttribute("aria-pressed", "true");
-    await expect(page.locator("#output-summary")).toHaveText("PNG, 3508 × 2480 px");
-    await page.fill("#width", "1000");
-    await expect(a4).toHaveAttribute("aria-pressed", "false");
-  });
-
-  test("Automatic and Choose a number; the stepper changes the number of columns", async ({
-    page,
-  }) => {
-    await addPhotos(page, await makeImages(page, SIX));
-    await showTab(page, "poster");
-    await expect(page.locator("#columns-auto")).toHaveAttribute("aria-pressed", "true");
-    await expect(page.locator("#columns-more")).toBeDisabled();
-    await page.click("#columns-custom");
-    await expect(page.locator("#columns-custom")).toHaveAttribute("aria-pressed", "true");
-    const start = Number(await page.inputValue("#columns"));
-    await page.click("#columns-more");
-    await expect(page.locator("#columns")).toHaveValue(String(start + 1));
-    await page.click("#columns-less");
-    await page.click("#columns-less");
-    await expect(page.locator("#columns")).toHaveValue(String(Math.max(1, start - 1)));
-    await page.click("#columns-auto");
-    await expect(page.locator("#columns")).toHaveValue("");
-    await expect(page.locator("#columns-auto")).toHaveAttribute("aria-pressed", "true");
-  });
-
-  test("typing a column number switches to Choose a number", async ({ page }) => {
-    await showTab(page, "poster");
-    await page.fill("#columns", "3");
-    await expect(page.locator("#columns-custom")).toHaveAttribute("aria-pressed", "true");
-    await expect(page.locator("#columns-less")).toBeEnabled();
-  });
-
-  test("a colour swatch sets the border colour and shows as chosen", async ({ page }) => {
-    await showTab(page, "style");
-    await expect(page.getByRole("button", { name: "White" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    await page.getByRole("button", { name: "Navy" }).click();
-    await expect(page.locator("#border-color")).toHaveValue("#1d2b4a");
-    await expect(page.getByRole("button", { name: "Navy" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    await expect(page.getByRole("button", { name: "White" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
-    await page.fill("#border-color", "#ff0000");
-    await expect(page.locator("#custom-colour")).toHaveClass(/active/);
-  });
-
-  test("the border thickness slider shows its value", async ({ page }) => {
-    await showTab(page, "style");
-    await expect(page.locator("#border-width-out")).toHaveText("0.5%");
-    await page.fill("#border-width", "2.5");
-    await expect(page.locator("#border-width-out")).toHaveText("2.5%");
-  });
-
-  test("Export & save opens the file type and quality; the summary follows the type", async ({
-    page,
-  }) => {
-    await expect(page.locator("#export-options")).toBeHidden();
-    await expect(page.locator("#export-toggle")).toHaveAttribute("aria-expanded", "false");
-    await setFormat(page, "jpeg");
-    await expect(page.locator("#export-toggle")).toHaveAttribute("aria-expanded", "true");
-    await expect(page.locator("#quality-field")).toBeVisible();
-    await expect(page.locator("#output-summary")).toHaveText("JPEG, 1600 × 1200 px");
-    await page.click("#format-png");
-    await expect(page.locator("#quality-field")).toBeHidden();
-  });
-
-  test("a photo in the grid can be selected, and Done puts it away", async ({ page }) => {
-    await addPhotos(page, await makeImages(page, SIX));
-    await expect(page.locator("#selection-dock")).toBeHidden();
-    const tile = page.locator("#photo-list li").nth(1).getByRole("button");
-    await tile.click();
-    await expect(tile).toHaveAttribute("aria-pressed", "true");
-    await expect(page.locator("#selection-dock")).toBeVisible();
-    await expect(page.locator("#selection-name")).not.toBeEmpty();
-    await tile.click();
-    await expect(page.locator("#selection-dock")).toBeHidden();
-    await tile.click();
-    await page.click("#selection-done");
-    await expect(page.locator("#selection-dock")).toBeHidden();
-    await expect(tile).toHaveAttribute("aria-pressed", "false");
-  });
-
-  test("selecting on the preview marks the photo in the grid", async ({ page }) => {
-    await addPhotos(page, await makeImages(page, SIX));
-    const p = await posterPoint(page, 0.5, 0.5);
-    await page.mouse.click(p.x, p.y);
-    await expect(page.locator("#photo-list li [aria-pressed='true']")).toHaveCount(1);
+    await page.click("#tab-poster");
+    const unit = await page.locator(".unit").evaluate((el) => {
+      const s = getComputedStyle(el);
+      return { bar: s.borderLeftWidth, background: s.backgroundColor };
+    });
+    expect(unit.bar).toBe("0px");
+    expect(unit.background).toBe("rgba(0, 0, 0, 0)");
   });
 });
 
-test.describe("Small text styles", () => {
-  test("only the privacy note has the accent bar and background; the pixels label is plain hint text", async ({
+test.describe("Collage Creator: layout, modes, sizes and notices", () => {
+  const TWO = [
+    { name: "r.png", w: 400, h: 400, color: "red" as const },
+    { name: "g.png", w: 400, h: 400, color: "green" as const },
+  ];
+
+  test("is called Collage Creator and starts with a drop target", async ({ page }) => {
+    await expect(page).toHaveTitle("Collage Creator");
+    await expect(page.locator("h1")).toHaveText("Collage Creator");
+    await expect(page.locator("#empty-state")).toBeVisible();
+    await expect(page.locator("#empty-state")).toContainText("Drop photos here");
+    await expect(page.locator(".credit")).toContainText("PhotoCollage");
+  });
+
+  test("Pan is the default; Pan and Swap are exclusive", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, TWO));
+    await expect(page.locator("#mode-pan")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("#mode-swap")).toHaveAttribute("aria-pressed", "false");
+    await expect(page.locator("#hint")).toContainText("Drag to pan");
+    await page.click("#mode-swap");
+    await expect(page.locator("#mode-pan")).toHaveAttribute("aria-pressed", "false");
+    await expect(page.locator("#mode-swap")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("#hint")).toContainText("swap them");
+    await page.click("#mode-pan");
+    await expect(page.locator("#mode-pan")).toHaveAttribute("aria-pressed", "true");
+  });
+
+  /** Zoom in far enough that the collage overhangs the view on both sides, and wait for it. */
+  async function zoomInUntilPannable(page: import("@playwright/test").Page) {
+    const before = await posterRect(page);
+    for (let i = 0; i < 3; i++) await page.click("#zoom-in");
+    await expect(page.locator("#view-zoom")).toContainText("Zoom:");
+    await expect.poll(async () => (await posterRect(page)).w).toBeGreaterThan(before.w * 1.3);
+  }
+
+  test("in Pan mode a drag moves the collage and a click selects a photo", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, TWO));
+    await zoomInUntilPannable(page);
+    const start = await posterRect(page);
+    const from = await posterPoint(page, 0.5, 0.5);
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(from.x + 40, from.y + 30, { steps: 4 });
+    await page.mouse.up();
+    // The view is redrawn on the next frame, which WebKit on CI can be slow to reach.
+    await expect.poll(async () => (await posterRect(page)).x).toBeGreaterThan(start.x + 20);
+    await expect(page.locator("#remove-selected")).toBeHidden();
+    await page.mouse.click(from.x + 40, from.y + 30);
+    await expect(page.locator("#remove-selected")).toBeVisible();
+  });
+
+  test("in Swap mode, holding Space pans for as long as it is held", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, TWO));
+    await swapMode(page);
+    await zoomInUntilPannable(page);
+    const start = await posterRect(page);
+    const from = await posterPoint(page, 0.5, 0.5);
+    await page.mouse.move(from.x, from.y);
+    await page.keyboard.down("Space");
+    await page.mouse.down();
+    await page.mouse.move(from.x + 40, from.y + 30, { steps: 4 });
+    await page.mouse.up();
+    await page.keyboard.up("Space");
+    await expect.poll(async () => (await posterRect(page)).x).toBeGreaterThan(start.x + 20);
+    await expect(page.locator("#mode-swap")).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("size buttons, orientation and Custom work together", async ({ page }) => {
+    await page.click("#tab-poster");
+    await expect(page.locator('[data-choice="screen"]')).toHaveAttribute("aria-pressed", "true");
+    await page.click('[data-choice="a4"]');
+    await expect(page.locator("#width")).toHaveValue("3508");
+    await expect(page.locator("#height")).toHaveValue("2480");
+    await page.click("#orient-portrait");
+    await expect(page.locator("#width")).toHaveValue("2480");
+    await expect(page.locator("#height")).toHaveValue("3508");
+    await expect(page.locator('[data-choice="a4"]')).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("#orient-portrait")).toHaveAttribute("aria-pressed", "true");
+
+    await page.click('[data-choice="story"]');
+    await expect(page.locator("#width")).toHaveValue("1080");
+    await expect(page.locator("#height")).toHaveValue("1920");
+
+    await page.click("#orient-landscape");
+    await expect(page.locator("#width")).toHaveValue("1920");
+
+    // Typing your own numbers switches to Custom.
+    await page.fill("#width", "1234");
+    await expect(page.locator('[data-choice="custom"]')).toHaveAttribute("aria-pressed", "true");
+    await page.click('[data-choice="screen"]');
+    await expect(page.locator('[data-choice="custom"]')).toHaveAttribute("aria-pressed", "false");
+    await expect(page.locator("#save-summary")).toContainText("1600 × 1200");
+  });
+
+  test("Gallery arranges the same photos and can be saved; Mosaic stays the default", async ({
     page,
   }) => {
-    const style = (selector: string) =>
-      page.locator(selector).evaluate((el) => {
-        const s = getComputedStyle(el);
-        return { bar: s.borderLeftWidth, background: s.backgroundColor };
-      });
-    expect((await style("#privacy-note")).bar).toBe("3px");
-    const unit = await style(".size-row .unit");
-    expect(unit.bar).toBe("0px");
-    expect(unit.background).toBe("rgba(0, 0, 0, 0)");
+    await setSize(page, 400, 300);
+    await page.fill("#border-width", "0");
+    await addPhotos(page, await makeImages(page, SIX));
+    await page.click("#tab-poster");
+    await expect(page.locator("#layout-mosaic")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("#columns-block")).toBeVisible();
+
+    await page.click("#layout-gallery");
+    await expect(page.locator("#layout-gallery")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("#columns-block")).toBeHidden();
+    await expect(page.locator("#gallery-note")).toBeVisible();
+    await expect(page.locator("#crop-note")).toContainText("of each photo is trimmed to fit");
+    await expect(page.locator("#photo-list li")).toHaveCount(6);
+
+    // The seed gives the same Gallery arrangement again.
+    const first = await previewColor(page, 0.25, 0.25);
+    const seed = await page.inputValue("#seed");
+    await page.click("#regenerate");
+    await setSeed(page, Number(seed));
+    expect(near(await previewColor(page, 0.25, 0.25), first, 5)).toBe(true);
+
+    const png = await saveAndRead(page);
+    expect([...png.subarray(1, 4)]).toEqual([0x50, 0x4e, 0x47]);
+
+    await page.click("#layout-mosaic");
+    await expect(page.locator("#columns-block")).toBeVisible();
+  });
+
+  test("photos that were skipped are summarised, with the names under Details", async ({
+    page,
+  }, testInfo) => {
+    const [one] = await makeImages(page, [{ name: "dup.png", w: 100, h: 100, color: "red" }]);
+    const path = testInfo.outputPath("dup.png");
+    await writeFile(path, one!.buffer);
+    await addPhotos(page, [path]);
+    await expect(page.locator("#notices")).toBeHidden();
+    await page.setInputFiles("#file-input", [path]);
+    await expect(page.locator("#notices")).toBeVisible();
+    await expect(page.locator("#notices-summary")).toContainText("1 skipped: 1 already added");
+    await expect(page.locator("#notices-list")).toBeHidden();
+    await page.click("#notices-details");
+    await expect(page.locator("#notices-list")).toContainText("dup.png");
+    await page.click("#notices-dismiss");
+    await expect(page.locator("#notices")).toBeHidden();
+  });
+
+  test("the backdrop takes the photos' colours in the order added and ignores the layout", async ({
+    page,
+  }) => {
+    const cell = (n: number) =>
+      page
+        .locator("#backdrop i")
+        .nth(n)
+        .evaluate((el) => (el as HTMLElement).style.getPropertyValue("--c"));
+    expect(await cell(0)).toBe("");
+    await addPhotos(page, await makeImages(page, TWO));
+    expect(await cell(0)).toBe("rgb(220, 30, 30)");
+    expect(await cell(1)).toBe("rgb(30, 180, 60)");
+    expect(await cell(2)).toBe("rgb(220, 30, 30)");
+    for (let i = 0; i < 3; i++) await page.click("#regenerate");
+    await setSize(page, 300, 500);
+    await page.click("#layout-gallery");
+    expect(await cell(0)).toBe("rgb(220, 30, 30)");
+    expect(await cell(1)).toBe("rgb(30, 180, 60)");
+  });
+});
+
+test.describe("Collage Creator on a phone", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("the bottom bar opens each step as a sheet and Close puts it away", async ({ page }) => {
+    await expect(page.locator(".brand")).toBeVisible();
+    await expect(page.locator(".sheet")).toBeHidden();
+    await page.click("#tab-poster");
+    await expect(page.locator(".sheet")).toBeVisible();
+    await expect(page.locator("#sheet-title")).toHaveText("Poster");
+    await expect(page.locator("#panel-poster")).toBeVisible();
+    await page.click("#sheet-close");
+    await expect(page.locator(".sheet")).toBeHidden();
+    await page.click("#tab-save");
+    await expect(page.locator("#save-block")).toBeVisible();
+    await expect(page.locator("#format-seg")).toBeVisible();
+    await page.click("#tab-save");
+    await expect(page.locator("#save-block")).toBeHidden();
+  });
+
+  test("the menu holds Language and About", async ({ page }) => {
+    await expect(page.locator("#util")).toBeHidden();
+    await page.click("#menu-open");
+    await expect(page.locator("#util")).toBeVisible();
+    await page.click("#about-open");
+    await expect(page.locator("#about-dialog")).toBeVisible();
+  });
+
+  test("a selected photo gets an action bar above the tabs", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, SIX.slice(0, 3)));
+    await page.locator("#tab-photos").click();
+    await page.locator("#photo-list li button").first().click();
+    await page.click("#sheet-close");
+    await expect(page.locator("#selected-dock")).toBeVisible();
+    await expect(page.locator("#span-wider")).toBeVisible();
   });
 });
 
@@ -1580,11 +1568,11 @@ test.describe("Address, saved work and language", () => {
   test("a refresh keeps the photos, their sizes, the seed and the settings", async ({ page }) => {
     await setSize(page, 480, 360);
     await addPhotos(page, await makeImages(page, SIX));
-    await removePhoto(page, 0);
-    await showTab(page, "style");
+    await removeFromList(page, 0);
+    await page.click("#tab-style");
     await page.fill("#border-width", "3");
-    await setCorner(page, "rounded");
-    await showTab(page, "poster");
+    await page.click('[data-corner="rounded"]');
+    await page.click("#tab-poster");
     await page.fill("#columns", "3");
     await setSeed(page, 4242);
     // Saving waits a moment after the last change.
@@ -1616,7 +1604,7 @@ test.describe("Address, saved work and language", () => {
 
   test("Remove all clears what is kept", async ({ page }) => {
     await addPhotos(page, await makeImages(page, SIX.slice(0, 3)));
-    await showTab(page, "photos");
+    await page.click("#tab-photos");
     await page.click("#remove-all");
     await page.waitForTimeout(700);
     await page.reload();
@@ -1651,8 +1639,8 @@ test.describe("Address, saved work and language", () => {
 
 test.describe("Instagram post: one collage cut into square images", () => {
   async function chooseInstagram(page: import("@playwright/test").Page) {
-    await showTab(page, "poster");
-    await page.getByRole("button", { name: /Instagram post/ }).click();
+    await page.click("#tab-poster");
+    await page.click('[data-choice="post"]');
   }
 
   /** How many pixels, in a thin column above the poster at `x`, differ from the plain background. */
@@ -1670,11 +1658,12 @@ test.describe("Instagram post: one collage cut into square images", () => {
       const column = ctx.getImageData(x - 1, top, 3, height).data;
       let differing = 0;
       for (let i = 0; i < column.length; i += 4) {
+        // The preview canvas is transparent over the glass backdrop; marks are opaque, shadows are not.
         const d =
           Math.abs((column[i] as number) - (bg[0] as number)) +
           Math.abs((column[i + 1] as number) - (bg[1] as number)) +
           Math.abs((column[i + 2] as number) - (bg[2] as number));
-        if (d > 60) differing++;
+        if ((column[i + 3] as number) > 160 && d > 60) differing++;
       }
       return differing;
     }, cut);
@@ -1689,7 +1678,7 @@ test.describe("Instagram post: one collage cut into square images", () => {
     await expect(page.locator("#height")).toHaveValue("1080");
     await expect(page.locator("#width")).toBeDisabled();
     await expect(page.locator("#height")).toBeDisabled();
-    await expect(page.locator("#output-summary")).toHaveText(
+    await expect(page.locator("#save-summary")).toHaveText(
       "ZIP of 3 PNG images, 1080 × 1080 px each",
     );
     await expect(page.locator("#split-note")).toContainText("numbered _1 to _3");
@@ -1777,7 +1766,7 @@ test.describe("Instagram post: one collage cut into square images", () => {
     await page.locator("#split-count").press("Tab");
     await page.fill("#split-size", "40");
     await page.locator("#split-size").press("Tab");
-    await setFormat(page, "jpeg");
+    await page.click("#format-jpeg");
     await addPhotos(page, await makeImages(page, SIX));
     const files = readZip(await saveAndRead(page));
     const seed = await page.inputValue("#seed");
@@ -1794,18 +1783,15 @@ test.describe("Instagram post: one collage cut into square images", () => {
     await page.click("#split-more");
     await page.waitForTimeout(700);
     await page.reload();
-    await showTab(page, "poster");
+    await page.click("#tab-poster");
     await expect(page.locator("#split-count")).toHaveValue("4");
-    await expect(page.getByRole("button", { name: /Instagram post/ })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    await expect(page.locator("#output-summary")).toContainText("ZIP of 4 PNG images");
-    await showTab(page, "poster");
-    await page.getByRole("button", { name: /A4 landscape/ }).click();
+    await expect(page.locator('[data-choice="post"]')).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("#save-summary")).toContainText("ZIP of 4 PNG images");
+    await page.click("#tab-poster");
+    await page.click('[data-choice="a4"]');
     await expect(page.locator("#split-controls")).toBeHidden();
     await expect(page.locator("#width")).toBeEnabled();
     await expect(page.locator("#width")).toHaveValue("3508");
-    await expect(page.locator("#output-summary")).toHaveText("PNG, 3508 × 2480 px");
+    await expect(page.locator("#save-summary")).toHaveText("PNG, 3508 × 2480 px");
   });
 });

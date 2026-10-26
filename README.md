@@ -1,8 +1,8 @@
 # Collage Creator
 
-[![CI](https://github.com/briggsyj/PhotoCollage/actions/workflows/ci.yaml/badge.svg)](https://github.com/briggsyj/PhotoCollage/actions/workflows/ci.yaml)
-[![Docker build](https://github.com/briggsyj/PhotoCollage/actions/workflows/docker.yaml/badge.svg)](https://github.com/briggsyj/PhotoCollage/actions/workflows/docker.yaml)
-[![GitHub Pages](https://github.com/briggsyj/PhotoCollage/actions/workflows/pages.yaml/badge.svg)](https://github.com/briggsyj/PhotoCollage/actions/workflows/pages.yaml)
+[![CI](https://github.com/briggsyj/CollageCreator/actions/workflows/ci.yaml/badge.svg)](https://github.com/briggsyj/CollageCreator/actions/workflows/ci.yaml)
+[![Docker build](https://github.com/briggsyj/CollageCreator/actions/workflows/docker.yaml/badge.svg)](https://github.com/briggsyj/CollageCreator/actions/workflows/docker.yaml)
+[![GitHub Pages](https://github.com/briggsyj/CollageCreator/actions/workflows/pages.yaml/badge.svg)](https://github.com/briggsyj/CollageCreator/actions/workflows/pages.yaml)
 [![License: GPL v2 or later](https://img.shields.io/badge/license-GPL--2.0--or--later-blue.svg)](LICENSE)
 [![Derived from PhotoCollage](https://img.shields.io/badge/derived%20from-adrienverge%2FPhotoCollage-informational.svg)](https://github.com/adrienverge/PhotoCollage)
 
@@ -11,7 +11,7 @@
 Drop in your photos, pick a size, and get a tidy collage you can save as a PNG or JPEG. There is
 nothing to install and no account to make.
 
-- **Try it now:** <https://briggsyj.github.io/PhotoCollage/> (hosted on GitHub Pages)
+- **Try it now:** <https://briggsyj.github.io/CollageCreator/> (hosted on GitHub Pages)
 - **Host it yourself:** it is a static site, so any web server will do, or run it with Docker (see [Run with Docker](#run-with-docker)).
 - **Private by design:** everything happens in your browser. Your photos are never uploaded.
   Once the page has loaded it even works offline.
@@ -46,19 +46,20 @@ general information, not legal advice.
 ## Features
 
 - Add photos by file picker or drag and drop; works with 100+ photos
-- Automatic layouts that fill the poster, using the original's layout algorithm; the first one shown is the best of 30 tries (the one that crops the photos least)
-- Ask for a photo to be **wider** or **taller**; the rest of the collage is worked out around it
+- Two layout styles, chosen in the Poster step. **Mosaic** (the default) uses the original's layout algorithm: photos fill columns of different heights, and the first layout shown is the best of 30 tries (the one that crops the photos least). **Gallery** cuts the poster into panels with a slicing tree, one panel per photo, and also keeps the best of several tries
+- Ask for a photo to be **wider** or **taller** from the Photos step; the rest of the collage is worked out around it
 - Every layout has a **seed** (under Technical configuration), also in the address (`?seed=…`): the same seed and photos give the same layout, and the browser's back and forward buttons step through earlier arrangements
 - A refresh keeps your photos, sizes and settings (saved in this browser only; removing photos deletes them)
-- Choose the **number of columns**, or leave it on automatic (the original's choice)
-- Poster size in pixels, with A4, A3 and A2 presets at 300 DPI; sizes your browser cannot produce are reduced to the largest available
-- Border colour, thickness (0.5 % white by default), corner style (none, slightly rounded, rounded or circle), and an option to leave out the border around the whole collage
-- Swap two photos by clicking or from the keyboard; remove photos from the collage (Delete), all at once, with undo
-- Zoom the preview by scrolling over it; hold Space and drag to move it
+- Choose the **number of columns** for Mosaic, or leave it on automatic (the original's choice)
+- Poster size in pixels: Screen, A4, A3 and A2 (300 DPI) and social presets, each in landscape or portrait, or a custom width and height; sizes your browser cannot produce are reduced to the largest available
 - An **Instagram post** size: one wide collage, previewed whole with dashed cut marks, saved as a zip of square images numbered `_1`, `_2`, … from left to right
+- Border colour (swatches or any colour), thickness (0.5 % white by default), corner style (square, slightly rounded or rounded), and an option to leave out the border around the whole collage
+- Swap two photos by clicking or from the keyboard; remove photos from the collage (Delete), all at once, with undo
+- Pan and Swap modes: drag to move the preview (the default) or choose Swap to click two photos and swap them; hold Space to pan while swapping; scroll or use the buttons to zoom
+- A frosted glass look that follows your light or dark setting, with a backdrop made from your photos' colours; on phones the controls open as sheets from a bottom bar
 - Photos are shown the right way up (EXIF orientation)
 - Save as PNG or JPEG, with progress and cancel; decoding runs in web workers
-- Starts in your browser's language when it is one of the translations, otherwise English. Translations from the original: Bulgarian, Czech, German, Spanish, French, Italian, Dutch, Polish, Brazilian Portuguese, Russian, Ukrainian
+- Starts in your browser's language when it is one of the translations, otherwise English. Translations from the original: Bulgarian, Czech, German, Spanish, French, Italian, Dutch, Polish, Brazilian Portuguese, Russian, Ukrainian (strings added since then are in English)
 
 ## What is different from the original
 
@@ -66,7 +67,7 @@ general information, not legal advice.
 | ------------ | --------------------------- | --------------------------------------------------------------- |
 | Platform     | Python + GTK desktop app    | Static web app, no backend                                      |
 | Rendering    | Pillow / cairo              | Canvas 2D, `OffscreenCanvas` in a worker pool                   |
-| Layouts      | New random layout each time | Same algorithm, reproducible from a seed                        |
+| Layouts      | New random layout each time | Same algorithm (Mosaic) plus Gallery, reproducible from a seed  |
 | Maximum size | Limited by memory           | Limited by what the browser can allocate (detected at run time) |
 | Packaging    | pip / distro packages       | Docker (nginx) or any static host                               |
 
@@ -74,7 +75,7 @@ general information, not legal advice.
 
 The `master` branch is published to GitHub Pages by the
 [GitHub Pages workflow](.github/workflows/pages.yaml):
-**<https://briggsyj.github.io/PhotoCollage/>**. It is the same static build as the Docker
+**<https://briggsyj.github.io/CollageCreator/>**. It is the same static build as the Docker
 image, and your photos still never leave your browser: the page carries a Content Security Policy
 that only allows its own files.
 

@@ -3,11 +3,25 @@
 name: CI
 
 on:
-  push:
   pull_request:
+    paths-ignore:
+      - "**.md"
+      - "specs/**"
+      - ".specify/**"
+  push:
+    branches: [master]
+    paths-ignore:
+      - "**.md"
+      - "specs/**"
+      - ".specify/**"
 
 permissions:
   contents: read
+
+# A newer commit on the same branch makes the older run pointless.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 jobs:
   checks:
@@ -28,6 +42,8 @@ jobs:
 
   e2e:
     name: End-to-end (${{ matrix.browser }})
+    # The quick checks go first, so a lint error does not cost a WebKit run.
+    needs: checks
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

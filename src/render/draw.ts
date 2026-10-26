@@ -72,13 +72,11 @@ export interface Frame {
 }
 
 /**
- * Corner radius as a fraction of a photo's shorter side, for the two rounded
- * styles. The "circle" style is not a radius: it is an ellipse touching all four
- * sides (like CSS `border-radius: 100%`), a circle for a square photo.
+ * Corner radius as a fraction of a photo's shorter side, for the two rounded styles.
  */
 export const CORNER_RADIUS = { slight: 0.08, rounded: 0.25 } as const;
 
-/** Corner radius in pixels for a photo of this size (0 for square and for the ellipse). */
+/** Corner radius in pixels for a photo of this size (0 for square photos). */
 export function cornerRadius(style: CornerStyle, width: number, height: number): number {
   if (style === "slight" || style === "rounded") {
     return Math.min(width, height) * CORNER_RADIUS[style];
@@ -121,10 +119,6 @@ export function insetCell(
 /** Trace the outline of a photo of this style in `r`. */
 function tracePhotoShape(ctx: Ctx2D, r: Rect, style: CornerStyle): void {
   ctx.beginPath();
-  if (style === "circle") {
-    ctx.ellipse(r.x + r.w / 2, r.y + r.h / 2, r.w / 2, r.h / 2, 0, 0, Math.PI * 2);
-    return;
-  }
   const radius = cornerRadius(style, r.w, r.h);
   if (radius <= 0) {
     ctx.rect(r.x, r.y, r.w, r.h);
