@@ -8,7 +8,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? "github" : "list",
+  // On CI the list reporter also puts each test's time in the log, to show which are slow.
+  reporter: process.env.CI ? [["github"], ["list"]] : "list",
   use: {
     baseURL: process.env.E2E_BASE_URL ?? "http://localhost:4173",
     trace: "retain-on-failure",

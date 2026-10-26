@@ -41,14 +41,21 @@ jobs:
       - run: npm run build
 
   e2e:
-    name: End-to-end (${{ matrix.browser }})
+    name: End-to-end (${{ matrix.browser }}${{ matrix.shard != '1/1' && format(', {0}', matrix.shard) || '' }})
     # The quick checks go first, so a lint error does not cost a WebKit run.
     needs: checks
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      # WebKit is about four times slower than the others on these runners, so its tests are
+      # split across three jobs that run side by side.
       matrix:
-        browser: [chromium, firefox, webkit]
+        include:
+          - { browser: chromium, shard: "1/1" }
+          - { browser: firefox, shard: "1/1" }
+          - { browser: webkit, shard: "1/3" }
+          - { browser: webkit, shard: "2/3" }
+          - { browser: webkit, shard: "3/3" }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -57,4 +64,4 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps ${{ matrix.browser }}
-      - run: npx playwright test --project=${{ matrix.browser }}
+      - run: npx playwright test --project=${{ matrix.browser }} --shard=${{ matrix.shard }}
