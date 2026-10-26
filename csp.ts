@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2026 John Briggs
 
 /**
  * The Content Security Policy that enforces the privacy principle: the page may

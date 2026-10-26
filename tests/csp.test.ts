@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2026 John Briggs
 
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";

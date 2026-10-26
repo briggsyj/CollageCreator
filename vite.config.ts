@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2026 John Briggs
 
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import type { Plugin } from "vite";

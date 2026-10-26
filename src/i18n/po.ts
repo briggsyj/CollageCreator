@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2026 John Briggs
 
 /** A parsed gettext catalogue: English source string to translation. */
 export type Messages = Record<string, string>;

@@ -20,6 +20,15 @@ every source file here.
 This program comes with ABSOLUTELY NO WARRANTY; see `LICENSE`. This file is
 general information, not legal advice.
 
+## Copyright in this project
+
+Copyright (C) 2026 John Briggs, for the changes to the original and for the code, design and
+documentation added in this repository (the browser UI, the Gallery layout, cropping, HEIC
+support, the tests and the build and CI setup). Every source file carries this line next to
+its `SPDX-License-Identifier`; a file derived from the original also keeps the original
+copyright line and a dated change notice, as the GPL requires. The original authors keep
+their copyright in what they wrote, and the whole is released under `GPL-2.0-or-later`.
+
 ## What was ported from the original
 
 | Original file(s)                                                                                                          | Where it went                                       | What changed                                                                                                                                                                                                                                                          |

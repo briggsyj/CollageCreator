@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2026 John Briggs
 
 // Licence header check, run in CI. Only checks files git knows about (tracked,
 // or untracked and not ignored). Rules:
@@ -6,7 +7,7 @@
 //  - a file derived from PhotoCollage (its header says "a modified version of
 //    PhotoCollage") must also keep the original author's copyright line and
 //    carry a dated "CHANGED on" notice, as the GPL requires.
-// This project adds no copyright notice of its own.
+//  - every source file carries this project's own copyright line.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -15,6 +16,7 @@ import { basename, extname } from "node:path";
 const SPDX = "SPDX-License-Identifier: GPL-2.0-or-later";
 const DERIVED = /a modified version of\s+PhotoCollage/;
 const ORIGINAL_COPYRIGHT = /Copyright \(C\) \d{4}[^\n]*Adrien Vergé/;
+const OWN_COPYRIGHT = /Copyright \(C\) \d{4}(?:[–-]\d{4})? John Briggs/;
 const CHANGE_NOTICE = /CHANGED on \d{4}-\d{2}-\d{2}/;
 const EXTENSIONS = new Set([
   ".ts",
@@ -47,6 +49,8 @@ for (const file of files) {
   }
   if (!head.includes(SPDX)) {
     failures.push(`${file}: missing "${SPDX}"`);
+  } else if (!OWN_COPYRIGHT.test(head)) {
+    failures.push(`${file}: missing "Copyright (C) <year> John Briggs"`);
   } else if (DERIVED.test(head)) {
     if (!ORIGINAL_COPYRIGHT.test(head)) {
       failures.push(

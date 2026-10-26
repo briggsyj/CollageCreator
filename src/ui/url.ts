@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2026 John Briggs
 
 const PARAM = "seed";
 const MAX_SEED = 0xffffffff;

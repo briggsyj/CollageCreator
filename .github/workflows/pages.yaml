@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (C) 2026 John Briggs
 
 # Builds the static site and publishes it to GitHub Pages when master changes.
 # One-time setup: repository Settings > Pages > Build and deployment > Source: GitHub Actions.

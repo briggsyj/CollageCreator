@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2026 John Briggs
 
 /** How many blocks the backdrop has: a fixed grid of 4 x 3. */
 export const BACKDROP_CELLS = 12;

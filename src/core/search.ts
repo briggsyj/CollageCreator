@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2026 John Briggs
 
 import { generateLayout, type LayoutOptions, type Page } from "./layout";
 import { type Rng, seededRng } from "./rng";

@@ -1,4 +1,5 @@
 <!-- SPDX-License-Identifier: GPL-2.0-or-later -->
+<!-- Copyright (C) 2026 John Briggs -->
 <script lang="ts">
   import { app, type DialogName } from "./app-state.svelte";
   import { tr } from "./tr.svelte";
@@ -88,9 +89,9 @@
     NOTICE. It is not the original and is not endorsed by its authors.
   </p>
   <p>
-    The changes in this version carry no separate copyright notice. It is released under the
-    <a href="./LICENSE.txt" rel="noopener">GNU General Public License</a>, version 2 or (at your
-    option) any later version (SPDX: GPL-2.0-or-later).
+    The changes and additions in this version are Copyright © 2026 John Briggs. It is released under
+    the <a href="./LICENSE.txt" rel="noopener">GNU General Public License</a>, version 2 or (at
+    your option) any later version (SPDX: GPL-2.0-or-later).
   </p>
   <p>
     {tr(

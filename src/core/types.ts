@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2026 John Briggs
 
 /** Pixel size of a photo after its EXIF orientation has been applied. */
 export interface PhotoSize {

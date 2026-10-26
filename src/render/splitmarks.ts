@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2026 John Briggs
 
 import { splitBoundaries } from "../core/split";
 import type { Rect } from "../core/types";
