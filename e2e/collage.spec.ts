@@ -1706,6 +1706,38 @@ test.describe("Address, saved work and language", () => {
     await expect(page.locator("#save")).toBeEnabled();
   });
 
+  test("while saved photos are coming back there is a loading display, and new photos wait for them", async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    await addPhotos(page, await makeImages(page, SIX.slice(0, 3)));
+    await page.waitForTimeout(700);
+    // Make reading each photo slow, as it can be with many large photos.
+    await page.addInitScript(() => {
+      const post = Worker.prototype.postMessage;
+      Worker.prototype.postMessage = function (...args: [unknown, ...unknown[]]) {
+        setTimeout(() => post.apply(this, args as never), 900);
+      };
+    });
+    await page.reload();
+    const loading = page.locator("#panel-photos .restoring");
+    await expect(loading).toBeVisible();
+    await expect(loading).toContainText("Bringing back your photos");
+    await expect(page.locator("#empty-state .restoring-stage")).toBeVisible();
+    await expect(page.locator("#add")).toBeDisabled();
+    await expect(page.locator("#add-empty")).toHaveCount(0);
+
+    // Photos added meanwhile are kept until the saved ones are back, then added after them.
+    await page.setInputFiles(
+      "#file-input",
+      await makeImages(page, [{ name: "late.png", w: 300, h: 200, color: "red" }]),
+    );
+    await expect(page.locator("#photo-list li")).toHaveCount(4, { timeout: 20000 });
+    await expect(loading).toHaveCount(0);
+    await expect(page.locator("#add")).toBeEnabled();
+    await expect(page.locator("#photo-list li .name").last()).toHaveText("late.png");
+  });
+
   test("a refresh gives back the same picture", async ({ page }) => {
     await setSize(page, 480, 360);
     await addPhotos(page, await makeImages(page, SIX));
