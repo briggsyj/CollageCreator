@@ -169,6 +169,7 @@ export function startApp(): void {
     tabs: el<HTMLElement>("tabs"),
     util: el<HTMLElement>("util"),
     sheet: el<HTMLElement>("sheet"),
+    saveBlock: el<HTMLElement>("save-block"),
     sheetTitle: el<HTMLElement>("sheet-title"),
     sheetClose: el<HTMLButtonElement>("sheet-close"),
     saveClose: el<HTMLButtonElement>("save-close"),
@@ -483,7 +484,48 @@ export function startApp(): void {
     ui.sheetTitle.textContent = t(TAB_TITLES[tab]);
     if (tab !== previousTab) ui.sheet.scrollTop = 0;
     syncTabsLift();
-    if (open) closeMenu();
+    if (open) {
+      closeMenu();
+      if (tab !== previousTab || !wasOpen) rise(tab === "save" ? ui.saveBlock : ui.sheet);
+    }
+  }
+
+  /** Raise a sheet from the bottom of the screen (see .rise in the stylesheet). */
+  function rise(sheet: HTMLElement): void {
+    sheet.classList.remove("rise");
+    void sheet.offsetWidth;
+    sheet.classList.add("rise");
+  }
+
+  /** Pull a sheet down by its head to put it away; a short pull springs back. */
+  function initSheetDrag(): void {
+    for (const sheet of [ui.sheet, ui.saveBlock]) {
+      const head = sheet.querySelector<HTMLElement>(".sheet-head");
+      if (!head) continue;
+      let from: number | null = null;
+      head.addEventListener("pointerdown", (e) => {
+        if ((e.target as Element).closest("button")) return;
+        from = e.clientY;
+        head.setPointerCapture(e.pointerId);
+        sheet.classList.remove("rise");
+      });
+      head.addEventListener("pointermove", (e) => {
+        if (from === null) return;
+        sheet.style.setProperty("--drag", `${Math.max(0, e.clientY - from)}px`);
+      });
+      const end = (e: PointerEvent) => {
+        if (from === null) return;
+        const pulled = e.clientY - from;
+        from = null;
+        sheet.style.removeProperty("--drag");
+        if (pulled > 60) setTab(state.tab, true);
+      };
+      head.addEventListener("pointerup", end);
+      head.addEventListener("pointercancel", () => {
+        from = null;
+        sheet.style.removeProperty("--drag");
+      });
+    }
   }
 
   /** On wide screens the tab bar floats over the step once it is scrolled (see .tabs.lifted). */
@@ -492,6 +534,7 @@ export function startApp(): void {
   }
 
   function initTabs(): void {
+    initSheetDrag();
     ui.sheet.addEventListener("scroll", syncTabsLift, { passive: true });
     for (const name of Object.keys(tabButtons) as Tab[]) {
       tabButtons[name].addEventListener("click", () => setTab(name, true));

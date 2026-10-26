@@ -25,6 +25,10 @@
   --ctl-shadow: 0 1px 3px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.9);
   --inset-bg: rgba(110, 110, 125, 0.16);
   --inset-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12);
+  --down-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+  --prim-down-shadow: inset 0 2px 7px rgba(0, 0, 0, 0.38);
+  --t: 0.16s;
+  --t-sheet: 0.26s;
   --press-bg: rgba(255, 255, 255, 0.92);
   --press-shadow: 0 1px 4px rgba(0, 0, 0, 0.2), inset 0 1px 0 #fff;
   --press-text: #1a56b0;
@@ -73,6 +77,8 @@
     --ctl-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.22);
     --inset-bg: rgba(0, 0, 0, 0.35);
     --inset-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+    --down-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+    --prim-down-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5);
     --press-bg: rgba(255, 255, 255, 0.2);
     --press-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
     --press-text: #fff;
@@ -249,6 +255,23 @@ button {
   box-shadow: var(--ctl-shadow);
   border-radius: var(--r-ctl);
   cursor: pointer;
+  transition:
+    box-shadow var(--t) ease,
+    transform var(--t) ease,
+    background-color var(--t) ease,
+    filter var(--t) ease,
+    color var(--t) ease;
+}
+
+/* Raised buttons sink in while pressed. Flat ones (tabs, segments, links) keep their look. */
+button:active:not(:disabled):not(.link, .icon-btn, .seg button, .tabs button, .modes button) {
+  box-shadow: var(--down-shadow);
+  transform: translateY(1px);
+  filter: brightness(0.94);
+}
+
+button.primary:active:not(:disabled) {
+  box-shadow: var(--prim-down-shadow);
 }
 
 button:disabled {
@@ -613,6 +636,7 @@ select {
   background: var(--track);
   box-shadow: var(--field-shadow);
   cursor: pointer;
+  transition: background-color var(--t) ease;
 }
 
 .switch input::before {
@@ -626,6 +650,7 @@ select {
   background: var(--knob);
   border: var(--ctl-border);
   box-shadow: var(--ctl-shadow);
+  transition: left var(--t) cubic-bezier(0.3, 0.9, 0.3, 1);
 }
 
 .switch input:checked {
@@ -1266,6 +1291,7 @@ progress {
     max-height: min(62dvh, calc(100dvh - 190px));
     display: none;
     overflow: auto;
+    transform: translateY(var(--drag, 0px));
   }
 
   .app[data-open="true"]:not([data-tab="save"]) .sheet {
@@ -1288,6 +1314,16 @@ progress {
 
   .sheet-head h2 {
     font-size: 1.05rem;
+  }
+
+  /* Opening a step, or switching between steps, raises its sheet from the bottom of the screen. */
+  .sheet.rise,
+  .save-block.rise {
+    animation: sheet-rise var(--t-sheet) cubic-bezier(0.2, 0.85, 0.25, 1);
+  }
+
+  .sheet-head {
+    touch-action: none;
   }
 
   .grab {
@@ -1460,4 +1496,25 @@ progress {
 
 .split-controls[hidden] {
   display: none;
+}
+
+@keyframes sheet-rise {
+  from {
+    opacity: 0;
+    transform: translateY(36px) scaleY(0.94);
+    transform-origin: bottom;
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(var(--drag, 0px)) scaleY(1);
+    transform-origin: bottom;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t: 0s;
+    --t-sheet: 0s;
+  }
 }

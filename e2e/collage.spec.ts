@@ -1530,6 +1530,31 @@ test.describe("Collage Creator on a phone", () => {
     await expect(page.locator("#save-block")).toBeHidden();
   });
 
+  test("a step rises from the bottom when opened or switched to, and can be pulled down to close", async ({
+    page,
+  }) => {
+    await page.click("#tab-photos");
+    await expect(page.locator(".sheet")).toHaveClass(/rise/);
+    await page.click("#tab-poster");
+    await expect(page.locator(".sheet")).toHaveClass(/rise/);
+    await expect(page.locator("#sheet-title")).toHaveText("Poster");
+    const head = await page.locator(".sheet .sheet-head").boundingBox();
+    expect(head).not.toBeNull();
+    const x = (head?.x ?? 0) + (head?.width ?? 0) / 2;
+    const y = (head?.y ?? 0) + 10;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x, y + 40, { steps: 4 });
+    await page.mouse.up();
+    // A short pull springs back.
+    await expect(page.locator(".sheet")).toBeVisible();
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x, y + 140, { steps: 6 });
+    await page.mouse.up();
+    await expect(page.locator(".sheet")).toBeHidden();
+  });
+
   test("the menu holds Language and About", async ({ page }) => {
     await expect(page.locator("#util")).toBeHidden();
     await page.click("#menu-open");
