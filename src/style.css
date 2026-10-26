@@ -124,6 +124,8 @@
 }
 
 * {
+  /* Pinch to zoom still works, but a quick second tap is a second press, not a zoom (iOS). */
+  touch-action: manipulation;
   box-sizing: border-box;
 }
 

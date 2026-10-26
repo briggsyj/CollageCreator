@@ -236,7 +236,8 @@
       return;
     }
     if (panning) {
-      const click = !panMoved && !app.spaceHeld && app.mode === "pan";
+      // A finger tap in Pan mode is not a pick (the Select tool does that); a mouse click is.
+      const click = !panMoved && !app.spaceHeld && app.mode === "pan" && e.pointerType === "mouse";
       endPan();
       // A press that did not move the view selects the photo under it.
       if (click) {
