@@ -29,6 +29,8 @@
   let downAt = { x: 0, y: 0 };
   /** While adjusting a crop: the last pointer position of the drag moving the photo. */
   let cropDrag: { x: number; y: number } | null = null;
+  /** Set when a press switched the selection while cropping, so its release does not act as a click. */
+  let switchedWhileCropping = false;
 
   const fit = $derived(app.fitPoster({ w: boxWidth, h: boxHeight }));
 
@@ -183,6 +185,7 @@
         e.preventDefault();
       } else if (photoIndex !== undefined) {
         // Choosing another photo accepts this crop (it is already applied) and selects that one.
+        switchedWhileCropping = true;
         app.selectPhoto(photoIndex);
       }
       return;
@@ -218,6 +221,10 @@
   }
 
   function onPointerUp(e: PointerEvent): void {
+    if (switchedWhileCropping) {
+      switchedWhileCropping = false;
+      return;
+    }
     if (cropDrag || app.cropping) {
       cropDrag = null;
       return;

@@ -289,7 +289,10 @@ test.describe("Cropping the selected photo", () => {
     await expect(page.locator("#crop-tools")).toBeVisible();
     const bottom = await posterPoint(page, 0.5, 0.75);
     await page.mouse.click(bottom.x, bottom.y);
+    // The other photo is now the selected one: the dock is still there, showing its name.
+    await expect(page.locator("#span-group")).toBeVisible();
     await expect(page.locator("#dock-name")).not.toHaveText(first ?? "");
+    await expect(page.locator("#dock-name")).toHaveText(/\.png$/);
     await expect(page.locator("#crop-tools")).toBeHidden();
     await expect(page.locator("#crop-toggle")).toHaveAttribute("aria-pressed", "false");
   });
