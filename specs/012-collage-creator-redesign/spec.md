@@ -25,7 +25,7 @@ The design is a canvas Artifact (see [plan.md](plan.md), "Design reference"). Wh
 - **Steps**:
   - **Photos**: Add photos, the drop tip ("or drop photos anywhere on this page"), the photo grid with names and Wider/Taller tags, Undo remove, Remove all, and the selected-photo controls (Normal, Wider, Taller, Remove).
   - **Poster**: size and orientation only (size buttons, width and height).
-  - **Photos** also has Shuffle layout; **Style** starts with the layout style (with columns for Mosaic) and the trim figure, and ends with Technical configuration (seed).
+  - **Style** starts with the layout style (with columns for Mosaic), the trim figure and Shuffle layout, and ends with Technical configuration (seed).
   - **Style**: border thickness, border colour (swatches and Custom), photo corners (Square, Slight, Rounded; **Circle is removed**), and Border around the whole collage.
   - **Save** (footer, and a sheet on phones): file type, JPEG quality when JPEG is chosen, the output size, and Save poster.
 - **Privacy note**: "Everything runs in your browser. Your photos are never uploaded." appears in the empty drop target. It no longer appears as a block in the sidebar.

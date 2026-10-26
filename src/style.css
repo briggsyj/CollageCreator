@@ -11,6 +11,7 @@
   --focus: #ff9d00;
   --stage-bg: #ebeae7;
   --solid-bg: #f4f3ef;
+  --tabs-glass: rgba(246, 245, 241, 0.74);
   --hair: rgba(255, 255, 255, 0.55);
   --amb: 0.55;
   --amb-filter: blur(44px) saturate(1.1);
@@ -65,6 +66,7 @@
     --danger: #f2a09a;
     --stage-bg: #101012;
     --solid-bg: #1b1b1f;
+    --tabs-glass: rgba(27, 27, 31, 0.68);
     --hair: rgba(255, 255, 255, 0.12);
     --amb: 0.65;
     --amb-filter: blur(44px) saturate(1.6) brightness(0.75);
@@ -224,7 +226,7 @@ body:has(.app[data-empty="true"]) {
 .modes,
 .pill,
 .zoomers .sq,
-.shuffle,
+.help-btn,
 .dock,
 dialog {
   background: var(--chrome-bg);
@@ -547,17 +549,56 @@ select {
   display: block;
 }
 
+/* An accordion: a recessed row with a chevron that turns when it opens. */
+.technical {
+  padding: 0 16px;
+  background: var(--inset-bg);
+  box-shadow: var(--inset-shadow);
+  border-radius: var(--r-ctl);
+}
+
 .technical summary {
-  min-height: 36px;
+  min-height: 52px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  list-style: none;
   cursor: pointer;
   font-weight: 600;
   font-size: 0.95rem;
 }
 
+.technical summary::-webkit-details-marker {
+  display: none;
+}
+
+.technical summary::after {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-right: 4px;
+  border-right: 2px solid var(--sub);
+  border-bottom: 2px solid var(--sub);
+  transform: rotate(45deg);
+  transition: transform var(--t) ease;
+}
+
+.technical[open] summary::after {
+  transform: translateY(3px) rotate(-135deg);
+}
+
+.technical[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 18px;
+}
+
 .technical[open] summary {
-  margin-bottom: 8px;
+  min-height: 44px;
+  margin-top: 4px;
 }
 
 /* Sliders. The filled part is set from script (--p). */
@@ -734,8 +775,37 @@ input[type="color"] {
   font-size: 1.3rem;
 }
 
-.menu-btn {
+.brand-actions {
   display: none;
+}
+
+.help-btn {
+  width: 40px;
+  min-height: 40px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.help-fab {
+  position: absolute;
+  z-index: 3;
+  left: 16px;
+  bottom: 16px;
+}
+
+.help-list {
+  margin: 0 0 12px;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  line-height: 1.4;
+}
+
+dialog h3 {
+  margin: 14px 0 6px;
 }
 
 .icon-btn {
@@ -796,6 +866,7 @@ input[type="color"] {
 
 #regenerate {
   flex: none;
+  margin-top: 14px;
 }
 
 .drop-tip {
@@ -1005,26 +1076,31 @@ label.inline select {
   font-size: 0.9rem;
 }
 
-/* Wide screens: the tab bar floats over the step's content. At the top it sits where it always
-   did; once the step is scrolled the content passes beneath it (script adds .lifted). */
+/* Wide screens: the tab bar floats over the step's content, a little below the top of the scroll
+   area, so scrolled content visibly passes behind it. At the top it sits where it always did;
+   once the step is scrolled the bar turns to light frosted glass (script adds .lifted). */
 @media (min-width: 761px) {
   .tabs {
     position: relative;
+    top: 12px;
     z-index: 3;
     height: 48px;
-    margin-bottom: -48px;
-    transition: box-shadow 0.15s;
+    margin: 0 12px -48px;
+    transition: box-shadow var(--t);
   }
 
   .tabs.lifted {
-    background: linear-gradient(var(--inset-bg), var(--inset-bg)), var(--solid-bg);
-    -webkit-backdrop-filter: var(--chrome-filter);
-    backdrop-filter: var(--chrome-filter);
+    background: linear-gradient(var(--inset-bg), var(--inset-bg)), var(--tabs-glass);
+    -webkit-backdrop-filter: blur(12px) saturate(1.4);
+    backdrop-filter: blur(12px) saturate(1.4);
     box-shadow: var(--chrome-shadow);
   }
 
+  /* The scroll area starts 12px above the tab bar; content fades in over that strip. */
   .sheet {
-    padding-top: 48px;
+    padding-top: 60px;
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14px);
+    mask-image: linear-gradient(to bottom, transparent, #000 14px);
   }
 }
 
@@ -1138,8 +1214,7 @@ body.dragging .canvas-box {
   max-width: calc(100% - 120px);
 }
 
-.status-pill,
-.shuffle {
+.status-pill {
   display: none;
 }
 
@@ -1214,6 +1289,14 @@ progress {
   gap: 8px;
 }
 
+dialog p.help-note {
+  margin-top: 14px;
+}
+
+dialog .button-row {
+  margin-top: 16px;
+}
+
 /* ------------------------------------------------------------------ narrow */
 
 @media (max-width: 760px) {
@@ -1252,8 +1335,18 @@ progress {
     padding: 0 6px 0 18px;
   }
 
+  .brand-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
   .menu-btn {
     display: inline-flex;
+  }
+
+  .help-fab {
+    display: none;
   }
 
   .tabs {
@@ -1392,18 +1485,6 @@ progress {
     min-height: 52px;
   }
 
-  .shuffle {
-    position: absolute;
-    z-index: 3;
-    left: var(--inset);
-    bottom: calc(var(--inset) + 128px);
-    display: inline-flex;
-    min-height: 48px;
-    padding: 0 18px;
-    border-radius: 24px;
-    font-weight: 600;
-  }
-
   .status-pill {
     position: absolute;
     z-index: 3;
@@ -1419,7 +1500,6 @@ progress {
     display: none;
   }
 
-  .app[data-open="true"] .shuffle,
   .app[data-open="true"] .status-pill {
     display: none;
   }

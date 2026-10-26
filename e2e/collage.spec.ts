@@ -1007,7 +1007,7 @@ test.describe("Sidebar fits its bounds", () => {
         const outside = await page.evaluate(() => {
           const found: string[] = [];
           for (const el of document.querySelectorAll<HTMLElement>(
-            ".brand, .tabs, .sheet, .dock, .tools, .hint-pill, .shuffle",
+            ".brand, .tabs, .sheet, .dock, .tools, .hint-pill",
           )) {
             const r = el.getBoundingClientRect();
             if (r.width === 0 || r.height === 0) continue;
@@ -1359,11 +1359,12 @@ test.describe("Collage Creator: layout, modes, sizes and notices", () => {
     await expect(tabs).not.toHaveClass(/lifted/);
   });
 
-  test("Shuffle is in the Photos step, Layout in Style, and Poster is only about size", async ({
+  test("Layout and Shuffle are in the Style step, and Poster is only about size", async ({
     page,
   }) => {
     await addPhotos(page, await makeImages(page, TWO));
-    await expect(page.locator("#panel-photos #regenerate")).toBeVisible();
+    await expect(page.locator("#panel-style #regenerate")).toHaveCount(1);
+    await expect(page.locator("#panel-photos #regenerate")).toHaveCount(0);
     await expect(page.locator("#panel-style #layout-cards")).toHaveCount(1);
     await expect(page.locator("#panel-style #columns-block")).toHaveCount(1);
     await expect(page.locator("#panel-style #seed")).toHaveCount(1);
@@ -1371,15 +1372,53 @@ test.describe("Collage Creator: layout, modes, sizes and notices", () => {
     await expect(page.locator("#panel-poster #regenerate")).toHaveCount(0);
   });
 
+  test("Select: clicking a photo on the preview selects it in the Photos step", async ({
+    page,
+  }) => {
+    await addPhotos(page, await makeImages(page, TWO));
+    await page.click("#tab-style");
+    await page.click("#mode-select");
+    await expect(page.locator("#mode-select")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("#mode-pan")).toHaveAttribute("aria-pressed", "false");
+    await expect(page.locator("#mode-swap")).toHaveAttribute("aria-pressed", "false");
+    const at = await posterPoint(page, 0.25, 0.5);
+    await page.mouse.click(at.x, at.y);
+    // The Photos step opens with that photo picked, ready for Wider / Taller.
+    await expect(page.locator("#tab-photos")).toHaveAttribute("aria-selected", "true");
+    await expect(page.locator("#photo-list button.tile[aria-pressed='true']")).toHaveCount(1);
+    await expect(page.locator("#selected-dock")).toBeVisible();
+    await page.click("#span-wider");
+    await expect(page.locator("#photo-list button.tile[aria-pressed='true']")).toHaveCount(1);
+    // Space pans while it is held (with the pointer over the preview), then Select comes back.
+    await page.mouse.move(at.x, at.y);
+    await page.keyboard.down("Space");
+    await expect(page.locator("#mode-pan")).toHaveAttribute("aria-pressed", "true");
+    await page.keyboard.up("Space");
+    await expect(page.locator("#mode-select")).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("a Help button opens a dialog that explains the tools; the preview has no always-on hint", async ({
+    page,
+  }) => {
+    await addPhotos(page, await makeImages(page, TWO));
+    await expect(page.locator("#hint")).toBeHidden();
+    await page.click("#help-open");
+    const dialog = page.locator("#help-dialog");
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText("drag the collage to move it");
+    await expect(dialog).toContainText("scroll over the collage");
+    await expect(dialog).toContainText("click a photo, then another");
+    await page.click("#help-close");
+    await expect(dialog).toBeHidden();
+  });
+
   test("Pan is the default; Pan and Swap are exclusive", async ({ page }) => {
     await addPhotos(page, await makeImages(page, TWO));
     await expect(page.locator("#mode-pan")).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator("#mode-swap")).toHaveAttribute("aria-pressed", "false");
-    await expect(page.locator("#hint")).toContainText("Drag to pan");
     await page.click("#mode-swap");
     await expect(page.locator("#mode-pan")).toHaveAttribute("aria-pressed", "false");
     await expect(page.locator("#mode-swap")).toHaveAttribute("aria-pressed", "true");
-    await expect(page.locator("#hint")).toContainText("swap them");
     await page.click("#mode-pan");
     await expect(page.locator("#mode-pan")).toHaveAttribute("aria-pressed", "true");
   });
@@ -1558,6 +1597,10 @@ test.describe("Collage Creator on a phone", () => {
     await page.click("#tab-poster");
     await expect(page.locator(".sheet")).toHaveClass(/rise/);
     await expect(page.locator("#sheet-title")).toHaveText("Poster");
+    // Let the rise finish, so the head is where it will stay when it is measured.
+    await page.waitForFunction(
+      () => document.querySelector(".sheet")?.getAnimations().length === 0,
+    );
     const head = await page.locator(".sheet .sheet-head").boundingBox();
     expect(head).not.toBeNull();
     const x = (head?.x ?? 0) + (head?.width ?? 0) / 2;
@@ -1573,6 +1616,18 @@ test.describe("Collage Creator on a phone", () => {
     await page.mouse.move(x, y + 140, { steps: 6 });
     await page.mouse.up();
     await expect(page.locator(".sheet")).toBeHidden();
+  });
+
+  test("the phone header has a Help button left of the menu button, and no floating Shuffle", async ({
+    page,
+  }) => {
+    await expect(page.locator("#help-open")).toBeHidden();
+    await expect(page.locator("#shuffle")).toHaveCount(0);
+    const help = await page.locator("#help-open-head").boundingBox();
+    const menu = await page.locator("#menu-open").boundingBox();
+    expect((help?.x ?? 0) + (help?.width ?? 0)).toBeLessThanOrEqual(menu?.x ?? 0);
+    await page.click("#help-open-head");
+    await expect(page.locator("#help-dialog")).toBeVisible();
   });
 
   test("the menu holds Language and About", async ({ page }) => {

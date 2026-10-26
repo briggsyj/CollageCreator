@@ -125,7 +125,7 @@ function storeLanguage(code: string): void {
 }
 
 type Tab = "photos" | "poster" | "style" | "save";
-type Mode = "pan" | "swap";
+type Mode = "pan" | "swap" | "select";
 
 const TAB_TITLES: Record<Tab, string> = {
   photos: "Photos",
@@ -177,7 +177,6 @@ export function startApp(): void {
     addEmpty: el<HTMLButtonElement>("add-empty"),
     fileInput: el<HTMLInputElement>("file-input"),
     regenerate: el<HTMLButtonElement>("regenerate"),
-    shuffle: el<HTMLButtonElement>("shuffle"),
     seed: el<HTMLInputElement>("seed"),
     splitControls: el<HTMLElement>("split-controls"),
     splitCount: el<HTMLInputElement>("split-count"),
@@ -240,6 +239,7 @@ export function startApp(): void {
     sizeNote: el<HTMLElement>("size-note"),
     modePan: el<HTMLButtonElement>("mode-pan"),
     modeSwap: el<HTMLButtonElement>("mode-swap"),
+    modeSelect: el<HTMLButtonElement>("mode-select"),
     zoomIn: el<HTMLButtonElement>("zoom-in"),
     zoomOut: el<HTMLButtonElement>("zoom-out"),
     viewZoom: el<HTMLElement>("view-zoom"),
@@ -252,6 +252,10 @@ export function startApp(): void {
     cancel: el<HTMLButtonElement>("cancel"),
     aboutDialog: el<HTMLDialogElement>("about-dialog"),
     aboutOpen: el<HTMLButtonElement>("about-open"),
+    helpDialog: el<HTMLDialogElement>("help-dialog"),
+    helpOpen: el<HTMLButtonElement>("help-open"),
+    helpOpenHead: el<HTMLButtonElement>("help-open-head"),
+    helpClose: el<HTMLButtonElement>("help-close"),
     aboutClose: el<HTMLButtonElement>("about-close"),
     language: el<HTMLSelectElement>("language"),
   };
@@ -305,17 +309,6 @@ export function startApp(): void {
   let statusEl: HTMLElement | null = null;
   let statusTimer: ReturnType<typeof setTimeout> | undefined;
 
-  /** What the pill over the preview says when no status is being shown. */
-  function modeHint(): string {
-    if (state.photos.length === 0) {
-      return t("Add photos to start. Then drag to pan or choose Swap.");
-    }
-    if (state.spaceHeld && state.mode === "swap") return t("Panning while Space is held.");
-    return state.mode === "pan"
-      ? t("Drag to pan, scroll to zoom. Choose Swap to exchange photos.")
-      : t("Click a photo, then another, to swap them. Hold Space to pan.");
-  }
-
   function addMessage(m: ImportMessage): void {
     const div = document.createElement("div");
     div.className = m.kind;
@@ -333,10 +326,10 @@ export function startApp(): void {
     }
     statusEl.textContent = text;
     clearTimeout(statusTimer);
-    ui.hint.textContent = text || modeHint();
+    ui.hint.textContent = text;
     if (text) {
       statusTimer = setTimeout(() => {
-        ui.hint.textContent = modeHint();
+        ui.hint.textContent = "";
       }, STATUS_MS);
     }
   }
@@ -405,7 +398,7 @@ export function startApp(): void {
     renderCornerCards();
     renderPhotoList();
     setTab(state.tab, false);
-    ui.hint.textContent = modeHint();
+    ui.hint.textContent = "";
     syncSizeFields();
     updateNotes(currentLayout());
   }
@@ -607,7 +600,7 @@ export function startApp(): void {
     ui.seed.value = String(state.seed);
     ui.save.disabled = state.photos.length === 0;
     ui.emptyHint.hidden = state.photos.length > 0;
-    ui.hint.textContent = modeHint();
+    ui.hint.textContent = "";
     updateBackdrop(
       backdropCells,
       state.photos.map((p) => p.colour),
@@ -835,9 +828,10 @@ export function startApp(): void {
     // Holding Space makes Pan the active tool for as long as it is held; Swap comes back after.
     const panActive = state.mode === "pan" || state.spaceHeld;
     ui.modePan.setAttribute("aria-pressed", String(panActive));
-    ui.modeSwap.setAttribute("aria-pressed", String(!panActive));
+    ui.modeSwap.setAttribute("aria-pressed", String(!panActive && state.mode === "swap"));
+    ui.modeSelect.setAttribute("aria-pressed", String(!panActive && state.mode === "select"));
     ui.box.classList.toggle("pan-mode", state.mode === "pan");
-    for (const button of [ui.modePan, ui.modeSwap, ui.zoomIn, ui.zoomOut, ui.shuffle]) {
+    for (const button of [ui.modePan, ui.modeSwap, ui.modeSelect, ui.zoomIn, ui.zoomOut]) {
       button.disabled = none;
     }
     ui.app.dataset.empty = String(none);
@@ -974,6 +968,17 @@ export function startApp(): void {
     draw();
   }
 
+  /**
+   * The Select tool: choose a photo on the preview and show it in the Photos step (on wide
+   * screens), where Wider, Taller and Remove are. On phones the action bar appears instead.
+   */
+  function selectInPhotos(photoIndex: number): void {
+    selectPhoto(photoIndex);
+    if (state.selected !== photoIndex || isNarrow()) return;
+    setTab("photos", false);
+    ui.photoList.children[photoIndex]?.scrollIntoView({ block: "nearest" });
+  }
+
   /** Saved work being brought back; adding photos waits for it. */
   let restoring: Promise<void> = Promise.resolve();
 
@@ -995,7 +1000,7 @@ export function startApp(): void {
     if (statusEl) statusEl.remove();
     statusEl = null;
     clearTimeout(statusTimer);
-    ui.hint.textContent = modeHint();
+    ui.hint.textContent = "";
     showNotices(skipped);
     if (added.length > 0) {
       state.photos = [...state.photos, ...added];
@@ -1498,7 +1503,6 @@ export function startApp(): void {
       relayout();
     };
     ui.regenerate.addEventListener("click", shuffleLayout);
-    ui.shuffle.addEventListener("click", shuffleLayout);
     const chooseStyle = (style: LayoutStyle) => {
       if (state.layoutStyle === style) return;
       state.layoutStyle = style;
@@ -1578,7 +1582,7 @@ export function startApp(): void {
   function setMode(mode: Mode): void {
     state.mode = mode;
     clearTimeout(statusTimer);
-    ui.hint.textContent = modeHint();
+    ui.hint.textContent = "";
     updateControls();
   }
 
@@ -1603,10 +1607,6 @@ export function startApp(): void {
       state.spaceHeld = held;
       ui.box.classList.toggle("pan-ready", held);
       if (!held) endPan();
-      if (state.mode === "swap") {
-        clearTimeout(statusTimer);
-        ui.hint.textContent = modeHint();
-      }
       updateControls();
     };
 
@@ -1647,6 +1647,11 @@ export function startApp(): void {
       }
       const to = cellAt(e.clientX, e.clientY);
       if (to < 0) return;
+      if (state.mode === "select") {
+        const photoIndex = currentLayout()?.placements[to]?.photoIndex;
+        if (photoIndex !== undefined) selectInPhotos(photoIndex);
+        return;
+      }
       if (dragFrom >= 0 && dragFrom !== to && state.selected === null) {
         pick(dragFrom);
       }
@@ -1700,6 +1705,7 @@ export function startApp(): void {
     ui.zoomOut.addEventListener("click", () => zoomAtCentre(0.8));
     ui.modePan.addEventListener("click", () => setMode("pan"));
     ui.modeSwap.addEventListener("click", () => setMode("swap"));
+    ui.modeSelect.addEventListener("click", () => setMode("select"));
 
     ui.canvas.addEventListener("keydown", (e) => {
       // View keys and undo work whether or not there are photos.
@@ -1872,6 +1878,10 @@ export function startApp(): void {
     ui.save.addEventListener("click", () => void save());
     ui.aboutOpen.addEventListener("click", () => ui.aboutDialog.showModal());
     ui.aboutClose.addEventListener("click", () => ui.aboutDialog.close());
+    for (const button of [ui.helpOpen, ui.helpOpenHead]) {
+      button.addEventListener("click", () => ui.helpDialog.showModal());
+    }
+    ui.helpClose.addEventListener("click", () => ui.helpDialog.close());
   }
 
   // Once every worker script is loaded the app needs no more network. Exposed for tests.
