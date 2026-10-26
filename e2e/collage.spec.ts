@@ -492,6 +492,7 @@ test.describe("Choosing the number of columns", () => {
   test("the same seed with the same columns gives the same layout", async ({ page }) => {
     await addPhotos(page, await makeImages(page, SIX));
     const grid = async () => {
+      await settle(page);
       const out: number[][] = [];
       for (const y of [0.15, 0.5, 0.85]) {
         for (const x of [0.15, 0.5, 0.85]) out.push(await previewColor(page, x, y));
@@ -1780,11 +1781,13 @@ test.describe("Address, saved work and language", () => {
     await setSeed(page, 9);
     const grid = () =>
       page.evaluate(() => (document.getElementById("preview") as HTMLCanvasElement).toDataURL());
+    await settle(page);
     const before = await grid();
     await page.waitForTimeout(700);
     await page.reload();
     await expect(page.locator("#photo-list li")).toHaveCount(6);
     await expect(page.locator("#preview")).toHaveAttribute("data-poster", /.+/);
+    await settle(page);
     expect(await grid()).toBe(before);
   });
 
