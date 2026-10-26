@@ -25,9 +25,7 @@
   // Pointer state.
   let dragFrom = -1;
   let panning: { x: number; y: number } | null = null;
-  let panMoved = false;
   let pointerOver = false;
-  let downAt = { x: 0, y: 0 };
   /** While adjusting a crop: the last pointer position of the drag moving the photo. */
   let cropDrag: { x: number; y: number } | null = null;
   /** Set when a press switched the selection while cropping, so its release does not act as a click. */
@@ -200,8 +198,6 @@
     // In Pan mode a drag moves the view; in the other tools it does so only while Space is held.
     if (app.spaceHeld || app.mode === "pan") {
       panning = { x: e.clientX, y: e.clientY };
-      downAt = { x: e.clientX, y: e.clientY };
-      panMoved = false;
       canvas.setPointerCapture(e.pointerId);
       panningNow = true;
       e.preventDefault();
@@ -220,7 +216,6 @@
       return;
     }
     if (!panning) return;
-    if (Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 4) panMoved = true;
     const dx = e.clientX - panning.x;
     const dy = e.clientY - panning.y;
     panning = { x: e.clientX, y: e.clientY };
@@ -237,14 +232,8 @@
       return;
     }
     if (panning) {
-      // A finger tap in Pan mode is not a pick (the Select tool does that); a mouse click is.
-      const click = !panMoved && !app.spaceHeld && app.mode === "pan" && e.pointerType === "mouse";
+      // Panning never picks a photo: only the Select tool does (and Swap, to choose two to swap).
       endPan();
-      // A press that did not move the view selects the photo under it.
-      if (click) {
-        const photoIndex = photoAt(cellAt(e.clientX, e.clientY));
-        if (photoIndex !== undefined) app.selectPhoto(photoIndex);
-      }
       return;
     }
     const to = cellAt(e.clientX, e.clientY);
