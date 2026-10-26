@@ -12,7 +12,8 @@ export default defineConfig({
   reporter: process.env.CI ? [["github"], ["list"]] : "list",
   use: {
     baseURL: process.env.E2E_BASE_URL ?? "http://localhost:4173",
-    trace: "retain-on-failure",
+    // Recording a trace costs a lot of time in WebKit; keep one only when a test is retried.
+    trace: "on-first-retry",
   },
   projects: [
     {
