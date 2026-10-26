@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-import type { Layout, PosterSettings, Rect } from "../core/types";
+import type { Layout, PhotoCrop, PosterSettings, Rect } from "../core/types";
 import {
   borderPixels,
   type Ctx2D,
@@ -15,6 +15,8 @@ export interface PreviewInput {
   layout: Layout;
   /** Thumbnails indexed like `layout.placements[].photoIndex`. */
   thumbs: readonly (ImageBitmap | undefined)[];
+  /** Crops indexed like `thumbs`; a photo without one is centred. */
+  crops?: readonly (PhotoCrop | undefined)[];
   settings: Pick<PosterSettings, "borderWidth" | "borderColor" | "cornerStyle" | "outerBorder">;
 }
 
@@ -40,7 +42,7 @@ export function drawCollage(
   ctx: Ctx2D,
   width: number,
   height: number,
-  { layout, thumbs, settings }: PreviewInput,
+  { layout, thumbs, crops, settings }: PreviewInput,
 ): Rect[] {
   const frame: Frame = {
     corners: settings.cornerStyle,
@@ -53,7 +55,10 @@ export function drawCollage(
   layout.placements.forEach((placement, i) => {
     const thumb = thumbs[placement.photoIndex];
     const rect = rects[i];
-    if (thumb && rect) drawPhoto(ctx, thumb, thumb.width, thumb.height, rect, width, height, frame);
+    const crop = crops?.[placement.photoIndex];
+    if (thumb && rect) {
+      drawPhoto(ctx, thumb, thumb.width, thumb.height, rect, width, height, frame, crop);
+    }
   });
   drawBorders(ctx, rects, width, height, frame);
   return rects;

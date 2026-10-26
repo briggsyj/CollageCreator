@@ -1053,8 +1053,24 @@ dialog h3 {
   color: var(--press-text);
 }
 
+.span-group #crop-toggle,
 .span-group #remove-selected {
   grid-column: 1 / -1;
+}
+
+.crop-tools {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.crop-tools .hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--sub);
 }
 
 .save-block {
@@ -1170,6 +1186,10 @@ label.inline select {
 
 .canvas-box.panning #preview {
   cursor: grabbing;
+}
+
+.canvas-box.cropping #preview {
+  cursor: move;
 }
 
 body.dragging .canvas-box {

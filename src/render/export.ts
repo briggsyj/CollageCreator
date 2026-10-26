@@ -71,7 +71,9 @@ export async function exportCollage(input: ExportInput): Promise<Blob> {
         const photo = photos[placement.photoIndex];
         const rect = rects[i];
         if (!photo || !rect) return;
-        const size = coverSize(photo.width, photo.height, rect.w, rect.h);
+        // A zoomed photo shows only part of itself, so it is decoded larger to stay sharp.
+        const zoom = Math.max(1, photo.crop?.zoom ?? 1);
+        const size = coverSize(photo.width, photo.height, rect.w * zoom, rect.h * zoom);
         const res = await pool.run({ kind: "cell", file: photo.file, ...size });
         if (!res.ok || res.kind !== "cell") {
           throw new Error(res.ok ? "unexpected response" : res.error);
@@ -86,6 +88,7 @@ export async function exportCollage(input: ExportInput): Promise<Blob> {
             width,
             height,
             frame,
+            photo.crop,
           );
         } finally {
           res.bitmap.close();

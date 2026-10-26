@@ -22,6 +22,7 @@
 // with this program; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
+import { clampCrop, isDefaultCrop, MAX_ZOOM, panCrop, zoomCrop } from "../core/crop";
 import { normaliseColumns } from "../core/layout";
 import { randomSeed, seededRng } from "../core/rng";
 import { generateBestPage, generatePage, scoreLayout } from "../core/search";
@@ -37,7 +38,9 @@ import {
   type Layout,
   type LayoutPage,
   type LayoutStyle,
+  NO_CROP,
   NO_SPAN,
+  type PhotoCrop,
   type PhotoSpan,
   type PosterSettings,
 } from "../core/types";
@@ -169,6 +172,8 @@ export class AppState {
   narrow = $state(false);
   mode = $state<Mode>("pan");
   selected = $state<number | null>(null);
+  /** The photo whose crop is being adjusted; only counts while it is also the selected one. */
+  cropFor = $state<number | null>(null);
   /** Counts the times the selected photo should be scrolled into view in the Photos step. */
   revealToken = $state(0);
   focused = $state(0);
@@ -448,6 +453,7 @@ export class AppState {
           photos: this.photos.map((p) => ({
             key: fileKey(p.file),
             span: p.span ?? { ...NO_SPAN },
+            ...(p.crop ? { crop: p.crop } : {}),
           })),
           seed: this.seed,
           columns: this.columns,
@@ -491,11 +497,15 @@ export class AppState {
             this.restoring = { done, total };
           },
         );
-        const spans = new Map(saved.session.photos.map((p) => [p.key, p.span]));
-        this.photos = photos.map((photo) => ({
-          ...photo,
-          span: { ...(spans.get(fileKey(photo.file)) ?? NO_SPAN) },
-        }));
+        const saves = new Map(saved.session.photos.map((p) => [p.key, p]));
+        this.photos = photos.map((photo) => {
+          const saved = saves.get(fileKey(photo.file));
+          return {
+            ...photo,
+            span: { ...(saved?.span ?? NO_SPAN) },
+            ...(saved?.crop ? { crop: saved.crop } : {}),
+          };
+        });
         // An address with a seed wins over the stored one.
         this.seed = parseSeed(location.search) ?? saved.session.seed;
         this.applySize(this.settings.width, this.settings.height);
@@ -633,6 +643,74 @@ export class AppState {
       this.selected = null;
     }
   }
+
+  /** True while dragging and zooming on the preview moves the selected photo inside its cell. */
+  get cropping(): boolean {
+    return this.cropFor !== null && this.cropFor === this.selected;
+  }
+
+  /** Turn adjusting the selected photo's crop on or off. */
+  toggleCrop(): void {
+    if (this.selected === null) return;
+    this.cropFor = this.cropping ? null : this.selected;
+    this.setStatus(this.cropping ? t("Drag the photo to move it, scroll to zoom.") : "");
+  }
+
+  /** The selected photo's cell in layout units (the page is 1 wide), if it has one. */
+  private selectedCell(): { w: number; h: number } | undefined {
+    const index = this.selected;
+    return index === null
+      ? undefined
+      : this.layout?.placements.find((p) => p.photoIndex === index)?.cell;
+  }
+
+  private writeCrop(photoIndex: number, crop: PhotoCrop): void {
+    const next = isDefaultCrop(crop) ? undefined : clampCrop(crop);
+    this.photos = this.photos.map((p, i) => {
+      if (i !== photoIndex) return p;
+      const { crop: _old, ...rest } = p;
+      return next ? { ...rest, crop: next } : rest;
+    });
+  }
+
+  /** Slide the selected photo within its cell by a share of the poster's width. */
+  panSelectedCrop(dx: number, dy: number): void {
+    const index = this.selected;
+    const photo = index === null ? undefined : this.photos[index];
+    const cell = this.selectedCell();
+    if (index === null || !photo || !cell) return;
+    this.writeCrop(
+      index,
+      panCrop(photo.crop ?? NO_CROP, dx, dy, photo.width, photo.height, cell.w, cell.h),
+    );
+  }
+
+  /** Set the selected photo's zoom (1 to MAX_ZOOM), keeping what is in the middle in the middle. */
+  zoomSelectedCrop(zoom: number): void {
+    const index = this.selected;
+    const photo = index === null ? undefined : this.photos[index];
+    const cell = this.selectedCell();
+    if (index === null || !photo || !cell) return;
+    this.writeCrop(
+      index,
+      zoomCrop(photo.crop ?? NO_CROP, zoom, photo.width, photo.height, cell.w, cell.h),
+    );
+  }
+
+  zoomSelectedCropBy(factor: number): void {
+    const zoom = this.selectedPhoto?.crop?.zoom ?? 1;
+    this.zoomSelectedCrop(zoom * factor);
+  }
+
+  resetCrop(): void {
+    if (this.selected === null) return;
+    this.writeCrop(this.selected, NO_CROP);
+    this.setStatus(
+      t("%(name)s is back to its default crop.", { name: this.selectedPhoto?.name ?? "" }),
+    );
+  }
+
+  readonly maxZoom = MAX_ZOOM;
 
   deselect(): void {
     this.selected = null;

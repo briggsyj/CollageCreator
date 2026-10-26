@@ -1,7 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+import { clampCrop, isDefaultCrop } from "../core/crop";
 import { normaliseSplit } from "../core/split";
-import { type LayoutStyle, NO_SPAN, type PhotoSpan, type PosterSettings } from "../core/types";
+import {
+  type LayoutStyle,
+  NO_SPAN,
+  type PhotoCrop,
+  type PhotoSpan,
+  type PosterSettings,
+} from "../core/types";
 
 /**
  * Keeps the editor's state in this browser (IndexedDB), so a refresh brings back the
@@ -13,6 +20,8 @@ export interface SavedPhoto {
   /** `fileKey()` of the stored file. */
   key: string;
   span: PhotoSpan;
+  /** Absent for a photo shown the plain way. */
+  crop?: PhotoCrop;
 }
 
 export interface SavedSession {
@@ -146,6 +155,15 @@ export function isSpan(value: unknown): value is PhotoSpan {
   );
 }
 
+export function isCrop(value: unknown): value is PhotoCrop {
+  const c = value as Partial<PhotoCrop> | null;
+  return (
+    typeof c === "object" &&
+    c !== null &&
+    [c.zoom, c.x, c.y].every((n) => typeof n === "number" && Number.isFinite(n))
+  );
+}
+
 /** A stored split count, kept only if it still matches the stored size (width = count × height). */
 function splitOf(count: unknown, width: unknown, height: unknown): number {
   const n = normaliseSplit(typeof count === "number" ? count : undefined);
@@ -181,7 +199,9 @@ export function checkSession(raw: unknown, defaults: PosterSettings): SavedSessi
   const photos: SavedPhoto[] = [];
   for (const p of r.photos as Partial<SavedPhoto>[]) {
     if (typeof p?.key !== "string") continue;
-    photos.push({ key: p.key, span: isSpan(p.span) ? p.span : { ...NO_SPAN } });
+    const photo: SavedPhoto = { key: p.key, span: isSpan(p.span) ? p.span : { ...NO_SPAN } };
+    if (isCrop(p.crop) && !isDefaultCrop(p.crop)) photo.crop = clampCrop(p.crop);
+    photos.push(photo);
   }
   const seed = r.seed;
   return {

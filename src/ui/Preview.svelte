@@ -18,6 +18,7 @@
   /** The cells as drawn, in canvas pixels, and where the poster's corner is, for hit testing. */
   let lastRects: Rect[] = [];
   let lastOrigin = { x: 0, y: 0 };
+  let lastPosterWidth = 1;
   let frameRequested = false;
 
   // Pointer state.
@@ -26,6 +27,8 @@
   let panMoved = false;
   let pointerOver = false;
   let downAt = { x: 0, y: 0 };
+  /** While adjusting a crop: the last pointer position of the drag moving the photo. */
+  let cropDrag: { x: number; y: number } | null = null;
 
   const fit = $derived(app.fitPoster({ w: boxWidth, h: boxHeight }));
 
@@ -68,6 +71,7 @@
     const ox = Math.round(origin.x * dpr);
     const oy = Math.round(origin.y * dpr);
     lastOrigin = { x: ox, y: oy };
+    lastPosterWidth = pw;
     // Where the poster is, in CSS pixels from the canvas's top-left (used by tests and tooling).
     canvas.dataset.poster = [ox, oy, pw, ph].map((n) => (n / dpr).toFixed(1)).join(",");
 
@@ -91,6 +95,7 @@
     lastRects = drawCollage(ctx, pw, ph, {
       layout,
       thumbs: app.photos.map((p) => p.thumb),
+      crops: app.photos.map((p) => p.crop),
       settings,
     });
 
@@ -129,6 +134,7 @@
     void $state.snapshot(app.settings);
     void app.view;
     void app.selected;
+    void app.cropping;
     void app.focused;
     void app.canvasFocused;
     void app.narrow;
@@ -156,6 +162,16 @@
 
   function onPointerDown(e: PointerEvent): void {
     canvas.focus();
+    if (app.cropping) {
+      // Adjusting a crop: a drag on the selected photo moves it inside its cell; nothing else happens.
+      const cell = cellAt(e.clientX, e.clientY);
+      if (photoAt(cell) === app.selected) {
+        cropDrag = { x: e.clientX, y: e.clientY };
+        canvas.setPointerCapture(e.pointerId);
+        e.preventDefault();
+      }
+      return;
+    }
     // In Pan mode a drag moves the view; in the other tools it does so only while Space is held.
     if (app.spaceHeld || app.mode === "pan") {
       panning = { x: e.clientX, y: e.clientY };
@@ -170,6 +186,14 @@
   }
 
   function onPointerMove(e: PointerEvent): void {
+    if (cropDrag) {
+      // Canvas pixels per screen pixel, then a share of the poster's width (the page is 1 wide).
+      const rect = canvas.getBoundingClientRect();
+      const toPoster = canvas.width / rect.width / lastPosterWidth;
+      app.panSelectedCrop((e.clientX - cropDrag.x) * toPoster, (e.clientY - cropDrag.y) * toPoster);
+      cropDrag = { x: e.clientX, y: e.clientY };
+      return;
+    }
     if (!panning) return;
     if (Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 4) panMoved = true;
     const dx = e.clientX - panning.x;
@@ -179,6 +203,10 @@
   }
 
   function onPointerUp(e: PointerEvent): void {
+    if (cropDrag || app.cropping) {
+      cropDrag = null;
+      return;
+    }
     if (panning) {
       const click = !panMoved && !app.spaceHeld && app.mode === "pan";
       endPan();
@@ -206,6 +234,10 @@
     e.preventDefault();
     const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1;
     const factor = Math.exp(-e.deltaY * unit * (e.ctrlKey ? 0.01 : 0.0015));
+    if (app.cropping) {
+      app.zoomSelectedCropBy(factor);
+      return;
+    }
     const rect = canvas.getBoundingClientRect();
     app.zoomAtPoint(factor, { x: e.clientX - rect.left, y: e.clientY - rect.top });
   }
@@ -253,12 +285,14 @@
     }
     if (e.key === "+" || e.key === "=") {
       e.preventDefault();
-      app.zoomAtCentre(1.25);
+      if (app.cropping) app.zoomSelectedCropBy(1.25);
+      else app.zoomAtCentre(1.25);
       return;
     }
     if (e.key === "-" || e.key === "_") {
       e.preventDefault();
-      app.zoomAtCentre(0.8);
+      if (app.cropping) app.zoomSelectedCropBy(0.8);
+      else app.zoomAtCentre(0.8);
       return;
     }
     if (e.key === "0") {
@@ -272,6 +306,16 @@
       const dx = e.key === "ArrowLeft" ? step : e.key === "ArrowRight" ? -step : 0;
       const dy = e.key === "ArrowUp" ? step : e.key === "ArrowDown" ? -step : 0;
       app.panBy(dx, dy);
+      return;
+    }
+
+    if (app.cropping && e.key.startsWith("Arrow")) {
+      // Move the photo inside its cell (the arrows would otherwise move the focus ring).
+      e.preventDefault();
+      const step = 0.01;
+      const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
+      const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
+      app.panSelectedCrop(dx, dy);
       return;
     }
 
@@ -316,6 +360,7 @@
   class:pan-mode={app.mode === "pan"}
   class:pan-ready={app.spaceHeld}
   class:panning={panningNow}
+  class:cropping={app.cropping}
   bind:this={box}
   bind:clientWidth={boxWidth}
   bind:clientHeight={boxHeight}
@@ -334,7 +379,10 @@
     onpointerdown={onPointerDown}
     onpointermove={onPointerMove}
     onpointerup={onPointerUp}
-    onpointercancel={endPan}
+    onpointercancel={() => {
+      cropDrag = null;
+      endPan();
+    }}
     onkeydown={onCanvasKeyDown}
     onfocus={() => (app.canvasFocused = true)}
     onblur={() => (app.canvasFocused = false)}

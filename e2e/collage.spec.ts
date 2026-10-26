@@ -188,6 +188,74 @@ test.describe("Files that cannot be used", () => {
   });
 });
 
+test.describe("Cropping the selected photo", () => {
+  /** A 200 x 100 photo, red on the left and blue on the right, in a square poster with no border. */
+  async function setUp(page: import("@playwright/test").Page) {
+    await setSize(page, 400, 400);
+    await page.fill("#border-width", "0");
+    await addPhotos(page, [await makeOrientedJpeg(page, "halves.jpg", 1)]);
+    await settle(page);
+    const p = await posterPoint(page, 0.5, 0.5);
+    await page.mouse.click(p.x, p.y);
+    await expect(page.locator("#span-group")).toBeVisible();
+    await page.click("#crop-toggle");
+    await expect(page.locator("#crop-tools")).toBeVisible();
+  }
+
+  test("zooming in and dragging changes which part shows, and never leaves a gap", async ({
+    page,
+  }) => {
+    await setUp(page);
+    // Plain fit: the middle of the photo, red on the left of the cell and blue on the right.
+    await settle(page);
+    expect(near(await previewColor(page, 0.1, 0.5), COLORS.red, 60)).toBe(true);
+    expect(near(await previewColor(page, 0.9, 0.5), COLORS.blue, 60)).toBe(true);
+
+    await page.locator("#crop-zoom").fill("3");
+    await settle(page);
+    // Drag the photo far to the right: its left side (red) fills the cell.
+    const from = await posterPoint(page, 0.3, 0.5);
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(from.x + 600, from.y, { steps: 6 });
+    await page.mouse.up();
+    await settle(page);
+    expect(near(await previewColor(page, 0.9, 0.5), COLORS.red, 60)).toBe(true);
+    // It stopped at the photo's edge: the corners are the photo, not the white page or the border.
+    for (const [x, y] of [
+      [0.01, 0.01],
+      [0.99, 0.01],
+      [0.01, 0.99],
+      [0.99, 0.99],
+    ] as const) {
+      expect(near(await previewColor(page, x, y), COLORS.red, 60), `${x},${y}`).toBe(true);
+    }
+
+    // The saved image shows the same crop.
+    const png = await saveAndRead(page);
+    expect(await previewDifference(page, png)).toBeLessThan(8);
+
+    await page.click("#crop-reset");
+    await settle(page);
+    expect(near(await previewColor(page, 0.9, 0.5), COLORS.blue, 60)).toBe(true);
+  });
+
+  test("the crop is kept after a refresh", async ({ page }) => {
+    await setUp(page);
+    await page.locator("#crop-zoom").fill("3");
+    await settle(page);
+    const before = await previewColor(page, 0.5, 0.5);
+    await page.waitForTimeout(700);
+    await page.reload();
+    await expect(page.locator("#photo-list li")).toHaveCount(1);
+    await expect(page.locator("#preview")).toHaveAttribute("data-poster", /.+/);
+    await settle(page);
+    expect(near(await previewColor(page, 0.5, 0.5), before, 20)).toBe(true);
+    // Zoomed 3x on the centre of the photo, so the red half's edge is far from the cell's edge.
+    expect(near(await previewColor(page, 0.05, 0.5), COLORS.red, 60)).toBe(true);
+  });
+});
+
 test.describe("HEIC photos", () => {
   test("are added and saved with the right colours, whichever decoder the browser uses", async ({
     page,

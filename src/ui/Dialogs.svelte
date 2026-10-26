@@ -61,6 +61,12 @@
         >{tr("click a photo to select it in the Photos step, then make it wider or taller.")}</span
       >
     </li>
+    <li>
+      <strong>{tr("Crop")}</strong>:
+      <span
+        >{tr("select a photo, press Crop, then drag it and zoom to choose which part shows.")}</span
+      >
+    </li>
   </ul>
   <p class="hint help-note">
     {tr("Everything runs in your browser. Your photos are never uploaded.")}

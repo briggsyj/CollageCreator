@@ -23,7 +23,8 @@
 // with this program; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-import type { CornerStyle, Layout, Rect } from "../core/types";
+import { coverGeometry } from "../core/crop";
+import type { CornerStyle, Layout, PhotoCrop, Rect } from "../core/types";
 
 export type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
@@ -221,9 +222,10 @@ export function drawPhoto(
   width: number,
   height: number,
   frame: Frame,
+  crop?: PhotoCrop,
 ): void {
   if (frame.corners === "none") {
-    drawPhotoCover(ctx, source, sourceW, sourceH, cell);
+    drawPhotoCover(ctx, source, sourceW, sourceH, cell, crop);
     return;
   }
   const inner = insetCell(cell, width, height, frame.border, frame.outer);
@@ -231,29 +233,37 @@ export function drawPhoto(
   ctx.save();
   tracePhotoShape(ctx, inner, frame.corners, squareCorners(cell, width, height, frame.outer));
   ctx.clip();
-  drawPhotoCover(ctx, source, sourceW, sourceH, inner);
+  drawPhotoCover(ctx, source, sourceW, sourceH, inner, crop);
   ctx.restore();
 }
 
-/** Draw `source` so it covers `cell`, centred and cropped to it. */
+/**
+ * Draw `source` so it covers `cell`, cropped to it: centred, or as `crop` says (zoomed in and
+ * slid within the room the photo has to spare, so it never leaves a gap).
+ */
 export function drawPhotoCover(
   ctx: Ctx2D,
   source: CanvasImageSource,
   sourceW: number,
   sourceH: number,
   cell: Rect,
+  crop?: PhotoCrop,
 ): void {
   if (cell.w <= 0 || cell.h <= 0) return;
-  const scale = Math.max(cell.w / sourceW, cell.h / sourceH);
-  const w = sourceW * scale;
-  const h = sourceH * scale;
+  const { w, h, spareX, spareY } = coverGeometry(sourceW, sourceH, cell.w, cell.h, crop?.zoom);
   ctx.save();
   ctx.beginPath();
   ctx.rect(cell.x, cell.y, cell.w, cell.h);
   ctx.clip();
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(source, cell.x + (cell.w - w) / 2, cell.y + (cell.h - h) / 2, w, h);
+  ctx.drawImage(
+    source,
+    cell.x - spareX * (crop?.x ?? 0.5),
+    cell.y - spareY * (crop?.y ?? 0.5),
+    w,
+    h,
+  );
   ctx.restore();
 }
 

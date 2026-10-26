@@ -38,3 +38,13 @@ iPhone photos (`.heic`, `.heif`) can be added in every browser. Safari decodes t
 WebAssembly decoder (`libheif-js`, LGPL-3.0) is fetched from the app's own files the first time one is
 needed and runs in the image worker, so photos still never leave the device. The Content Security Policy
 gains `'wasm-unsafe-eval'` in `script-src` for it (nothing else changes: still no outside origins).
+
+## Cropping a photo
+
+With a photo selected, **Crop** in its dock turns on a mode where dragging the photo on the preview
+moves it inside its cell, and the wheel, + / − or the Zoom slider magnify it (1× to 5×); arrow keys
+nudge it. **Reset crop** goes back to the centred fit. A crop is stored as a zoom and two 0–1 shares of
+the room the photo has to spare, so it can never leave a gap, whatever the cell's shape, and it stays with
+the photo through Shuffle, resizing and new arrangements. It is saved with the session and used by Save
+and the Instagram post (zoomed photos are decoded larger so they stay sharp in the saved image; the
+on-screen preview uses a 480 px thumbnail, which looks soft at high zoom).
