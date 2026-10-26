@@ -51,7 +51,7 @@ general information, not legal advice.
 - Every layout has a **seed** (under Technical configuration), also in the address (`?seed=…`): the same seed and photos give the same layout, and the browser's back and forward buttons step through earlier arrangements
 - A refresh keeps your photos, sizes and settings (saved in this browser only; removing photos deletes them)
 - Choose the **number of columns** for Mosaic, or leave it on automatic (the original's choice)
-- Poster size in pixels: Screen, A4, A3 and A2 (300 DPI) and social presets, each in landscape or portrait, or a custom width and height; sizes your browser cannot produce are reduced to the largest available
+- Poster size in pixels: Screen, A4, A3, A2 and B1 (300 DPI) and social presets, each in landscape or portrait, or a custom width and height; sizes your browser cannot produce are reduced to the largest available
 - An **Instagram post** size: one wide collage, previewed whole with dashed cut marks, saved as a zip of square images numbered `_1`, `_2`, … from left to right
 - Border colour (swatches or any colour), thickness (0.5 % white by default), corner style (square, slightly rounded or rounded), and an option to leave out the border around the whole collage
 - Swap two photos by clicking or from the keyboard; remove photos from the collage (Delete), all at once, with undo

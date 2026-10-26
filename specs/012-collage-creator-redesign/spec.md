@@ -55,3 +55,7 @@ Dragging to resize photos, choosing which neighbour a wider photo joins, saving 
 - Gallery's tree is refined by random local changes and keeps panels within a 4 % minimum share; it crops a little more than Mosaic on average (about 5 to 13 % in measurements with mixed photo shapes). The first Gallery search is limited to 10 tries because each try is refined.
 - Dark theme uses the Smoked glass tokens; there is no dark design board for the empty state, so its neutrals were chosen to match.
 - The save options (file type, quality) show under the Style step on wide screens, and inside the Save sheet on phones.
+
+## B1 print size
+
+B1 (ISO, 707 × 1000 mm) is added to the print sizes at 300 DPI: 11811 × 8350 px in landscape, 8350 × 11811 in portrait. It is about 99 megapixels, which many browsers cannot allocate as one canvas; they reduce it to the largest size they can, with the existing note.
