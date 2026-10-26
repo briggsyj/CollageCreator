@@ -196,11 +196,13 @@ function tracePhotoShape(
  * Fill the poster. With square photos it is plain white and the border is drawn
  * over the photos afterwards. With shaped photos the gaps between them (and around
  * them, when there is an outer border) are the border, so the poster starts as the
- * border colour. The outer border switch only moves the photos at the poster's edge
+ * border colour, whatever the thickness. The outer border switch only moves the photos at the poster's edge
  * out to it (see `insetCell`); it never changes the gaps between photos.
  */
 export function drawBackground(ctx: Ctx2D, width: number, height: number, frame?: Frame): void {
-  const shaped = frame !== undefined && frame.corners !== "none" && frame.border > 0;
+  // Even with no border the gaps left by rounded corners are the border colour, so the
+  // photos stay flush and what shows between them reflects the colour that was chosen.
+  const shaped = frame !== undefined && frame.corners !== "none";
   ctx.fillStyle = shaped ? frame.color : "#ffffff";
   ctx.fillRect(0, 0, width, height);
 }

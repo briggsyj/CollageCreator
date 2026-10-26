@@ -1130,6 +1130,25 @@ test.describe("Border around the whole collage", () => {
     }
   });
 
+  test("a border of 0%: photos stay flush, and rounded corners show the border colour", async ({
+    page,
+  }) => {
+    await setSize(page, 400, 800);
+    await page.fill("#border-width", "0");
+    await page.locator("#border-color").fill("#00ff00");
+    await addPhotos(page, await makeImages(page, TWO));
+    await page.fill("#columns", "1");
+    await page.selectOption("#corner-style", "rounded");
+    // Flush: right at the join the top photo ends and the bottom photo begins, with nothing between.
+    const top = await previewColor(page, 0.5, 0.25);
+    const bottom = await previewColor(page, 0.5, 0.75);
+    expect(near(await previewColor(page, 0.5, 0.498), top, 30)).toBe(true);
+    expect(near(await previewColor(page, 0.5, 0.502), bottom, 30)).toBe(true);
+    // The wedges the rounded corners leave are the border colour, not white.
+    expect(near(await previewColor(page, 0.004, 0.499), [0, 255, 0], 40)).toBe(true);
+    expect(near(await previewColor(page, 0.004, 0.499), [255, 255, 255], 40)).toBe(false);
+  });
+
   test("the saved image matches the preview with it off, for every corner style", async ({
     page,
   }) => {
