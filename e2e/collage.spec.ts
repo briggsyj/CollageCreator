@@ -1373,8 +1373,8 @@ test.describe("Collage Creator: layout, modes, sizes and notices", () => {
     await page.mouse.down();
     await page.mouse.move(from.x + 40, from.y + 30, { steps: 4 });
     await page.mouse.up();
-    const moved = await posterRect(page);
-    expect(moved.x).toBeGreaterThan(start.x + 20);
+    // The view is redrawn on the next frame, which WebKit on CI can be slow to reach.
+    await expect.poll(async () => (await posterRect(page)).x).toBeGreaterThan(start.x + 20);
     await expect(page.locator("#remove-selected")).toBeHidden();
     await page.mouse.click(from.x + 40, from.y + 30);
     await expect(page.locator("#remove-selected")).toBeVisible();
@@ -1392,7 +1392,7 @@ test.describe("Collage Creator: layout, modes, sizes and notices", () => {
     await page.mouse.move(from.x + 40, from.y + 30, { steps: 4 });
     await page.mouse.up();
     await page.keyboard.up("Space");
-    expect((await posterRect(page)).x).toBeGreaterThan(start.x + 20);
+    await expect.poll(async () => (await posterRect(page)).x).toBeGreaterThan(start.x + 20);
     await expect(page.locator("#mode-swap")).toHaveAttribute("aria-pressed", "true");
   });
 
