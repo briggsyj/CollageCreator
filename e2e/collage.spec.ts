@@ -1101,7 +1101,7 @@ test.describe("Border around the whole collage", () => {
     expect(near(saved.colors[2] as number[], [0, 255, 0], 30)).toBe(true);
   });
 
-  test("off, with rounded photos: gaps between them keep the colour, the outer corners do not", async ({
+  test("off, with rounded photos: the gaps between them stay, the outer edge has no border", async ({
     page,
   }) => {
     await setSize(page, 400, 800);
@@ -1109,14 +1109,25 @@ test.describe("Border around the whole collage", () => {
     await page.locator("#border-color").fill("#00ff00");
     await addPhotos(page, await makeImages(page, TWO));
     await page.fill("#columns", "1");
-    await page.selectOption("#corner-style", "rounded");
-
-    // On: the whole poster behind the photos is the border colour.
-    expect(near(await previewColor(page, 0.003, 0.003), [0, 255, 0], 30)).toBe(true);
-    await page.uncheck("#outer-border");
-    // Off: the poster's corner is plain white, but the gap between the two photos is still green.
-    expect(near(await previewColor(page, 0.003, 0.003), [255, 255, 255], 15)).toBe(true);
-    expect(near(await previewColor(page, 0.5, 0.5), [0, 255, 0], 30)).toBe(true);
+    for (const corner of ["slight", "rounded"]) {
+      await page.selectOption("#corner-style", corner);
+      // On: the whole poster behind the photos is the border colour, so the poster's corner is too.
+      await page.check("#outer-border");
+      expect(near(await previewColor(page, 0.003, 0.003), [0, 255, 0], 30), corner).toBe(true);
+      const gapOn = await previewColor(page, 0.5, 0.5);
+      expect(near(gapOn, [0, 255, 0], 30), corner).toBe(true);
+      // Off: the photo runs to the poster's corner (square there), and the gap between the two
+      // photos is exactly what it was.
+      await page.uncheck("#outer-border");
+      const photo = await previewColor(page, 0.5, 0.25);
+      expect(near(await previewColor(page, 0.003, 0.003), photo, 30), corner).toBe(true);
+      expect(near(await previewColor(page, 0.997, 0.003), photo, 30), corner).toBe(true);
+      expect(near(await previewColor(page, 0.5, 0.5), gapOn, 30), corner).toBe(true);
+      // The photos' corners that face the gap are still rounded: the green shows in them.
+      expect(near(await previewColor(page, 0.003, 0.5 - 0.002), [0, 255, 0], 60), corner).toBe(
+        true,
+      );
+    }
   });
 
   test("the saved image matches the preview with it off, for every corner style", async ({

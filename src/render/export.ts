@@ -57,7 +57,7 @@ export async function exportCollage(input: ExportInput): Promise<Blob> {
     outer: settings.outerBorder,
   };
   const rects = cellPixelRects(layout, width, height);
-  drawBackground(ctx, width, height, frame, rects);
+  drawBackground(ctx, width, height, frame);
 
   const abort = () => pool.terminate();
   if (signal?.aborted) abort();

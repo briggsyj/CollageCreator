@@ -5,7 +5,13 @@ import { describe, expect, it } from "vitest";
 import { generateLayout } from "../src/core/layout";
 import { seededRng } from "../src/core/rng";
 import type { Rect } from "../src/core/types";
-import { CORNER_RADIUS, cellPixelRects, cornerRadius, insetCell } from "../src/render/draw";
+import {
+  CORNER_RADIUS,
+  cellPixelRects,
+  cornerRadius,
+  insetCell,
+  squareCorners,
+} from "../src/render/draw";
 
 const overlaps = (a: Rect, b: Rect) =>
   Math.min(a.x + a.w, b.x + b.w) > Math.max(a.x, b.x) &&
@@ -144,5 +150,57 @@ describe("insetCell", () => {
       ),
       { numRuns: 100 },
     );
+  });
+});
+
+describe("squareCorners", () => {
+  const poster = { width: 800, height: 600 };
+
+  it("rounds every corner when there is a border around the whole collage", () => {
+    const corners = squareCorners(
+      { x: 0, y: 0, w: 400, h: 300 },
+      poster.width,
+      poster.height,
+      true,
+    );
+    expect(Object.values(corners)).toEqual([false, false, false, false]);
+  });
+
+  it("squares the corners on the poster's edge when there is no outer border", () => {
+    const topLeft = squareCorners(
+      { x: 0, y: 0, w: 400, h: 300 },
+      poster.width,
+      poster.height,
+      false,
+    );
+    // Its top and left sides are on the edge: only the corner facing the other photos can be round.
+    expect(topLeft).toEqual({
+      topLeft: true,
+      topRight: true,
+      bottomRight: false,
+      bottomLeft: true,
+    });
+    const bottomRight = squareCorners(
+      { x: 400, y: 300, w: 400, h: 300 },
+      poster.width,
+      poster.height,
+      false,
+    );
+    expect(bottomRight).toEqual({
+      topLeft: false,
+      topRight: true,
+      bottomRight: true,
+      bottomLeft: true,
+    });
+  });
+
+  it("leaves a photo in the middle round all the way round", () => {
+    const middle = squareCorners(
+      { x: 200, y: 150, w: 200, h: 150 },
+      poster.width,
+      poster.height,
+      false,
+    );
+    expect(Object.values(middle)).toEqual([false, false, false, false]);
   });
 });

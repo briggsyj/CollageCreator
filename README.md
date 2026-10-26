@@ -126,7 +126,7 @@ feature has a `spec.md`, `plan.md` and `tasks.md` under [specs/](specs/); [specs
 | `src/io/`       | File import, validation, orientation         |
 | `src/render/`   | Preview and export drawing, worker pool      |
 | `src/platform/` | Canvas size limits                           |
-| `src/ui/`       | Controls, state, wiring                      |
+| `src/ui/`       | Svelte components and the state they show    |
 | `src/i18n/`     | Message catalogue (the original `.po` files) |
 
 ## Licence

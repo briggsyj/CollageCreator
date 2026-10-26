@@ -49,7 +49,7 @@ export function drawCollage(
     outer: settings.outerBorder,
   };
   const rects = cellPixelRects(layout, width, height);
-  drawBackground(ctx, width, height, frame, rects);
+  drawBackground(ctx, width, height, frame);
   layout.placements.forEach((placement, i) => {
     const thumb = thumbs[placement.photoIndex];
     const rect = rects[i];
