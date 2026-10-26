@@ -18,6 +18,8 @@ export const PRESETS: SizePreset[] = [
   { label: "A3 landscape (300 DPI)", width: 4961, height: 3508 },
   { label: "A2 portrait (300 DPI)", width: 4961, height: 7016 },
   { label: "A2 landscape (300 DPI)", width: 7016, height: 4961 },
+  { label: "B1 portrait (300 DPI)", width: 8350, height: 11811 },
+  { label: "B1 landscape (300 DPI)", width: 11811, height: 8350 },
   { label: "Square (1080 × 1080)", width: 1080, height: 1080 },
 ];
 
@@ -44,6 +46,9 @@ export const SIZE_CHOICES: SizeChoice[] = [
   { id: "a4", label: "A4", group: "print", width: 3508, height: 2480 },
   { id: "a3", label: "A3", group: "print", width: 4961, height: 3508 },
   { id: "a2", label: "A2", group: "print", width: 7016, height: 4961 },
+  // ISO B1 is 707 × 1000 mm. Few browsers can make a canvas this big (about 99 megapixels),
+  // so many will reduce it to the largest size they can, with the usual note.
+  { id: "b1", label: "B1", group: "print", width: 11811, height: 8350 },
 ];
 
 export type Orientation = "landscape" | "portrait";
