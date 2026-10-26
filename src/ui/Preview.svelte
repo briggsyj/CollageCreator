@@ -115,7 +115,7 @@
 
     const order = readingOrder(layout);
     const focusCell = order[app.focused];
-    if (app.canvasFocused && focusCell !== undefined) {
+    if (app.canvasFocused && app.focusRing && focusCell !== undefined) {
       const rect = lastRects[focusCell];
       if (rect) drawSelection(ctx, rect, "#ff9d00");
     }
@@ -151,6 +151,7 @@
     void app.cropping;
     void app.focused;
     void app.canvasFocused;
+    void app.focusRing;
     void app.narrow;
     void app.lang;
     void boxWidth;
@@ -176,6 +177,11 @@
 
   function onPointerDown(e: PointerEvent): void {
     canvas.focus();
+    // The mouse is in use: no keyboard ring, and the arrow keys start from the photo pressed.
+    app.focusRing = false;
+    const order = app.layout ? readingOrder(app.layout) : [];
+    const pressed = order.indexOf(cellAt(e.clientX, e.clientY));
+    if (pressed >= 0) app.focused = pressed;
     if (app.cropping) {
       // Adjusting a crop: a drag on the selected photo moves it inside its cell.
       const photoIndex = photoAt(cellAt(e.clientX, e.clientY));
@@ -344,6 +350,7 @@
     const layout = app.layout;
     if (!layout) return;
     const order = readingOrder(layout);
+    if (e.key.startsWith("Arrow") || e.key === "Enter") app.focusRing = true;
     if (e.key === "Delete" || e.key === "Backspace") {
       // Remove the selected photo, or else the one with the focus ring.
       const photoIndex = app.selected ?? layout.placements[order[app.focused] ?? -1]?.photoIndex;
@@ -406,7 +413,11 @@
       endPan();
     }}
     onkeydown={onCanvasKeyDown}
-    onfocus={() => (app.canvasFocused = true)}
+    onfocus={() => {
+      app.canvasFocused = true;
+      // Reached with Tab, the ring shows at once; a click or script focus leaves it off.
+      app.focusRing = canvas.matches(":focus-visible");
+    }}
     onblur={() => (app.canvasFocused = false)}
   ></canvas>
   <section

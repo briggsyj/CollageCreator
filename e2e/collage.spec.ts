@@ -942,6 +942,45 @@ test.describe("Removing photos", () => {
     await expect(page.locator("#undo-remove")).toBeDisabled();
   });
 
+  test("the orange keyboard ring shows only once the keyboard is used", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, SIX));
+    await settle(page);
+    const orange = () =>
+      page.evaluate(() => {
+        const c = document.getElementById("preview") as HTMLCanvasElement;
+        const d = (c.getContext("2d") as CanvasRenderingContext2D).getImageData(
+          0,
+          0,
+          c.width,
+          c.height,
+        ).data;
+        let n = 0;
+        for (let i = 0; i < d.length; i += 4) {
+          if (
+            (d[i] as number) > 240 &&
+            Math.abs((d[i + 1] as number) - 157) < 20 &&
+            (d[i + 2] as number) < 40
+          )
+            n++;
+        }
+        return n;
+      });
+    // A click selects a photo (blue ring) and does not draw the orange one on the first photo.
+    const p = await posterPoint(page, 0.5, 0.5);
+    await page.mouse.click(p.x, p.y);
+    await expect(page.locator("#span-group")).toBeVisible();
+    await previewIdle(page);
+    expect(await orange()).toBe(0);
+    // Arrow keys show the ring.
+    await page.keyboard.press("ArrowRight");
+    await previewIdle(page);
+    expect(await orange()).toBeGreaterThan(50);
+    // Clicking again hides it.
+    await page.mouse.click(p.x, p.y);
+    await previewIdle(page);
+    expect(await orange()).toBe(0);
+  });
+
   test("Delete on the preview removes the photo with the focus ring", async ({ page }) => {
     await addPhotos(page, await makeImages(page, SIX));
     await page.locator("#preview").focus();
