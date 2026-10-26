@@ -1356,10 +1356,17 @@ test.describe("Collage Creator: layout, modes, sizes and notices", () => {
     await expect(page.locator("#mode-pan")).toHaveAttribute("aria-pressed", "true");
   });
 
+  /** Zoom in far enough that the collage overhangs the view on both sides, and wait for it. */
+  async function zoomInUntilPannable(page: import("@playwright/test").Page) {
+    const before = await posterRect(page);
+    for (let i = 0; i < 3; i++) await page.click("#zoom-in");
+    await expect(page.locator("#view-zoom")).toContainText("Zoom:");
+    await expect.poll(async () => (await posterRect(page)).w).toBeGreaterThan(before.w * 1.3);
+  }
+
   test("in Pan mode a drag moves the collage and a click selects a photo", async ({ page }) => {
     await addPhotos(page, await makeImages(page, TWO));
-    await page.click("#zoom-in");
-    await expect(page.locator("#view-zoom")).toContainText("Zoom:");
+    await zoomInUntilPannable(page);
     const start = await posterRect(page);
     const from = await posterPoint(page, 0.5, 0.5);
     await page.mouse.move(from.x, from.y);
@@ -1376,8 +1383,7 @@ test.describe("Collage Creator: layout, modes, sizes and notices", () => {
   test("in Swap mode, holding Space pans for as long as it is held", async ({ page }) => {
     await addPhotos(page, await makeImages(page, TWO));
     await swapMode(page);
-    await page.click("#zoom-in");
-    await expect(page.locator("#view-zoom")).toContainText("Zoom:");
+    await zoomInUntilPannable(page);
     const start = await posterRect(page);
     const from = await posterPoint(page, 0.5, 0.5);
     await page.mouse.move(from.x, from.y);
