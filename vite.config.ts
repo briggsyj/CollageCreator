@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+import { svelte } from "@sveltejs/vite-plugin-svelte";
 import type { Plugin } from "vite";
 import { defineConfig } from "vitest/config";
 import { CSP } from "./csp.ts";
@@ -27,7 +28,7 @@ function cspMeta(): Plugin {
 export default defineConfig({
   // Relative, so the same build works at a site root, under /<repo>/ on GitHub Pages, and in Docker.
   base: "./",
-  plugins: [cspMeta()],
+  plugins: [svelte(), cspMeta()],
   build: {
     target: "es2022",
     sourcemap: true,
