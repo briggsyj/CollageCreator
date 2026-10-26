@@ -1372,6 +1372,31 @@ test.describe("Collage Creator: layout, modes, sizes and notices", () => {
     await expect(page.locator("#panel-poster #regenerate")).toHaveCount(0);
   });
 
+  test("Select: clicking a photo on the preview selects it in the Photos step", async ({
+    page,
+  }) => {
+    await addPhotos(page, await makeImages(page, TWO));
+    await page.click("#tab-style");
+    await page.click("#mode-select");
+    await expect(page.locator("#mode-select")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("#mode-pan")).toHaveAttribute("aria-pressed", "false");
+    await expect(page.locator("#mode-swap")).toHaveAttribute("aria-pressed", "false");
+    const at = await posterPoint(page, 0.25, 0.5);
+    await page.mouse.click(at.x, at.y);
+    // The Photos step opens with that photo picked, ready for Wider / Taller.
+    await expect(page.locator("#tab-photos")).toHaveAttribute("aria-selected", "true");
+    await expect(page.locator("#photo-list button.tile[aria-pressed='true']")).toHaveCount(1);
+    await expect(page.locator("#selected-dock")).toBeVisible();
+    await page.click("#span-wider");
+    await expect(page.locator("#photo-list button.tile[aria-pressed='true']")).toHaveCount(1);
+    // Space pans while it is held (with the pointer over the preview), then Select comes back.
+    await page.mouse.move(at.x, at.y);
+    await page.keyboard.down("Space");
+    await expect(page.locator("#mode-pan")).toHaveAttribute("aria-pressed", "true");
+    await page.keyboard.up("Space");
+    await expect(page.locator("#mode-select")).toHaveAttribute("aria-pressed", "true");
+  });
+
   test("Pan is the default; Pan and Swap are exclusive", async ({ page }) => {
     await addPhotos(page, await makeImages(page, TWO));
     await expect(page.locator("#mode-pan")).toHaveAttribute("aria-pressed", "true");

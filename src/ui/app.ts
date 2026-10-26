@@ -125,7 +125,7 @@ function storeLanguage(code: string): void {
 }
 
 type Tab = "photos" | "poster" | "style" | "save";
-type Mode = "pan" | "swap";
+type Mode = "pan" | "swap" | "select";
 
 const TAB_TITLES: Record<Tab, string> = {
   photos: "Photos",
@@ -240,6 +240,7 @@ export function startApp(): void {
     sizeNote: el<HTMLElement>("size-note"),
     modePan: el<HTMLButtonElement>("mode-pan"),
     modeSwap: el<HTMLButtonElement>("mode-swap"),
+    modeSelect: el<HTMLButtonElement>("mode-select"),
     zoomIn: el<HTMLButtonElement>("zoom-in"),
     zoomOut: el<HTMLButtonElement>("zoom-out"),
     viewZoom: el<HTMLElement>("view-zoom"),
@@ -310,7 +311,10 @@ export function startApp(): void {
     if (state.photos.length === 0) {
       return t("Add photos to start. Then drag to pan or choose Swap.");
     }
-    if (state.spaceHeld && state.mode === "swap") return t("Panning while Space is held.");
+    if (state.spaceHeld && state.mode !== "pan") return t("Panning while Space is held.");
+    if (state.mode === "select") {
+      return t("Click a photo to select it, then make it wider or taller. Hold Space to pan.");
+    }
     return state.mode === "pan"
       ? t("Drag to pan, scroll to zoom. Choose Swap to exchange photos.")
       : t("Click a photo, then another, to swap them. Hold Space to pan.");
@@ -835,9 +839,17 @@ export function startApp(): void {
     // Holding Space makes Pan the active tool for as long as it is held; Swap comes back after.
     const panActive = state.mode === "pan" || state.spaceHeld;
     ui.modePan.setAttribute("aria-pressed", String(panActive));
-    ui.modeSwap.setAttribute("aria-pressed", String(!panActive));
+    ui.modeSwap.setAttribute("aria-pressed", String(!panActive && state.mode === "swap"));
+    ui.modeSelect.setAttribute("aria-pressed", String(!panActive && state.mode === "select"));
     ui.box.classList.toggle("pan-mode", state.mode === "pan");
-    for (const button of [ui.modePan, ui.modeSwap, ui.zoomIn, ui.zoomOut, ui.shuffle]) {
+    for (const button of [
+      ui.modePan,
+      ui.modeSwap,
+      ui.modeSelect,
+      ui.zoomIn,
+      ui.zoomOut,
+      ui.shuffle,
+    ]) {
       button.disabled = none;
     }
     ui.app.dataset.empty = String(none);
@@ -972,6 +984,17 @@ export function startApp(): void {
       setStatus(t("Selected %(name)s.", { name: photo.name }));
     }
     draw();
+  }
+
+  /**
+   * The Select tool: choose a photo on the preview and show it in the Photos step (on wide
+   * screens), where Wider, Taller and Remove are. On phones the action bar appears instead.
+   */
+  function selectInPhotos(photoIndex: number): void {
+    selectPhoto(photoIndex);
+    if (state.selected !== photoIndex || isNarrow()) return;
+    setTab("photos", false);
+    ui.photoList.children[photoIndex]?.scrollIntoView({ block: "nearest" });
   }
 
   /** Saved work being brought back; adding photos waits for it. */
@@ -1603,7 +1626,7 @@ export function startApp(): void {
       state.spaceHeld = held;
       ui.box.classList.toggle("pan-ready", held);
       if (!held) endPan();
-      if (state.mode === "swap") {
+      if (state.mode !== "pan") {
         clearTimeout(statusTimer);
         ui.hint.textContent = modeHint();
       }
@@ -1647,6 +1670,11 @@ export function startApp(): void {
       }
       const to = cellAt(e.clientX, e.clientY);
       if (to < 0) return;
+      if (state.mode === "select") {
+        const photoIndex = currentLayout()?.placements[to]?.photoIndex;
+        if (photoIndex !== undefined) selectInPhotos(photoIndex);
+        return;
+      }
       if (dragFrom >= 0 && dragFrom !== to && state.selected === null) {
         pick(dragFrom);
       }
@@ -1700,6 +1728,7 @@ export function startApp(): void {
     ui.zoomOut.addEventListener("click", () => zoomAtCentre(0.8));
     ui.modePan.addEventListener("click", () => setMode("pan"));
     ui.modeSwap.addEventListener("click", () => setMode("swap"));
+    ui.modeSelect.addEventListener("click", () => setMode("select"));
 
     ui.canvas.addEventListener("keydown", (e) => {
       // View keys and undo work whether or not there are photos.
