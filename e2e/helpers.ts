@@ -351,6 +351,16 @@ function wrapLocator<T extends Locator>(page: Page, locator: T, selector: string
  * always did: "fill the border width".
  */
 export function autoReveal(page: Page): void {
+  // The glass look is blur on blur; WebKit's software rendering on CI cannot paint that fast
+  // enough for Playwright's "stable" checks (a few frames in a row). Turn the blur off for tests.
+  // A constructable stylesheet is not blocked by the page's `style-src 'self'`.
+  void page.addInitScript(() => {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(
+      "*{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}.backdrop{filter:none!important}",
+    );
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+  });
   const original = page.locator.bind(page);
   page.locator = ((selector: string, options?: Parameters<Page["locator"]>[1]) =>
     wrapLocator(page, original(selector, options), selector)) as Page["locator"];
