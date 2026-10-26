@@ -1,7 +1,7 @@
 {
   "name": "collage-creator",
   "version": "0.1.0",
-  "description": "Collage Creator: a browser-only, modified web reimplementation of PhotoCollage by Adrien Verg\u00e9 and contributors",
+  "description": "Collage Creator: a browser-only, modified web reimplementation of PhotoCollage by Adrien Vergé and contributors",
   "license": "GPL-2.0-or-later",
   "homepage": "https://github.com/briggsyj/CollageCreator",
   "repository": {
@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "canvas-size": "^2.0.0",
+    "libheif-js": "^1.23.5",
     "svelte": "^5.57.2"
   },
   "devDependencies": {

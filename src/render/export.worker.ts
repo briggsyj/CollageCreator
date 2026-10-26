@@ -1,9 +1,20 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+import { decodeHeic, looksLikeHeic } from "../io/heic";
 import { downscale } from "./downscale";
 import type { WorkerReady, WorkerRequest, WorkerResponse } from "./protocol";
 
 const scope = self as unknown as DedicatedWorkerGlobalScope;
+
+/** Decode a whole photo upright: the browser's own decoder, or the HEIC one where it has none. */
+async function decodeFull(file: File): Promise<ImageBitmap> {
+  try {
+    return await createImageBitmap(file, { imageOrientation: "from-image" });
+  } catch (err) {
+    if (!looksLikeHeic(file)) throw err;
+    return decodeHeic(file);
+  }
+}
 
 /**
  * Decode `file` upright at (about) the target size. Asks the browser to
@@ -24,7 +35,7 @@ async function decodeAt(file: File, width: number, height: number): Promise<Imag
   } catch {
     // fall through to the full decode
   }
-  const full = await createImageBitmap(file, { imageOrientation: "from-image" });
+  const full = await decodeFull(file);
   try {
     return await createImageBitmap(downscale(full, width, height));
   } finally {
@@ -36,7 +47,7 @@ async function handle(
   req: WorkerRequest,
 ): Promise<{ res: WorkerResponse; transfer: Transferable[] }> {
   if (req.kind === "probe") {
-    const full = await createImageBitmap(req.file, { imageOrientation: "from-image" });
+    const full = await decodeFull(req.file);
     try {
       const scale = Math.min(1, req.thumbMax / Math.max(full.width, full.height));
       const tw = Math.max(1, Math.round(full.width * scale));

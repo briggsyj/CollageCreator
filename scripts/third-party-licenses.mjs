@@ -18,6 +18,7 @@ import { join } from "node:path";
 // Licences that can be combined with GPL-2.0-or-later. Apache-2.0 is
 // compatible with GPL-3.0 only; that is fine because this project's licence
 // allows "any later version", so a combined work is distributable under GPL-3.0.
+// LGPL-3.0 (libheif, the HEIC decoder) is the same case.
 const ALLOWED = new Set([
   "MIT",
   "ISC",
@@ -28,6 +29,7 @@ const ALLOWED = new Set([
   "Unlicense",
   "CC0-1.0",
   "Apache-2.0",
+  "LGPL-3.0",
 ]);
 
 const root = process.cwd();

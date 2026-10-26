@@ -188,6 +188,24 @@ test.describe("Files that cannot be used", () => {
   });
 });
 
+test.describe("HEIC photos", () => {
+  test("are added and saved with the right colours, whichever decoder the browser uses", async ({
+    page,
+  }) => {
+    await setSize(page, 320, 240);
+    await page.fill("#border-width", "0");
+    await addPhotos(page, ["e2e/fixtures/rb.heic"]);
+    await expect(page.locator("#photo-list li")).toContainText("rb.heic");
+    const png = await saveAndRead(page);
+    const { colors } = await analyse(page, png, [
+      [0.15, 0.5],
+      [0.85, 0.5],
+    ]);
+    expect(near(colors[0]!, COLORS.red, 60)).toBe(true);
+    expect(near(colors[1]!, COLORS.blue, 60)).toBe(true);
+  });
+});
+
 test.describe("Photos are shown the right way up", () => {
   test("EXIF orientation 6 (rotate 90 degrees clockwise)", async ({ page }) => {
     const photo = await makeOrientedJpeg(page, "turned.jpg", 6);

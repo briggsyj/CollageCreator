@@ -31,3 +31,10 @@ and the loading display for saved photos works.
 ## Out of scope
 
 - A visual redesign, new features other than the two above, translations of the new strings.
+
+## HEIC photos
+
+iPhone photos (`.heic`, `.heif`) can be added in every browser. Safari decodes them itself; elsewhere a
+WebAssembly decoder (`libheif-js`, LGPL-3.0) is fetched from the app's own files the first time one is
+needed and runs in the image worker, so photos still never leave the device. The Content Security Policy
+gains `'wasm-unsafe-eval'` in `script-src` for it (nothing else changes: still no outside origins).
