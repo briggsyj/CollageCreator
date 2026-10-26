@@ -1584,6 +1584,10 @@ test.describe("Collage Creator on a phone", () => {
     await page.click("#tab-poster");
     await expect(page.locator(".sheet")).toHaveClass(/rise/);
     await expect(page.locator("#sheet-title")).toHaveText("Poster");
+    // Let the rise finish, so the head is where it will stay when it is measured.
+    await page.waitForFunction(
+      () => document.querySelector(".sheet")?.getAnimations().length === 0,
+    );
     const head = await page.locator(".sheet .sheet-head").boundingBox();
     expect(head).not.toBeNull();
     const x = (head?.x ?? 0) + (head?.width ?? 0) / 2;
