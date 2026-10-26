@@ -1359,11 +1359,12 @@ test.describe("Collage Creator: layout, modes, sizes and notices", () => {
     await expect(tabs).not.toHaveClass(/lifted/);
   });
 
-  test("Shuffle is in the Photos step, Layout in Style, and Poster is only about size", async ({
+  test("Layout and Shuffle are in the Style step, and Poster is only about size", async ({
     page,
   }) => {
     await addPhotos(page, await makeImages(page, TWO));
-    await expect(page.locator("#panel-photos #regenerate")).toBeVisible();
+    await expect(page.locator("#panel-style #regenerate")).toHaveCount(1);
+    await expect(page.locator("#panel-photos #regenerate")).toHaveCount(0);
     await expect(page.locator("#panel-style #layout-cards")).toHaveCount(1);
     await expect(page.locator("#panel-style #columns-block")).toHaveCount(1);
     await expect(page.locator("#panel-style #seed")).toHaveCount(1);
