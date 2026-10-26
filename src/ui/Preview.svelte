@@ -29,6 +29,8 @@
   let downAt = { x: 0, y: 0 };
   /** While adjusting a crop: the last pointer position of the drag moving the photo. */
   let cropDrag: { x: number; y: number } | null = null;
+  /** Set when a press switched the selection while cropping, so its release does not act as a click. */
+  let switchedWhileCropping = false;
 
   const fit = $derived(app.fitPoster({ w: boxWidth, h: boxHeight }));
 
@@ -175,12 +177,16 @@
   function onPointerDown(e: PointerEvent): void {
     canvas.focus();
     if (app.cropping) {
-      // Adjusting a crop: a drag on the selected photo moves it inside its cell; nothing else happens.
-      const cell = cellAt(e.clientX, e.clientY);
-      if (photoAt(cell) === app.selected) {
+      // Adjusting a crop: a drag on the selected photo moves it inside its cell.
+      const photoIndex = photoAt(cellAt(e.clientX, e.clientY));
+      if (photoIndex === app.selected) {
         cropDrag = { x: e.clientX, y: e.clientY };
         canvas.setPointerCapture(e.pointerId);
         e.preventDefault();
+      } else if (photoIndex !== undefined) {
+        // Choosing another photo accepts this crop (it is already applied) and selects that one.
+        switchedWhileCropping = true;
+        app.selectPhoto(photoIndex);
       }
       return;
     }
@@ -215,6 +221,10 @@
   }
 
   function onPointerUp(e: PointerEvent): void {
+    if (switchedWhileCropping) {
+      switchedWhileCropping = false;
+      return;
+    }
     if (cropDrag || app.cropping) {
       cropDrag = null;
       return;

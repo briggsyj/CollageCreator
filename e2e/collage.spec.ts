@@ -268,6 +268,35 @@ test.describe("Cropping the selected photo", () => {
     expect(near(await previewColor(page, 0.9, 0.5), COLORS.blue, 60)).toBe(true);
   });
 
+  test("choosing another photo accepts the crop and selects that photo", async ({ page }) => {
+    await setSize(page, 400, 800);
+    await page.fill("#border-width", "0");
+    await page.fill("#columns", "1");
+    await addPhotos(
+      page,
+      await makeImages(page, [
+        { name: "r.png", w: 400, h: 400, color: "red" as const },
+        { name: "b.png", w: 400, h: 400, color: "blue" as const },
+      ]),
+    );
+    await page.fill("#columns", "1");
+    await settle(page);
+    const top = await posterPoint(page, 0.5, 0.25);
+    await page.mouse.click(top.x, top.y);
+    await expect(page.locator("#span-group")).toBeVisible();
+    const first = await page.locator("#dock-name").textContent();
+    await page.click("#crop-toggle");
+    await expect(page.locator("#crop-tools")).toBeVisible();
+    const bottom = await posterPoint(page, 0.5, 0.75);
+    await page.mouse.click(bottom.x, bottom.y);
+    // The other photo is now the selected one: the dock is still there, showing its name.
+    await expect(page.locator("#span-group")).toBeVisible();
+    await expect(page.locator("#dock-name")).not.toHaveText(first ?? "");
+    await expect(page.locator("#dock-name")).toHaveText(/\.png$/);
+    await expect(page.locator("#crop-tools")).toBeHidden();
+    await expect(page.locator("#crop-toggle")).toHaveAttribute("aria-pressed", "false");
+  });
+
   test("the crop is kept after a refresh", async ({ page }) => {
     await setUp(page);
     await page.locator("#crop-zoom").fill("3");
