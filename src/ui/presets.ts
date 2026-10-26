@@ -18,8 +18,6 @@ export const PRESETS: SizePreset[] = [
   { label: "A3 landscape (300 DPI)", width: 4961, height: 3508 },
   { label: "A2 portrait (300 DPI)", width: 4961, height: 7016 },
   { label: "A2 landscape (300 DPI)", width: 7016, height: 4961 },
-  { label: "Instagram post, portrait (1080 × 1350)", width: 1080, height: 1350 },
-  { label: "Instagram post, landscape (1350 × 1080)", width: 1350, height: 1080 },
   { label: "Instagram post, square (1080 × 1080)", width: 1080, height: 1080 },
   { label: "Instagram story, portrait (1080 × 1920)", width: 1080, height: 1920 },
   { label: "Instagram story, landscape (1920 × 1080)", width: 1920, height: 1080 },
@@ -49,7 +47,6 @@ export const SIZE_CHOICES: SizeChoice[] = [
   { id: "a4", label: "A4", group: "print", width: 3508, height: 2480, note: "300 DPI" },
   { id: "a3", label: "A3", group: "print", width: 4961, height: 3508, note: "300 DPI" },
   { id: "a2", label: "A2", group: "print", width: 7016, height: 4961, note: "300 DPI" },
-  { id: "post", label: "Instagram post", group: "social", width: 1350, height: 1080 },
   { id: "story", label: "Instagram story", group: "social", width: 1920, height: 1080 },
   { id: "square", label: "Square post", group: "social", width: 1080, height: 1080 },
 ];

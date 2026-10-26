@@ -25,6 +25,14 @@ import { MAX_COLUMNS, normaliseColumns } from "../core/layout";
 import { randomSeed, seededRng } from "../core/rng";
 import { generateBestPage, generatePage, scoreLayout } from "../core/search";
 import {
+  normaliseSplit,
+  SPLIT_DEFAULT,
+  SPLIT_MAX,
+  SPLIT_MIN,
+  SPLIT_SIDE_DEFAULT,
+  SPLIT_SIDE_MIN,
+} from "../core/split";
+import {
   type CornerStyle,
   type Layout,
   type LayoutPage,
@@ -34,7 +42,14 @@ import {
   type PosterSettings,
   type Rect,
 } from "../core/types";
-import { getLanguage, languages, resolveLanguage, setLanguage, t } from "../i18n";
+import {
+  getLanguage,
+  languages,
+  preferredLanguage,
+  resolveLanguage,
+  setLanguage,
+  t,
+} from "../i18n";
 import {
   fileKey,
   type ImportedPhoto,
@@ -42,11 +57,13 @@ import {
   importFiles,
   type SkippedFile,
 } from "../io/import";
+import { loadSession, saveSession } from "../io/session";
 import { type CanvasLimits, clampSize, detectLimits, FALLBACK_LIMITS } from "../platform/limits";
 import { drawPhotoCover } from "../render/draw";
 import { exportCollage } from "../render/export";
 import { WorkerPool } from "../render/pool";
 import { drawCollage, drawSelection, fitSize } from "../render/preview";
+import { drawSplitMarks, SPLIT_MARGIN } from "../render/splitmarks";
 import {
   FIT_VIEW,
   isFit,
@@ -69,6 +86,7 @@ import {
   type SizeGroup,
   sizeOf,
 } from "./presets";
+import { parseSeed, withSeed } from "./url";
 
 function el<T extends HTMLElement>(id: string): T {
   const found = document.getElementById(id);
@@ -85,6 +103,16 @@ function readStoredLanguage(): string | null {
     return localStorage.getItem(LANG_KEY) ?? localStorage.getItem(OLD_LANG_KEY);
   } catch {
     return null;
+  }
+}
+
+/** The browser's language preferences, most preferred first; empty if it does not say. */
+function browserLanguages(): readonly string[] {
+  try {
+    const list = navigator.languages;
+    return list?.length ? list : navigator.language ? [navigator.language] : [];
+  } catch {
+    return [];
   }
 }
 
@@ -149,6 +177,13 @@ export function startApp(): void {
     regenerate: el<HTMLButtonElement>("regenerate"),
     shuffle: el<HTMLButtonElement>("shuffle"),
     seed: el<HTMLInputElement>("seed"),
+    splitControls: el<HTMLElement>("split-controls"),
+    splitCount: el<HTMLInputElement>("split-count"),
+    splitLess: el<HTMLButtonElement>("split-less"),
+    splitMore: el<HTMLButtonElement>("split-more"),
+    splitSize: el<HTMLInputElement>("split-size"),
+    splitHint: el<HTMLElement>("split-hint"),
+    splitNote: el<HTMLElement>("split-note"),
     columns: el<HTMLInputElement>("columns"),
     columnsLess: el<HTMLButtonElement>("columns-less"),
     columnsMore: el<HTMLButtonElement>("columns-more"),
@@ -225,7 +260,8 @@ export function startApp(): void {
 
   const state = {
     photos: [] as ImportedPhoto[],
-    seed: randomSeed(),
+    // A seed in the address (a shared link, or back/forward) decides the first arrangement.
+    seed: parseSeed(location.search) ?? randomSeed(),
     /** Chosen number of columns (Mosaic only); undefined lets the original heuristic decide. */
     columns: undefined as number | undefined,
     layoutStyle: "mosaic" as LayoutStyle,
@@ -237,6 +273,7 @@ export function startApp(): void {
       borderColor: "#ffffff",
       cornerStyle: "none",
       outerBorder: true,
+      splitImages: 0,
       format: "png",
       jpegQuality: 0.92,
     } as PosterSettings,
@@ -386,7 +423,9 @@ export function startApp(): void {
       option.textContent = name;
       ui.language.append(option);
     }
-    const initial = resolveLanguage(readStoredLanguage() ?? navigator.language);
+    // A language chosen earlier wins; otherwise the browser's own preferences, then English.
+    const stored = readStoredLanguage();
+    const initial = stored ? resolveLanguage(stored) : preferredLanguage(browserLanguages());
     setLanguage(initial);
     ui.language.value = initial;
     ui.language.addEventListener("change", () => {
@@ -521,7 +560,123 @@ export function startApp(): void {
       backdropCells,
       state.photos.map((p) => p.colour),
     );
+    syncUrl();
+    persist();
     draw();
+  }
+
+  // ------------------------------------------------------- address and storage
+
+  /** True while the address may be rewritten in place instead of adding a history entry. */
+  let replaceUrl = true;
+
+  /**
+   * Keep the seed in the address, so the browser's back and forward buttons step through
+   * earlier arrangements. A new arrangement adds a history entry; startup and restoring
+   * saved work rewrite the current one.
+   */
+  function syncUrl(): void {
+    try {
+      const next = withSeed(location.href, state.seed);
+      if (next === location.href) return;
+      if (replaceUrl) history.replaceState(null, "", next);
+      else history.pushState(null, "", next);
+    } catch {
+      // history can be unavailable (sandboxed frames); the seed field still works
+    }
+  }
+
+  window.addEventListener("popstate", () => {
+    const seed = parseSeed(location.search);
+    if (seed === undefined || seed === state.seed) return;
+    state.seed = seed;
+    relayout();
+  });
+
+  /** Nothing is saved until saved work has been restored, or it would overwrite it. */
+  let persistReady = false;
+  let persistWarned = false;
+  let persistTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /** Save the photos and settings in this browser shortly after the last change. */
+  function persist(): void {
+    if (!persistReady) return;
+    clearTimeout(persistTimer);
+    persistTimer = setTimeout(() => {
+      const files = new Map(state.photos.map((p) => [fileKey(p.file), p.file]));
+      saveSession(
+        {
+          v: 1,
+          photos: state.photos.map((p) => ({
+            key: fileKey(p.file),
+            span: p.span ?? { ...NO_SPAN },
+          })),
+          seed: state.seed,
+          columns: state.columns,
+          layoutStyle: state.layoutStyle,
+          settings: { ...state.settings },
+        },
+        files,
+      ).catch(() => {
+        if (persistWarned) return;
+        persistWarned = true;
+        addMessage({
+          kind: "error",
+          text: t(
+            "Your work could not be kept for next time: browser storage is unavailable or full.",
+          ),
+        });
+      });
+    }, 250);
+  }
+
+  /** Show the stored settings in the controls. */
+  function showSettings(): void {
+    const s = state.settings;
+    ui.borderWidth.value = String(Math.round(s.borderWidth * 1000) / 10);
+    ui.borderOutput.textContent = `${ui.borderWidth.value}%`;
+    paintRange(ui.borderWidth);
+    ui.borderColor.value = s.borderColor;
+    ui.outerBorder.checked = s.outerBorder;
+    ui.quality.value = String(Math.round(s.jpegQuality * 100));
+    ui.qualityOutput.textContent = `${ui.quality.value}%`;
+    paintRange(ui.quality);
+    ui.columns.value = state.columns === undefined ? "" : String(state.columns);
+    ui.cornerStyle.value = s.cornerStyle;
+    setFormat(s.format);
+    syncColourControls();
+    syncCornerCards();
+    syncSizeFields();
+  }
+
+  /** Bring back the photos and settings kept by an earlier visit. */
+  async function restore(): Promise<void> {
+    try {
+      const saved = await loadSession(state.settings);
+      if (saved) {
+        Object.assign(state.settings, saved.session.settings);
+        state.columns = saved.session.columns;
+        state.layoutStyle = saved.session.layoutStyle ?? "mosaic";
+        showSettings();
+        const files = saved.session.photos
+          .map((p) => saved.files.get(p.key))
+          .filter((f): f is File => f !== undefined);
+        const photos = await importFiles(files, [], state.importPool, addMessage);
+        const spans = new Map(saved.session.photos.map((p) => [p.key, p.span]));
+        for (const photo of photos) photo.span = { ...(spans.get(fileKey(photo.file)) ?? NO_SPAN) };
+        state.photos = photos;
+        // An address with a seed wins over the stored one.
+        state.seed = parseSeed(location.search) ?? saved.session.seed;
+        applySize(state.settings.width, state.settings.height);
+        relayout();
+        renderPhotoList();
+      }
+    } catch {
+      // nothing usable stored (or storage is unavailable): start empty
+    } finally {
+      persistReady = true;
+      replaceUrl = false;
+    }
   }
 
   /** The notes about the layout: how many columns are in use and how much is trimmed. */
@@ -575,11 +730,13 @@ export function startApp(): void {
   function fitPoster(viewport: Size): Size {
     const padX = isNarrow() ? 12 : 88;
     const padY = isNarrow() ? 104 : 72;
+    // A collage for a multi-image post keeps room above and below for the cut marks.
+    const marks = state.settings.splitImages > 1 ? 2 * SPLIT_MARGIN : 0;
     const fit = fitSize(
       state.settings.width,
       state.settings.height,
       Math.max(160, viewport.w - 2 * padX),
-      Math.max(160, viewport.h - 2 * padY),
+      Math.max(160, viewport.h - 2 * padY - marks),
     );
     return { w: fit.width, h: fit.height };
   }
@@ -689,6 +846,20 @@ export function startApp(): void {
       if (rect) drawSelection(ctx, rect, "#1f5fbf");
     }
     ctx.restore();
+    if (state.settings.splitImages > 1) {
+      const colour =
+        getComputedStyle(document.documentElement).getPropertyValue("--sub").trim() || "#3b3b37";
+      drawSplitMarks(
+        ctx,
+        { x: ox, y: oy, w: pw, h: ph },
+        state.settings.splitImages,
+        dpr,
+        colour,
+        t("Cut along the dashed lines: the collage is split into %(n)s images for the post.", {
+          n: state.settings.splitImages,
+        }),
+      );
+    }
     updateControls();
   }
 
@@ -749,8 +920,12 @@ export function startApp(): void {
     draw();
   }
 
+  /** Saved work being brought back; adding photos waits for it. */
+  let restoring: Promise<void> = Promise.resolve();
+
   async function addFiles(files: File[]): Promise<void> {
     if (files.length === 0) return;
+    await restoring;
     clearMessages();
     hideNotices();
     setStatus(t("Please wait"));
@@ -872,6 +1047,30 @@ export function startApp(): void {
 
   // ---------------------------------------------------------------- settings
 
+  /** The "Instagram post" size button: one wide collage cut into several square images. */
+  function instagramChip(): HTMLButtonElement {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "chip";
+    chip.dataset.choice = "post";
+    const name = document.createElement("span");
+    name.textContent = t("Instagram post");
+    const small = document.createElement("small");
+    small.textContent = t("Several square images");
+    chip.append(name, small);
+    chip.addEventListener("click", () => {
+      state.customSize = false;
+      setSplit(SPLIT_DEFAULT, SPLIT_SIDE_DEFAULT, true);
+    });
+    return chip;
+  }
+
+  /** Choose an ordinary poster size (leaving any multi-image post). */
+  function chooseSize(width: number, height: number): void {
+    state.settings.splitImages = 0;
+    applySize(width, height);
+  }
+
   function renderSizeChoices(): void {
     ui.sizeChoices.replaceChildren();
     let group: SizeGroup | null = null;
@@ -882,6 +1081,7 @@ export function startApp(): void {
         label.className = "group-label";
         label.textContent = t(GROUP_TITLES[group]);
         ui.sizeChoices.append(label);
+        if (group === "social") ui.sizeChoices.append(instagramChip());
       }
       const button = document.createElement("button");
       button.type = "button";
@@ -893,7 +1093,7 @@ export function startApp(): void {
       button.addEventListener("click", () => {
         state.customSize = false;
         const size = sizeOf(choice, state.portrait ? "portrait" : "landscape");
-        applySize(size.width, size.height);
+        chooseSize(size.width, size.height);
       });
       ui.sizeChoices.append(button);
     }
@@ -924,14 +1124,21 @@ export function startApp(): void {
     if (orientation !== "square") state.portrait = orientation === "portrait";
     ui.orientLandscape.setAttribute("aria-pressed", String(orientation === "landscape"));
     ui.orientPortrait.setAttribute("aria-pressed", String(orientation === "portrait"));
-    const match = findChoice(width, height);
-    const active = state.customSize || !match ? "custom" : match.choice.id;
+    const split = state.settings.splitImages > 1;
+    const match = split ? undefined : findChoice(width, height);
+    const active = split ? "post" : state.customSize || !match ? "custom" : match.choice.id;
+    ui.width.disabled = split;
+    ui.height.disabled = split;
+    ui.orientLandscape.disabled = split;
+    ui.orientPortrait.disabled = split;
+    syncSplit();
     const shape: Orientation = state.portrait ? "portrait" : "landscape";
     ui.sizeChoices.querySelectorAll<HTMLButtonElement>("button.chip").forEach((button) => {
       const id = button.dataset.choice;
       button.setAttribute("aria-pressed", String(id === active));
       const choice = SIZE_CHOICES.find((c) => c.id === id);
       const small = button.querySelector("small");
+      if (id === "post") return;
       if (choice && small) {
         const size = sizeOf(choice, shape);
         small.textContent = `${size.width} × ${size.height}${choice.note ? ` · ${choice.note}` : ""}`;
@@ -954,8 +1161,14 @@ export function startApp(): void {
           h: clamp.height,
         })
       : "";
+    if (state.settings.splitImages > 1) {
+      // The size of a multi-image post follows from its image count and image size.
+      setSplit(state.settings.splitImages, state.settings.height, false);
+      return;
+    }
     syncSizeFields();
     state.page?.setTargetRatio(ratio());
+    persist();
     draw();
   }
 
@@ -986,8 +1199,70 @@ export function startApp(): void {
   }
 
   function syncSaveSummary(): void {
-    const format = state.settings.format === "jpeg" ? "JPEG" : "PNG";
-    ui.saveSummary.textContent = `${format}, ${state.settings.width} × ${state.settings.height} px`;
+    const kind = state.settings.format === "jpeg" ? "JPEG" : "PNG";
+    const n = state.settings.splitImages;
+    ui.saveSummary.textContent =
+      n > 1
+        ? t("ZIP of %(n)s %(kind)s images, %(px)s × %(px)s px each", {
+            n,
+            kind,
+            px: state.settings.height,
+          })
+        : `${kind}, ${state.settings.width} × ${state.settings.height} px`;
+  }
+
+  /** Show or hide the controls for a multi-image post. */
+  function syncSplit(): void {
+    const n = state.settings.splitImages;
+    const on = n > 1;
+    ui.splitControls.hidden = !on;
+    ui.splitNote.hidden = !on;
+    if (!on) return;
+    const side = state.settings.height;
+    if (Number(ui.splitCount.value) !== n) ui.splitCount.value = String(n);
+    if (Number(ui.splitSize.value) !== side) ui.splitSize.value = String(side);
+    ui.splitLess.disabled = n <= SPLIT_MIN;
+    ui.splitMore.disabled = n >= SPLIT_MAX;
+    ui.splitHint.textContent = t(
+      "The collage is made as one wide picture and cut into %(n)s squares when you save. Use Columns to change how it is arranged.",
+      { n },
+    );
+    ui.splitNote.textContent = t(
+      "Dashed lines mark where the collage is split into %(n)s images of %(px)s × %(px)s pixels. They are saved as a zip, numbered _1 to _%(n)s from left to right.",
+      { n, px: side },
+    );
+  }
+
+  /**
+   * Make the collage for a post of `count` square images of `side` pixels. The shape of the
+   * collage changes with the number of images, so changing it makes a new arrangement.
+   */
+  function setSplit(count: number, side: number, arrange: boolean): void {
+    const n = normaliseSplit(count) || SPLIT_DEFAULT;
+    let px = Math.max(
+      SPLIT_SIDE_MIN,
+      Math.round(Number.isFinite(side) ? side : SPLIT_SIDE_DEFAULT),
+    );
+    const fit = clampSize(n * px, px, state.limits);
+    if (fit.clamped) px = Math.max(SPLIT_SIDE_MIN, Math.floor(Math.min(fit.height, fit.width / n)));
+    ui.sizeNote.textContent = fit.clamped
+      ? t("This browser can only make images up to %(w)s × %(h)s pixels here; using that size.", {
+          w: n * px,
+          h: px,
+        })
+      : "";
+    const changed = n !== state.settings.splitImages;
+    state.settings.splitImages = n;
+    state.settings.width = n * px;
+    state.settings.height = px;
+    syncSizeFields();
+    if (arrange && (changed || !state.page)) {
+      relayout("search");
+    } else {
+      state.page?.setTargetRatio(ratio());
+      persist();
+      draw();
+    }
   }
 
   /** Set the filled part of a slider's track from its value. */
@@ -1005,6 +1280,7 @@ export function startApp(): void {
     ui.formatPng.setAttribute("aria-pressed", String(format === "png"));
     ui.formatJpeg.setAttribute("aria-pressed", String(format === "jpeg"));
     syncSaveSummary();
+    persist();
   }
 
   function syncColourControls(): void {
@@ -1024,6 +1300,7 @@ export function startApp(): void {
     state.settings.cornerStyle = value === "slight" || value === "rounded" ? value : "none";
     ui.cornerStyle.value = state.settings.cornerStyle;
     syncCornerCards();
+    persist();
     draw();
   }
 
@@ -1071,6 +1348,7 @@ export function startApp(): void {
         ui.borderColor.value = color;
         state.settings.borderColor = color;
         syncColourControls();
+        persist();
         draw();
       });
       ui.swatches.append(button);
@@ -1082,7 +1360,7 @@ export function startApp(): void {
     ui.preset.addEventListener("change", () => {
       const p = PRESETS[Number(ui.preset.value)];
       state.customSize = false;
-      if (p) applySize(p.width, p.height);
+      if (p) chooseSize(p.width, p.height);
     });
     for (const field of [ui.width, ui.height]) {
       field.addEventListener("input", () => {
@@ -1104,16 +1382,19 @@ export function startApp(): void {
       state.settings.borderWidth = Number.isFinite(pct) ? Math.min(20, Math.max(0, pct)) / 100 : 0;
       ui.borderOutput.textContent = `${Number.isFinite(pct) ? pct : 0}%`;
       paintRange(ui.borderWidth);
+      persist();
       draw();
     });
     ui.outerBorder.addEventListener("change", () => {
       state.settings.outerBorder = ui.outerBorder.checked;
+      persist();
       draw();
     });
     ui.cornerStyle.addEventListener("change", () => setCorner(ui.cornerStyle.value));
     ui.borderColor.addEventListener("input", () => {
       state.settings.borderColor = ui.borderColor.value;
       syncColourControls();
+      persist();
       draw();
     });
     ui.format.addEventListener("change", () => {
@@ -1125,6 +1406,7 @@ export function startApp(): void {
       state.settings.jpegQuality = Number(ui.quality.value) / 100;
       ui.qualityOutput.textContent = `${ui.quality.value}%`;
       paintRange(ui.quality);
+      persist();
     });
     ui.seed.addEventListener("change", () => {
       const seed = Math.floor(Number(ui.seed.value));
@@ -1169,6 +1451,25 @@ export function startApp(): void {
     };
     ui.layoutMosaic.addEventListener("click", () => chooseStyle("mosaic"));
     ui.layoutGallery.addEventListener("click", () => chooseStyle("gallery"));
+    ui.splitLess.addEventListener("click", () =>
+      setSplit(state.settings.splitImages - 1, state.settings.height, true),
+    );
+    ui.splitMore.addEventListener("click", () =>
+      setSplit(state.settings.splitImages + 1, state.settings.height, true),
+    );
+    ui.splitCount.addEventListener("change", () => {
+      const n = normaliseSplit(Number(ui.splitCount.value));
+      if (n === 0) ui.splitCount.value = String(state.settings.splitImages);
+      else setSplit(n, state.settings.height, true);
+    });
+    ui.splitSize.addEventListener("change", () => {
+      const side = Number(ui.splitSize.value);
+      if (Number.isFinite(side) && side >= SPLIT_SIDE_MIN) {
+        setSplit(state.settings.splitImages, side, true);
+      } else {
+        ui.splitSize.value = String(state.settings.height);
+      }
+    });
   }
 
   // -------------------------------------------------------------------- swap
@@ -1460,8 +1761,15 @@ export function startApp(): void {
         onProgress: (done, total) => {
           ui.progress.value = total ? (done / total) * 100 : 100;
         },
+        baseName: `collage-${state.seed}`,
       });
-      download(blob, `collage-${state.seed}.${settings.format === "jpeg" ? "jpg" : "png"}`);
+      const stem = `collage-${state.seed}`;
+      download(
+        blob,
+        settings.splitImages > 1
+          ? `${stem}.zip`
+          : `${stem}.${settings.format === "jpeg" ? "jpg" : "png"}`,
+      );
     } catch (err) {
       if (!(err instanceof DOMException && err.name === "AbortError")) {
         addMessage({
@@ -1518,6 +1826,7 @@ export function startApp(): void {
   initSpan();
   initInput();
   relayout();
+  restoring = restore();
   // The controls respond from here on. Exposed for tests, which must not press a tab earlier.
   document.documentElement.dataset.appReady = "true";
   void detectLimits().then((limits) => {

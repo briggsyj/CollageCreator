@@ -43,7 +43,7 @@ test("exports 100 twelve-megapixel photos", async ({ page, browserName }) => {
   await setSize(page, 4961, 3508); // A3 landscape at 300 DPI
   const layoutMs = await page.evaluate(() => {
     const start = performance.now();
-    (document.getElementById("regenerate") as HTMLButtonElement).click();
+    (document.getElementById("shuffle") as HTMLButtonElement).click();
     return performance.now() - start;
   });
 

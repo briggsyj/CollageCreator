@@ -1,4 +1,4 @@
-# Tasks 009
+# Tasks 012
 
 Commit once per phase. Tick a box only when its tests pass.
 
@@ -41,6 +41,6 @@ Commit once per phase. Tick a box only when its tests pass.
 ## Phase 5: rename, docs, finish
 
 - [x] R050 Rename to Collage Creator everywhere; amend the constitution; update NOTICE and README features list (Gallery, presets, modes)
-- [x] R051 Update `specs/README.md` with the 009 row; update this spec's research notes with anything that differed from the design
+- [x] R051 Update `specs/README.md` with the 012 row; update this spec's research notes with anything that differed from the design
 - [x] R052 `npm run format`, lint, typecheck, headers, unit, build, e2e all green; list any pre-existing failures in the PR description
 - [x] R053 Open the pull request into `master` with screenshots of desktop, mobile, empty state and dark

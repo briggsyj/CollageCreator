@@ -202,10 +202,39 @@
                   <input id="height" type="number" min="1" step="1" inputmode="numeric" />
                 </label>
               </div>
+              <div id="split-controls" class="split-controls" hidden>
+                <div class="field">
+                  <span data-i18n="Number of images">Number of images</span>
+                  <div class="stepper">
+                    <button type="button" id="split-less" class="sq" aria-label="Fewer images">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" /></svg>
+                    </button>
+                    <input
+                      id="split-count"
+                      type="number"
+                      min="2"
+                      max="20"
+                      step="1"
+                      inputmode="numeric"
+                    />
+                    <button type="button" id="split-more" class="sq" aria-label="More images">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 5v14M5 12h14" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                <label class="field">
+                  <span data-i18n="Size of each image (px)">Size of each image (px)</span>
+                  <input id="split-size" type="number" min="16" step="1" inputmode="numeric" />
+                </label>
+                <p id="split-hint" class="hint"></p>
+              </div>
               <p class="unit" data-i18n="pixels. Typing your own numbers switches to Custom.">
                 pixels. Typing your own numbers switches to Custom.
               </p>
               <p id="size-note" class="hint"></p>
+              <p id="split-note" class="hint" hidden></p>
               <!-- The list behind the buttons above: kept in step with them, for keyboards and tests. -->
               <label class="sr-only">
                 <span data-i18n="Apply a template:">Apply a template:</span>
@@ -293,7 +322,7 @@
                   <path d="M20 11a8 8 0 1 0-2.3 5.7" />
                   <path d="M20 4v7h-7" />
                 </svg>
-                <span data-i18n="Try another arrangement">Try another arrangement</span>
+                <span data-i18n="Shuffle layout">Shuffle layout</span>
               </button>
               <p
                 class="hint"

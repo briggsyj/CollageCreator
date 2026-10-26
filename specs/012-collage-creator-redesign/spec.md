@@ -1,4 +1,4 @@
-# Spec 009: Collage Creator redesign
+# Spec 012: Collage Creator redesign
 
 **Gate**: the app is renamed Collage Creator, uses the new sidebar and bottom-bar layouts in the muted frosted glass look (light and dark), offers a second layout style (Gallery) beside the existing one (Mosaic), and every existing end-to-end story still passes.
 

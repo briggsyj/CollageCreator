@@ -32,4 +32,4 @@ proposed targets for the owner to confirm.
 - If something in a plan conflicts with what the repo shows, stop and ask the owner; do not resolve it silently. Record the decision in the spec's research notes.
 - Updating `spec.md` or `plan.md` is itself a task whenever implementation changes the design.
 
-**Version**: 1.3.0 | **Ratified**: 2026-10-25 | **Amended**: principle 3 names Biome instead of ESLint and Prettier; licensing rules no longer add a copyright line of our own; the app is renamed Collage Creator (spec 009)
+**Version**: 1.3.0 | **Ratified**: 2026-10-25 | **Amended**: principle 3 names Biome instead of ESLint and Prettier; licensing rules no longer add a copyright line of our own; the app is renamed Collage Creator (spec 012)

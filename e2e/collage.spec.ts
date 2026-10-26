@@ -11,15 +11,18 @@ import {
   makeOrientedJpeg,
   near,
   openTechnical,
+  pngSize,
   posterPoint,
   posterRect,
   previewColor,
   previewDifference,
+  readZip,
   removeFromList,
   SIX,
   saveAndRead,
   setSeed,
   setSize,
+  stitch,
   swapMode,
 } from "./helpers";
 
@@ -1399,12 +1402,12 @@ test.describe("Collage Creator: layout, modes, sizes and notices", () => {
     await expect(page.locator('[data-choice="a4"]')).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator("#orient-portrait")).toHaveAttribute("aria-pressed", "true");
 
-    await page.click('[data-choice="post"]');
+    await page.click('[data-choice="story"]');
     await expect(page.locator("#width")).toHaveValue("1080");
-    await expect(page.locator("#height")).toHaveValue("1350");
+    await expect(page.locator("#height")).toHaveValue("1920");
 
     await page.click("#orient-landscape");
-    await expect(page.locator("#width")).toHaveValue("1350");
+    await expect(page.locator("#width")).toHaveValue("1920");
 
     // Typing your own numbers switches to Custom.
     await page.fill("#width", "1234");
@@ -1518,5 +1521,271 @@ test.describe("Collage Creator on a phone", () => {
     await page.click("#sheet-close");
     await expect(page.locator("#selected-dock")).toBeVisible();
     await expect(page.locator("#span-wider")).toBeVisible();
+  });
+});
+
+test.describe("Address, saved work and language", () => {
+  test("the seed is in the address and back/forward step through arrangements", async ({
+    page,
+  }) => {
+    await addPhotos(page, await makeImages(page, SIX));
+    await setSeed(page, 101);
+    await setSeed(page, 202);
+    expect(new URL(page.url()).searchParams.get("seed")).toBe("202");
+    await page.goBack();
+    await expect(page.locator("#seed")).toHaveValue("101");
+    expect(new URL(page.url()).searchParams.get("seed")).toBe("101");
+    await page.goForward();
+    await expect(page.locator("#seed")).toHaveValue("202");
+  });
+
+  test("going back gives the same arrangement as before", async ({ page }) => {
+    await setSize(page, 480, 360);
+    await addPhotos(page, await makeImages(page, SIX));
+    const grid = () =>
+      page.evaluate(() => (document.getElementById("preview") as HTMLCanvasElement).toDataURL());
+    await setSeed(page, 31);
+    const first = await grid();
+    await setSeed(page, 32);
+    expect(await grid()).not.toBe(first);
+    await page.goBack();
+    await expect(page.locator("#seed")).toHaveValue("31");
+    expect(await grid()).toBe(first);
+  });
+
+  test("an address with a seed opens with that seed", async ({ page }) => {
+    await page.goto("./?seed=777");
+    await openTechnical(page);
+    await expect(page.locator("#seed")).toHaveValue("777");
+  });
+
+  test("a refresh keeps the photos, their sizes, the seed and the settings", async ({ page }) => {
+    await setSize(page, 480, 360);
+    await addPhotos(page, await makeImages(page, SIX));
+    await removeFromList(page, 0);
+    await page.click("#tab-style");
+    await page.fill("#border-width", "3");
+    await page.click('[data-corner="rounded"]');
+    await page.click("#tab-poster");
+    await page.fill("#columns", "3");
+    await setSeed(page, 4242);
+    // Saving waits a moment after the last change.
+    await page.waitForTimeout(700);
+    await page.reload();
+    await expect(page.locator("#photo-list li")).toHaveCount(5);
+    await openTechnical(page);
+    await expect(page.locator("#seed")).toHaveValue("4242");
+    await expect(page.locator("#width")).toHaveValue("480");
+    await expect(page.locator("#border-width")).toHaveValue("3");
+    await expect(page.locator('[data-corner="rounded"]')).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("#columns")).toHaveValue("3");
+    await expect(page.locator("#save")).toBeEnabled();
+  });
+
+  test("a refresh gives back the same picture", async ({ page }) => {
+    await setSize(page, 480, 360);
+    await addPhotos(page, await makeImages(page, SIX));
+    await setSeed(page, 9);
+    const grid = () =>
+      page.evaluate(() => (document.getElementById("preview") as HTMLCanvasElement).toDataURL());
+    const before = await grid();
+    await page.waitForTimeout(700);
+    await page.reload();
+    await expect(page.locator("#photo-list li")).toHaveCount(6);
+    await expect(page.locator("#preview")).toHaveAttribute("data-poster", /.+/);
+    expect(await grid()).toBe(before);
+  });
+
+  test("Remove all clears what is kept", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, SIX.slice(0, 3)));
+    await page.click("#tab-photos");
+    await page.click("#remove-all");
+    await page.waitForTimeout(700);
+    await page.reload();
+    await expect(page.locator("#photo-list li")).toHaveCount(0);
+    await expect(page.locator("#save")).toBeDisabled();
+  });
+
+  test("starts in the browser's language when it is supported", async ({ browser }) => {
+    const context = await browser.newContext({ locale: "fr-CA" });
+    const page = await context.newPage();
+    await page.goto("./");
+    await expect(page.locator("#add")).toHaveText("Ajouter des images...");
+    await expect(page.locator("html")).toHaveAttribute("lang", "fr");
+    await context.close();
+  });
+
+  test("starts in English when the browser's language is not supported", async ({ browser }) => {
+    const context = await browser.newContext({ locale: "ja-JP" });
+    const page = await context.newPage();
+    await page.goto("./");
+    await expect(page.locator("#add")).toHaveText("Add images...");
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    await context.close();
+  });
+
+  test("a language chosen in the page is remembered over the browser's", async ({ page }) => {
+    await page.selectOption("#language", "de");
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("lang", "de");
+  });
+});
+
+test.describe("Instagram post: one collage cut into square images", () => {
+  async function chooseInstagram(page: import("@playwright/test").Page) {
+    await page.click("#tab-poster");
+    await page.click('[data-choice="post"]');
+  }
+
+  /** How many pixels, in a thin column above the poster at `x`, differ from the plain background. */
+  async function marksAbove(page: import("@playwright/test").Page, cut: number) {
+    return page.evaluate((fraction) => {
+      const canvas = document.getElementById("preview") as HTMLCanvasElement;
+      const scale = canvas.width / canvas.clientWidth;
+      const [ox, oy, pw] = (canvas.dataset.poster ?? "0,0,1,1").split(",").map(Number) as number[];
+      const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
+      const bg = ctx.getImageData(2, 2, 1, 1).data;
+      const x = Math.round(((ox as number) + (pw as number) * fraction) * scale);
+      // Only the strip above the poster (not its edge shadow).
+      const top = Math.max(0, Math.round(((oy as number) - 44) * scale));
+      const height = Math.max(1, Math.round(((oy as number) - 6) * scale) - top);
+      const column = ctx.getImageData(x - 1, top, 3, height).data;
+      let differing = 0;
+      for (let i = 0; i < column.length; i += 4) {
+        // The preview canvas is transparent over the glass backdrop; marks are opaque, shadows are not.
+        const d =
+          Math.abs((column[i] as number) - (bg[0] as number)) +
+          Math.abs((column[i + 1] as number) - (bg[1] as number)) +
+          Math.abs((column[i + 2] as number) - (bg[2] as number));
+        if ((column[i + 3] as number) > 160 && d > 60) differing++;
+      }
+      return differing;
+    }, cut);
+  }
+
+  test("the Instagram post size makes a wide collage of square images", async ({ page }) => {
+    await chooseInstagram(page);
+    await expect(page.locator("#split-controls")).toBeVisible();
+    await expect(page.locator("#split-count")).toHaveValue("3");
+    await expect(page.locator("#split-size")).toHaveValue("1080");
+    await expect(page.locator("#width")).toHaveValue("3240");
+    await expect(page.locator("#height")).toHaveValue("1080");
+    await expect(page.locator("#width")).toBeDisabled();
+    await expect(page.locator("#height")).toBeDisabled();
+    await expect(page.locator("#save-summary")).toHaveText(
+      "ZIP of 3 PNG images, 1080 × 1080 px each",
+    );
+    await expect(page.locator("#split-note")).toContainText("numbered _1 to _3");
+    const poster = await posterRect(page);
+    expect(poster.w / poster.h).toBeCloseTo(3, 1);
+  });
+
+  test("the number of images and their size set the collage's size", async ({ page }) => {
+    await chooseInstagram(page);
+    await page.click("#split-more");
+    await expect(page.locator("#split-count")).toHaveValue("4");
+    await expect(page.locator("#width")).toHaveValue("4320");
+    await page.fill("#split-size", "500");
+    await page.locator("#split-size").press("Tab");
+    await expect(page.locator("#width")).toHaveValue("2000");
+    await expect(page.locator("#height")).toHaveValue("500");
+    await page.fill("#split-count", "2");
+    await page.locator("#split-count").press("Tab");
+    await expect(page.locator("#width")).toHaveValue("1000");
+    await expect(page.locator("#split-less")).toBeDisabled();
+    await page.fill("#split-count", "99");
+    await page.locator("#split-count").press("Tab");
+    await expect(page.locator("#split-count")).toHaveValue("20");
+    await expect(page.locator("#split-more")).toBeDisabled();
+  });
+
+  test("the automatic number of columns follows the shape of the collage", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, SIX));
+    const columns = async () =>
+      Number(/(\d+)$/.exec((await page.locator("#columns-note").textContent()) ?? "")?.[1]);
+    await chooseInstagram(page);
+    await page.fill("#split-count", "2");
+    await page.locator("#split-count").press("Tab");
+    const few = await columns();
+    await page.fill("#split-count", "10");
+    await page.locator("#split-count").press("Tab");
+    const many = await columns();
+    expect(many).toBeGreaterThan(few);
+    // The column count can still be chosen by hand.
+    await page.fill("#columns", "2");
+    await expect(page.locator("#columns-note")).toHaveText(/Columns in use: 2$/);
+  });
+
+  test("dashed cut marks with scissors show above and below each cut, in the preview only", async ({
+    page,
+  }) => {
+    await addPhotos(page, await makeImages(page, SIX));
+    expect(await marksAbove(page, 1 / 3)).toBe(0);
+    await chooseInstagram(page);
+    expect(await marksAbove(page, 1 / 3)).toBeGreaterThan(4);
+    expect(await marksAbove(page, 2 / 3)).toBeGreaterThan(4);
+    // Nothing is marked where there is no cut.
+    expect(await marksAbove(page, 0.5)).toBe(0);
+  });
+
+  test("saving gives a zip of square images numbered from the leftmost, matching the preview", async ({
+    page,
+  }) => {
+    await chooseInstagram(page);
+    await page.fill("#split-size", "200");
+    await page.locator("#split-size").press("Tab");
+    await addPhotos(page, await makeImages(page, SIX));
+    const zip = await saveAndRead(page);
+    const files = readZip(zip);
+    const seed = await page.inputValue("#seed");
+    expect(files.map((f) => f.name)).toEqual([
+      `collage-${seed}_1.png`,
+      `collage-${seed}_2.png`,
+      `collage-${seed}_3.png`,
+    ]);
+    for (const f of files) expect(pngSize(f.data)).toEqual({ width: 200, height: 200 });
+    // Side by side in that order, the images are the collage in the preview.
+    const whole = await stitch(
+      page,
+      files.map((f) => f.data),
+    );
+    expect(await previewDifference(page, whole)).toBeLessThan(6);
+  });
+
+  test("JPEG gives .jpg files, and ten or more images are numbered so they sort in order", async ({
+    page,
+  }) => {
+    await chooseInstagram(page);
+    await page.fill("#split-count", "10");
+    await page.locator("#split-count").press("Tab");
+    await page.fill("#split-size", "40");
+    await page.locator("#split-size").press("Tab");
+    await page.click("#format-jpeg");
+    await addPhotos(page, await makeImages(page, SIX));
+    const files = readZip(await saveAndRead(page));
+    const seed = await page.inputValue("#seed");
+    expect(files).toHaveLength(10);
+    expect(files[0]?.name).toBe(`collage-${seed}_01.jpg`);
+    expect(files[9]?.name).toBe(`collage-${seed}_10.jpg`);
+    expect(files.every((f) => f.data[0] === 0xff && f.data[1] === 0xd8)).toBe(true);
+    const names = files.map((f) => f.name);
+    expect([...names].sort()).toEqual(names);
+  });
+
+  test("it is kept over a refresh, and any other size leaves it", async ({ page }) => {
+    await chooseInstagram(page);
+    await page.click("#split-more");
+    await page.waitForTimeout(700);
+    await page.reload();
+    await page.click("#tab-poster");
+    await expect(page.locator("#split-count")).toHaveValue("4");
+    await expect(page.locator('[data-choice="post"]')).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("#save-summary")).toContainText("ZIP of 4 PNG images");
+    await page.click("#tab-poster");
+    await page.click('[data-choice="a4"]');
+    await expect(page.locator("#split-controls")).toBeHidden();
+    await expect(page.locator("#width")).toBeEnabled();
+    await expect(page.locator("#width")).toHaveValue("3508");
+    await expect(page.locator("#save-summary")).toHaveText("PNG, 3508 × 2480 px");
   });
 });

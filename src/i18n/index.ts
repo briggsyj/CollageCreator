@@ -42,14 +42,34 @@ export const languages = ["en", ...Object.keys(catalogues).sort()];
 
 let current = "en";
 
+/** The supported language for a BCP 47 tag (exact, or by its base language), or undefined. */
+function matchLanguage(tag: string | undefined): string | undefined {
+  if (!tag) return undefined;
+  const norm = tag.replace("-", "_").toLowerCase();
+  const exact = languages.find((l) => l.toLowerCase() === norm);
+  if (exact) return exact;
+  const base = norm.split("_")[0];
+  return (
+    languages.find((l) => l.toLowerCase() === base) ??
+    languages.find((l) => l.split("_")[0]?.toLowerCase() === base)
+  );
+}
+
 /** Pick the best supported language for a BCP 47 tag, or English. */
 export function resolveLanguage(tag: string | undefined): string {
-  if (!tag) return "en";
-  const norm = tag.replace("-", "_");
-  const exact = languages.find((l) => l.toLowerCase() === norm.toLowerCase());
-  if (exact) return exact;
-  const base = norm.split("_")[0]?.toLowerCase();
-  return languages.find((l) => l.toLowerCase() === base) ?? "en";
+  return matchLanguage(tag) ?? "en";
+}
+
+/**
+ * Pick a language from a preference list such as `navigator.languages`: the first
+ * entry we have a translation for, or English if none (or the list is empty).
+ */
+export function preferredLanguage(tags: readonly (string | undefined)[] | undefined): string {
+  for (const tag of tags ?? []) {
+    const found = matchLanguage(tag);
+    if (found) return found;
+  }
+  return "en";
 }
 
 export function setLanguage(tag: string): string {

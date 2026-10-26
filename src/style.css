@@ -1432,3 +1432,15 @@ progress {
   box-shadow: var(--prim-shadow);
   color: #fff;
 }
+
+/* Controls for a collage made for a multi-image post. */
+.split-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.split-controls[hidden] {
+  display: none;
+}

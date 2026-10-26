@@ -65,6 +65,11 @@ export interface PosterSettings {
   cornerStyle: CornerStyle;
   /** Draw the border around the whole collage too, not only between photos. */
   outerBorder: boolean;
+  /**
+   * 0 for an ordinary poster. Otherwise the collage is for a post of this many square images
+   * (width = count × height) and is saved as that many files in a zip, left to right.
+   */
+  splitImages: number;
   format: ImageFormat;
   /** 0..1, used for JPEG only. */
   jpegQuality: number;
