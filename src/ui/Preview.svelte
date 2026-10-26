@@ -175,12 +175,15 @@
   function onPointerDown(e: PointerEvent): void {
     canvas.focus();
     if (app.cropping) {
-      // Adjusting a crop: a drag on the selected photo moves it inside its cell; nothing else happens.
-      const cell = cellAt(e.clientX, e.clientY);
-      if (photoAt(cell) === app.selected) {
+      // Adjusting a crop: a drag on the selected photo moves it inside its cell.
+      const photoIndex = photoAt(cellAt(e.clientX, e.clientY));
+      if (photoIndex === app.selected) {
         cropDrag = { x: e.clientX, y: e.clientY };
         canvas.setPointerCapture(e.pointerId);
         e.preventDefault();
+      } else if (photoIndex !== undefined) {
+        // Choosing another photo accepts this crop (it is already applied) and selects that one.
+        app.selectPhoto(photoIndex);
       }
       return;
     }
