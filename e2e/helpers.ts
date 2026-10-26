@@ -257,13 +257,21 @@ export async function settle(page: Page): Promise<void> {
         () =>
           new Promise<string>((done) =>
             requestAnimationFrame(() =>
-              requestAnimationFrame(() =>
-                done((document.getElementById("preview") as HTMLCanvasElement).toDataURL()),
-              ),
+              requestAnimationFrame(() => {
+                const c = document.getElementById("preview") as HTMLCanvasElement;
+                const px = (c.getContext("2d") as CanvasRenderingContext2D).getImageData(
+                  0,
+                  0,
+                  c.width,
+                  c.height,
+                ).data;
+                // A canvas that has not been drawn yet is not settled, however still it is.
+                done(px.some((v, i) => i % 4 === 3 && v > 0) ? c.toDataURL() : "");
+              }),
             ),
           ),
       );
-      const same = now === last;
+      const same = now !== "" && now === last;
       last = now;
       return same;
     })
