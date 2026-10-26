@@ -1,7 +1,7 @@
 {
   "name": "collage-creator",
   "version": "0.1.0",
-  "description": "Collage Creator: a browser-only, modified web reimplementation of PhotoCollage by Adrien Vergé and contributors",
+  "description": "Collage Creator: a browser-only, modified web reimplementation of PhotoCollage by Adrien Verg\u00e9 and contributors",
   "license": "GPL-2.0-or-later",
   "homepage": "https://github.com/briggsyj/CollageCreator",
   "repository": {
@@ -27,7 +27,8 @@
     "bench": "tsx scripts/bench-layout.ts"
   },
   "dependencies": {
-    "canvas-size": "^2.0.0"
+    "canvas-size": "^2.0.0",
+    "svelte": "^5.57.2"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",
@@ -35,7 +36,6 @@
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@types/node": "^26.6.5",
     "fast-check": "^4.10.2",
-    "svelte": "^5.57.2",
     "svelte-check": "^4.7.7",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
