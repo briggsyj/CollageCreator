@@ -137,7 +137,6 @@ const TAB_TITLES: Record<Tab, string> = {
 const GROUP_TITLES: Record<SizeGroup, string> = {
   screen: "Screen",
   print: "Print",
-  social: "Social",
 };
 
 const SWATCHES: { name: string; color: string }[] = [
@@ -311,6 +310,7 @@ export function startApp(): void {
     if (state.photos.length === 0) {
       return t("Add photos to start. Then drag to pan or choose Swap.");
     }
+    if (state.spaceHeld && state.mode === "swap") return t("Panning while Space is held.");
     return state.mode === "pan"
       ? t("Drag to pan, scroll to zoom. Choose Swap to exchange photos.")
       : t("Click a photo, then another, to swap them. Hold Space to pan.");
@@ -832,8 +832,10 @@ export function startApp(): void {
     ui.photoList.querySelectorAll("button.tile").forEach((tile, i) => {
       tile.setAttribute("aria-pressed", String(i === state.selected));
     });
-    ui.modePan.setAttribute("aria-pressed", String(state.mode === "pan"));
-    ui.modeSwap.setAttribute("aria-pressed", String(state.mode === "swap"));
+    // Holding Space makes Pan the active tool for as long as it is held; Swap comes back after.
+    const panActive = state.mode === "pan" || state.spaceHeld;
+    ui.modePan.setAttribute("aria-pressed", String(panActive));
+    ui.modeSwap.setAttribute("aria-pressed", String(!panActive));
     ui.box.classList.toggle("pan-mode", state.mode === "pan");
     for (const button of [ui.modePan, ui.modeSwap, ui.zoomIn, ui.zoomOut, ui.shuffle]) {
       button.disabled = none;
@@ -1133,7 +1135,6 @@ export function startApp(): void {
         label.className = "group-label";
         label.textContent = t(GROUP_TITLES[group]);
         ui.sizeChoices.append(label);
-        if (group === "social") ui.sizeChoices.append(instagramChip());
       }
       const button = document.createElement("button");
       button.type = "button";
@@ -1149,15 +1150,17 @@ export function startApp(): void {
       });
       ui.sizeChoices.append(button);
     }
+    const social = document.createElement("p");
+    social.className = "group-label";
+    social.textContent = t("Social");
+    ui.sizeChoices.append(social, instagramChip());
     const custom = document.createElement("button");
     custom.type = "button";
     custom.className = "chip wide-chip";
     custom.dataset.choice = "custom";
     const name = document.createElement("span");
     name.textContent = t("Custom");
-    const small = document.createElement("small");
-    small.textContent = t("Set your own width and height");
-    custom.append(name, small);
+    custom.append(name);
     custom.addEventListener("click", () => {
       state.customSize = true;
       syncSizeFields();
@@ -1193,7 +1196,7 @@ export function startApp(): void {
       if (id === "post") return;
       if (choice && small) {
         const size = sizeOf(choice, shape);
-        small.textContent = `${size.width} × ${size.height}${choice.note ? ` · ${choice.note}` : ""}`;
+        small.textContent = `${size.width} × ${size.height}`;
       }
     });
     syncSaveSummary();
@@ -1600,6 +1603,11 @@ export function startApp(): void {
       state.spaceHeld = held;
       ui.box.classList.toggle("pan-ready", held);
       if (!held) endPan();
+      if (state.mode === "swap") {
+        clearTimeout(statusTimer);
+        ui.hint.textContent = modeHint();
+      }
+      updateControls();
     };
 
     ui.canvas.addEventListener("pointerdown", (e) => {

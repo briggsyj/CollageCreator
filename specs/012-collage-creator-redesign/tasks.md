@@ -27,7 +27,7 @@ Commit once per phase. Tick a box only when its tests pass.
 ## Phase 3: steps
 
 - [x] R030 Photos step: grid, selected-photo controls, import notices summary
-- [x] R031 Poster step: presets (including 800 × 600 and Instagram), Custom, orientation, Layout cards, Columns for Mosaic, trim figure
+- [x] R031 Poster step: presets (including 800 × 600, Square and Instagram post), Custom, orientation; Layout cards, Columns and trim figure in the Style step; Shuffle layout in the Photos step
 - [x] R032 Style step: border thickness, colour swatches, corners (no Circle), outer border switch
 - [x] R033 Save: file summary, format, JPEG quality, progress dialog restyle
 - [x] R034 About dialog and credit footer renamed and restyled; attribution kept

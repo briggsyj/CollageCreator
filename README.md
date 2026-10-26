@@ -46,7 +46,7 @@ general information, not legal advice.
 ## Features
 
 - Add photos by file picker or drag and drop; works with 100+ photos
-- Two layout styles, chosen in the Poster step. **Mosaic** (the default) uses the original's layout algorithm: photos fill columns of different heights, and the first layout shown is the best of 30 tries (the one that crops the photos least). **Gallery** cuts the poster into panels with a slicing tree, one panel per photo, and also keeps the best of several tries
+- Two layout styles, chosen in the Style step. **Mosaic** (the default) uses the original's layout algorithm: photos fill columns of different heights, and the first layout shown is the best of 30 tries (the one that crops the photos least). **Gallery** cuts the poster into panels with a slicing tree, one panel per photo, and also keeps the best of several tries
 - Ask for a photo to be **wider** or **taller** from the Photos step; the rest of the collage is worked out around it
 - Every layout has a **seed** (under Technical configuration), also in the address (`?seed=…`): the same seed and photos give the same layout, and the browser's back and forward buttons step through earlier arrangements
 - A refresh keeps your photos, sizes and settings (saved in this browser only; removing photos deletes them)

@@ -348,8 +348,7 @@ select {
   border: 0;
 }
 
-.hint,
-.unit {
+.hint {
   margin: 0;
   color: var(--sub);
   font-size: 0.85rem;
@@ -405,7 +404,7 @@ select {
 
 .choices .group-label {
   grid-column: 1 / -1;
-  margin: 6px 0 -2px;
+  margin: 10px 0 0;
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -788,6 +787,15 @@ input[type="color"] {
 
 .tabpanel[hidden] {
   display: none;
+}
+
+#size-note,
+#split-note {
+  margin-top: 8px;
+}
+
+#regenerate {
+  flex: none;
 }
 
 .drop-tip {
@@ -1496,6 +1504,12 @@ progress {
 
 .split-controls[hidden] {
   display: none;
+}
+
+/* A heading sits a little apart from what it introduces. */
+.tabpanel section > h3,
+.tabpanel section > .rowhead {
+  margin-bottom: 10px;
 }
 
 @keyframes sheet-rise {
