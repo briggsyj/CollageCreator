@@ -313,6 +313,40 @@ test.describe("Cropping the selected photo", () => {
   });
 });
 
+test.describe("Touch", () => {
+  test.use({ hasTouch: true });
+
+  test("a finger tap in Pan mode does not pick a photo; the Select tool does", async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(browserName === "firefox", "Playwright's Firefox has no touch screen to tap");
+    await addPhotos(page, await makeImages(page, SIX));
+    await settle(page);
+    const p = await posterPoint(page, 0.5, 0.5);
+    await page.touchscreen.tap(p.x, p.y);
+    await previewIdle(page);
+    await expect(page.locator("#span-group")).toBeHidden();
+    await page.click("#mode-select");
+    await page.touchscreen.tap(p.x, p.y);
+    await expect(page.locator("#span-group")).toBeVisible();
+  });
+});
+
+test.describe("Quick taps", () => {
+  test("buttons and the page opt out of double-tap zoom, so fast presses count", async ({
+    page,
+  }) => {
+    for (const selector of ["#mode-swap", "#tab-style", "body", "#preview"]) {
+      const touchAction = await page
+        .locator(selector)
+        .evaluate((el) => getComputedStyle(el).touchAction);
+      // The preview handles every touch itself ("none"); everything else only gives up double-tap zoom.
+      expect(touchAction, selector).toBe(selector === "#preview" ? "none" : "manipulation");
+    }
+  });
+});
+
 test.describe("HEIC photos", () => {
   test("are added and saved with the right colours, whichever decoder the browser uses", async ({
     page,
