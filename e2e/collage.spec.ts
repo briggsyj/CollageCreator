@@ -215,17 +215,37 @@ test.describe("Cropping the selected photo", () => {
     await expect(page.locator("#preview")).toHaveAttribute("data-crop", /^3\.000,/);
     await settle(page);
     // Drag the photo far to the right: its left side (red) fills the cell.
-    const from = await posterPoint(page, 0.3, 0.5);
+    // Start near the poster's left edge so the whole drag stays inside the window.
+    const from = await posterPoint(page, 0.05, 0.5);
+    await page.evaluate(() => {
+      const log: number[][] = [];
+      (window as unknown as { __moves: number[][] }).__moves = log;
+      document
+        .getElementById("preview")
+        ?.addEventListener("pointermove", (e) => log.push([e.clientX, e.buttons]));
+    });
     await page.mouse.move(from.x, from.y);
     await page.mouse.down();
-    await page.mouse.move(from.x + 600, from.y, { steps: 6 });
+    await page.mouse.move(from.x + 600, from.y, { steps: 12 });
     await page.mouse.up();
     // It moved a good way towards the photo's left edge (x is 0.5 when centred, 0 at the edge).
+    const seen = async () =>
+      page.evaluate(() => ({
+        crop: document.getElementById("preview")?.dataset.crop,
+        moves: (window as unknown as { __moves: number[][] }).__moves,
+      }));
     await expect
-      .poll(async () =>
-        Number(((await page.locator("#preview").getAttribute("data-crop")) ?? "").split(",")[1]),
+      .poll(
+        async () => {
+          const info = await seen();
+          return Number((info.crop ?? "").split(",")[1]);
+        },
+        { message: "crop x after the drag" },
       )
-      .toBeLessThan(0.4);
+      .toBeLessThan(0.4)
+      .catch(async (err) => {
+        throw new Error(`${err.message}\n${JSON.stringify(await seen())}`);
+      });
     await settle(page);
     expect(near(await previewColor(page, 0.9, 0.5), COLORS.red, 60)).toBe(true);
     // It stopped at the photo's edge: the corners are the photo, not the white page or the border.
