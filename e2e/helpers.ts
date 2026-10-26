@@ -298,6 +298,8 @@ const ACTIONS = new Set([
 
 /** Show the step (tab) that holds a control, as a person would before using it. */
 async function reveal(page: Page, selector: string): Promise<void> {
+  // A tab pressed before the page's script has run does nothing, and WebKit can be that early.
+  await page.waitForSelector('html[data-app-ready="true"]', { state: "attached" });
   const panel = await page
     .locator(selector)
     .first()

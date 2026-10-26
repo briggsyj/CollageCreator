@@ -1518,6 +1518,8 @@ export function startApp(): void {
   initSpan();
   initInput();
   relayout();
+  // The controls respond from here on. Exposed for tests, which must not press a tab earlier.
+  document.documentElement.dataset.appReady = "true";
   void detectLimits().then((limits) => {
     state.limits = limits;
     applySize(state.settings.width, state.settings.height);
