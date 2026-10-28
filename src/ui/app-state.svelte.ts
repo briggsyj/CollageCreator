@@ -23,10 +23,36 @@
 // with this program; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
+import {
+  BOOK_MAX_PAGES,
+  type BookPage,
+  bookFileNames,
+  countsPerPage,
+  fillPage,
+  generateBestBook,
+  generateBook,
+  movedPageOf,
+  normalisePerPage,
+  PAGE_GAP,
+  PER_PAGE_DEFAULT,
+  PER_PAGE_MAX,
+  PER_PAGE_MIN,
+  pageLayout,
+  pagesWithPhotos,
+  removedPageOf,
+  shuffleAcrossPages,
+  spreadEvenly,
+} from "../core/book";
 import { clampCrop, isDefaultCrop, MAX_ZOOM, panCrop, zoomCrop } from "../core/crop";
 import { normaliseColumns } from "../core/layout";
 import { randomSeed, seededRng } from "../core/rng";
-import { generateBestPage, generatePage, scoreLayout } from "../core/search";
+import {
+  DEFAULT_TRIES,
+  GALLERY_TRIES,
+  generateBestPage,
+  generatePage,
+  scoreLayout,
+} from "../core/search";
 import {
   normaliseSplit,
   SPLIT_DEFAULT,
@@ -54,6 +80,7 @@ import {
   type SkippedFile,
 } from "../io/import";
 import { loadSession, saveSession } from "../io/session";
+import { zipBlob } from "../io/zip";
 import { type CanvasLimits, clampSize, detectLimits, FALLBACK_LIMITS } from "../platform/limits";
 import { exportCollage } from "../render/export";
 import { WorkerPool } from "../render/pool";
@@ -138,6 +165,12 @@ export class AppState {
   /** Chosen number of columns (Mosaic only); undefined lets the original heuristic decide. */
   columns = $state<number | undefined>(undefined);
   layoutStyle = $state<LayoutStyle>("mosaic");
+  /** Book: several pages in a row, each saved as its own image (`layoutStyle` arranges each page). */
+  book = $state(false);
+  /** How many pages the book has (1 to 20), empty ones included. */
+  pageCount = $state(1);
+  /** How many photos a page takes before the next photo goes to the next page. */
+  perPage = $state(PER_PAGE_DEFAULT);
   /** The arrangement. It is changed in place by swaps and resizes, which bump `pageRev`. */
   page = $state.raw<LayoutPage | null>(null);
   pageRev = $state(0);
@@ -225,6 +258,15 @@ export class AppState {
   );
   selectedPhoto = $derived(this.selected === null ? undefined : this.photos[this.selected]);
   isSplit = $derived(this.settings.splitImages > 1);
+  /** The page of the selected photo (a book), if there is one. */
+  selectedPage = $derived(this.selectedPhoto?.bookPage ?? 0);
+  /** How many photos each page of the book holds. */
+  pageCounts = $derived(
+    countsPerPage(
+      this.photos.map((p) => p.bookPage ?? 0),
+      this.pageCount,
+    ),
+  );
   /** The size button that is on: a named size, the multi-image post, or Custom. */
   activeSize = $derived.by(() => {
     if (this.isSplit) return "post";
@@ -367,6 +409,33 @@ export class AppState {
     this.focused = 0;
     if (this.photos.length === 0) {
       this.page = null;
+    } else if (this.book) {
+      const pageOf = this.photos.map((p) => p.bookPage ?? 0);
+      if (mode === "search") {
+        const tries = this.layoutStyle === "gallery" ? GALLERY_TRIES : DEFAULT_TRIES;
+        const best = generateBestBook(
+          this.layoutStyle,
+          this.photos,
+          pageOf,
+          this.pageCount,
+          this.ratio,
+          randomSeed(),
+          tries,
+          { columns: this.columns },
+        );
+        this.page = best.page;
+        this.seed = best.seed;
+      } else {
+        this.page = generateBook(
+          this.layoutStyle,
+          this.photos,
+          pageOf,
+          this.pageCount,
+          this.ratio,
+          this.seed,
+          { columns: this.columns },
+        );
+      }
     } else if (mode === "search") {
       const best = generateBestPage(this.layoutStyle, this.photos, this.ratio, randomSeed(), {
         columns: this.columns,
@@ -403,9 +472,171 @@ export class AppState {
   }
 
   chooseLayout(style: LayoutStyle): void {
+    if (this.layoutStyle === style && !this.book) return;
+    this.layoutStyle = style;
+    this.book = false;
+    this.reshape();
+    this.relayout("search");
+  }
+
+  // ----------------------------------------------------------------------- book
+
+  /** The size of the whole row of pages, for fitting it on screen. */
+  get rowSize(): Size {
+    if (!this.book) return { w: this.settings.width, h: this.settings.height };
+    const n = this.pageCount;
+    return { w: (n + (n - 1) * PAGE_GAP) * this.settings.width, h: this.settings.height };
+  }
+
+  /** Give the photos that have no page (or one that no longer exists) the next page with room. */
+  private withPages(
+    photos: readonly ImportedPhoto[],
+    keep: readonly ImportedPhoto[],
+  ): ImportedPhoto[] {
+    const counts = countsPerPage(
+      keep.map((p) => p.bookPage ?? 0),
+      Math.max(1, this.pageCount),
+    );
+    return photos.map((photo) => {
+      if (photo.bookPage !== undefined && photo.bookPage < this.pageCount) {
+        counts[photo.bookPage] = (counts[photo.bookPage] ?? 0) + 1;
+        return photo;
+      }
+      const page = fillPage(counts, this.perPage);
+      counts[page] = (counts[page] ?? 0) + 1;
+      this.pageCount = Math.max(this.pageCount, page + 1);
+      return { ...photo, bookPage: page };
+    });
+  }
+
+  /** Turn Book on: the photos fill the pages in order; the arrangement is made again. */
+  chooseBook(): void {
+    if (this.book) return;
+    if (this.settings.splitImages > 1) {
+      // The one wide collage of a post becomes one page of the size of a post's image.
+      const side = this.settings.height;
+      this.settings.splitImages = 0;
+      this.applySize(side, side);
+    }
+    this.book = true;
+    this.customSize = false;
+    this.pageCount = Math.max(1, this.pageCount);
+    this.photos = this.withPages(this.photos, []);
+    this.reshape();
+    this.relayout("search");
+    this.setStatus(t("Book: %(n)s page(s).", { n: this.pageCount }));
+  }
+
+  /** The style of each page of a book (Mosaic or Gallery); the book stays a book. */
+  chooseBookStyle(style: LayoutStyle): void {
     if (this.layoutStyle === style) return;
     this.layoutStyle = style;
     this.relayout("search");
+  }
+
+  get perPageMin(): number {
+    return PER_PAGE_MIN;
+  }
+
+  get perPageMax(): number {
+    return PER_PAGE_MAX;
+  }
+
+  get maxPages(): number {
+    return BOOK_MAX_PAGES;
+  }
+
+  setPerPage(value: number): void {
+    this.perPage = normalisePerPage(value);
+  }
+
+  private setPages(pageOf: readonly number[], pageCount = this.pageCount): void {
+    this.pageCount = pageCount;
+    this.photos = this.photos.map((p, i) => ({ ...p, bookPage: pageOf[i] ?? 0 }));
+  }
+
+  /** A new blank page after the last. */
+  addPage(): void {
+    if (!this.book || this.pageCount >= BOOK_MAX_PAGES) return;
+    this.pageCount++;
+    (this.page as BookPage | null)?.addPage();
+    this.pageRev++;
+    this.setStatus(t("Added page %(n)s.", { n: this.pageCount }));
+  }
+
+  /** Take a page out: its photos go to the prior page (the next one for the first). */
+  removePage(page: number): void {
+    if (!this.book || this.pageCount <= 1 || page < 0 || page >= this.pageCount) return;
+    const pageOf = removedPageOf(
+      this.photos.map((p) => p.bookPage ?? 0),
+      page,
+    );
+    this.setPages(pageOf, this.pageCount - 1);
+    this.relayout("single", false);
+    this.setStatus(
+      t("Removed page %(n)s; its photos moved to a neighbouring page.", { n: page + 1 }),
+    );
+  }
+
+  /** Move a page one place left or right; each page keeps its arrangement. */
+  movePage(page: number, by: -1 | 1): void {
+    const to = page + by;
+    if (!this.book || page < 0 || to < 0 || page >= this.pageCount || to >= this.pageCount) return;
+    this.setPages(
+      movedPageOf(
+        this.photos.map((p) => p.bookPage ?? 0),
+        page,
+        to,
+      ),
+    );
+    (this.page as BookPage | null)?.movePage(page, to);
+    this.pageRev++;
+    this.setStatus(t("Moved page %(a)s to place %(b)s.", { a: page + 1, b: to + 1 }));
+  }
+
+  /** Share all the photos evenly across the pages, in order. */
+  spreadPhotos(): void {
+    if (!this.book) return;
+    const spread = spreadEvenly(this.photos.length, this.pageCount, this.perPage);
+    this.setPages(spread.pageOf, spread.pages);
+    this.relayout("search");
+    this.setStatus(t("Photos shared evenly across %(n)s page(s).", { n: spread.pages }));
+  }
+
+  /** Mix the photos between the pages, keeping how many each page has. */
+  shufflePages(): void {
+    if (!this.book) return;
+    const mixed = shuffleAcrossPages(
+      this.photos.map((p) => p.bookPage ?? 0),
+      seededRng(randomSeed()),
+    );
+    this.setPages(mixed);
+    this.relayout("search");
+    this.setStatus(t("Photos shuffled between pages."));
+  }
+
+  /** Move the selected photo to another page (it goes last there). */
+  moveSelectedToPage(page: number): void {
+    const index = this.selected;
+    const photo = this.selectedPhoto;
+    if (!this.book || index === null || !photo || page < 0 || page >= this.pageCount) return;
+    if ((photo.bookPage ?? 0) === page) return;
+    // Last on the new page: take it out of the list and put it after that page's photos.
+    const moved = { ...photo, bookPage: page };
+    const rest = this.photos.filter((_, i) => i !== index);
+    let at = rest.length;
+    for (let i = rest.length - 1; i >= 0; i--) {
+      if ((rest[i]?.bookPage ?? 0) <= page) {
+        at = i + 1;
+        break;
+      }
+      at = i;
+    }
+    rest.splice(at, 0, moved);
+    this.photos = rest;
+    this.relayout("single", false);
+    this.selected = at;
+    this.setStatus(t("Moved %(name)s to page %(n)s.", { name: photo.name, n: page + 1 }));
   }
 
   /** Empty means automatic. Apply while typing; the field is tidied once the edit is done. */
@@ -457,10 +688,12 @@ export class AppState {
             key: fileKey(p.file),
             span: p.span ?? { ...NO_SPAN },
             ...(p.crop ? { crop: p.crop } : {}),
+            ...(this.book && p.bookPage !== undefined ? { page: p.bookPage } : {}),
           })),
           seed: this.seed,
           columns: this.columns,
           layoutStyle: this.layoutStyle,
+          ...(this.book ? { book: { pages: this.pageCount, perPage: this.perPage } } : {}),
           settings: $state.snapshot(this.settings),
         },
         files,
@@ -486,6 +719,10 @@ export class AppState {
         Object.assign(this.settings, saved.session.settings);
         this.columns = saved.session.columns;
         this.layoutStyle = saved.session.layoutStyle ?? "mosaic";
+        const book = saved.session.book;
+        this.book = book !== undefined;
+        this.pageCount = book?.pages ?? 1;
+        this.perPage = book?.perPage ?? PER_PAGE_DEFAULT;
         this.restoreEpoch++;
         const files = saved.session.photos
           .map((p) => saved.files.get(p.key))
@@ -507,6 +744,7 @@ export class AppState {
             ...photo,
             span: { ...(saved?.span ?? NO_SPAN) },
             ...(saved?.crop ? { crop: saved.crop } : {}),
+            ...(saved?.page !== undefined ? { bookPage: saved.page } : {}),
           };
         });
         // An address with a seed wins over the stored one.
@@ -546,11 +784,13 @@ export class AppState {
   fitPoster(viewport: Size = this.viewport): Size {
     const padX = this.narrow ? 12 : 88;
     const padY = this.narrow ? 104 : 72;
-    // A collage for a multi-image post keeps room above and below for the cut marks.
-    const marks = this.settings.splitImages > 1 ? 2 * SPLIT_MARGIN : 0;
+    // A collage for a multi-image post keeps room above and below for the cut marks, and a
+    // book room below its pages for their labels.
+    const marks = this.settings.splitImages > 1 || this.book ? 2 * SPLIT_MARGIN : 0;
+    const row = this.rowSize;
     const fit = fitSize(
-      this.settings.width,
-      this.settings.height,
+      row.w,
+      row.h,
       Math.max(160, viewport.w - 2 * padX),
       Math.max(160, viewport.h - 2 * padY - marks),
     );
@@ -636,6 +876,15 @@ export class AppState {
       this.setStatus("");
     } else {
       this.page.swapPhotos(this.selected, photoIndex);
+      if (this.book) {
+        // The photos traded places, so they traded pages too.
+        const a = this.selected;
+        const pa = this.photos[a]?.bookPage ?? 0;
+        const pb = this.photos[photoIndex]?.bookPage ?? 0;
+        this.photos = this.photos.map((p, i) =>
+          i === a ? { ...p, bookPage: pb } : i === photoIndex ? { ...p, bookPage: pa } : p,
+        );
+      }
       this.pageRev++;
       this.setStatus(
         t("Swapped %(a)s and %(b)s.", {
@@ -745,7 +994,8 @@ export class AppState {
     this.setStatus("");
     this.showNotice(skipped);
     if (added.length > 0) {
-      this.photos = [...this.photos, ...added];
+      const placed = this.book ? this.withPages(added, this.photos) : added;
+      this.photos = [...this.photos, ...placed];
       this.relayout("search");
     }
   }
@@ -861,6 +1111,7 @@ export class AppState {
 
   chooseInstagramPost(): void {
     this.customSize = false;
+    this.book = false;
     this.setSplit(SPLIT_DEFAULT, SPLIT_SIDE_DEFAULT, true);
   }
 
@@ -966,7 +1217,11 @@ export class AppState {
 
   // ------------------------------------------------------------------- export
 
-  async save(): Promise<void> {
+  /**
+   * Save the collage. A book is saved as one image per page (a zip of them, or the one image
+   * when only one page has photos); `onlyPage` saves just that page of a book.
+   */
+  async save(onlyPage?: number): Promise<void> {
     const layout = this.layout;
     if (!layout) return;
     this.clearMessages();
@@ -980,6 +1235,11 @@ export class AppState {
     this.progress = 0;
     this.dialog = "progress";
     try {
+      const ext = settings.format === "jpeg" ? "jpg" : "png";
+      if (layout.pages) {
+        await this.saveBook(layout, settings, ext, controller.signal, onlyPage);
+        return;
+      }
       const blob = await exportCollage({
         layout,
         photos: this.photos,
@@ -992,12 +1252,7 @@ export class AppState {
         baseName: `collage-${this.seed}`,
       });
       const stem = `collage-${this.seed}`;
-      download(
-        blob,
-        settings.splitImages > 1
-          ? `${stem}.zip`
-          : `${stem}.${settings.format === "jpeg" ? "jpg" : "png"}`,
-      );
+      download(blob, settings.splitImages > 1 ? `${stem}.zip` : `${stem}.${ext}`);
     } catch (err) {
       if (!(err instanceof DOMException && err.name === "AbortError")) {
         this.addMessage({
@@ -1012,6 +1267,59 @@ export class AppState {
       // A cancelled export terminated its workers; get a fresh pool ready.
       if (controller.signal.aborted) this.exportPool = new WorkerPool();
     }
+  }
+
+  /** Make the pages one after another (one canvas at a time) and download them. */
+  private async saveBook(
+    layout: Layout,
+    settings: PosterSettings,
+    ext: string,
+    signal: AbortSignal,
+    onlyPage?: number,
+  ): Promise<void> {
+    const filled = pagesWithPhotos(layout);
+    const pages = onlyPage === undefined ? filled : filled.filter((k) => k === onlyPage);
+    if (pages.length === 0) {
+      this.addMessage({ kind: "error", text: t("That page has no photos to save.") });
+      return;
+    }
+    if (onlyPage === undefined && pages.length < (layout.pages?.length ?? 0)) {
+      const empty = (layout.pages ?? []).map((_, k) => k).filter((k) => !filled.includes(k));
+      this.addMessage({
+        kind: "info",
+        text: t("Skipped empty page(s): %(list)s.", { list: empty.map((k) => k + 1).join(", ") }),
+      });
+    }
+    const stem = `book-${this.seed}`;
+    const pageSettings = { ...settings, splitImages: 0 };
+    const images: Blob[] = [];
+    for (const [i, page] of pages.entries()) {
+      images.push(
+        await exportCollage({
+          layout: pageLayout(layout, page),
+          photos: this.photos,
+          settings: pageSettings,
+          pool: this.exportPool,
+          signal,
+          onProgress: (done, total) => {
+            this.progress = ((i + (total ? done / total : 1)) / pages.length) * 100;
+          },
+        }),
+      );
+    }
+    if (images.length === 1) {
+      const name = onlyPage === undefined ? stem : `${stem}_page-${(pages[0] ?? 0) + 1}`;
+      download(images[0] as Blob, `${name}.${ext}`);
+      return;
+    }
+    const names = bookFileNames(stem, images.length, ext);
+    const entries = await Promise.all(
+      images.map(async (blob, i) => ({
+        name: names[i] as string,
+        data: new Uint8Array(await blob.arrayBuffer()),
+      })),
+    );
+    download(zipBlob(entries), `${stem}.zip`);
   }
 
   cancelExport: () => void = () => {};

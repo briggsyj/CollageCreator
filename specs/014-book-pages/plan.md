@@ -3,7 +3,7 @@
 ## Model
 
 - A book is a list of pages; a page is a list of photo indexes (the photo list stays one list, in the order added, which the session already stores) plus the page's own arrangement. `src/core/book.ts` (pure, unit tested): page limits, `fill`, `distribute(photoCount, pageCount, perPage)`, `pageOf(photoIndex)`, `move(photo, toPage)`, `swap(a, b)`, `removePage(page)`, `reorder(page, to)`, page gaps and the position of each page in the row.
-- Each page is a `LayoutPage` (the interface Mosaic and Gallery already provide) built from that page's photos and the seed `hash(seed, pageNumber)`. `toLayout()` of the book puts each page's layout in a row offset by `(pageWidth + gap) × k`, so the preview and the hit testing work on one list of placements; `Placement` gains `page`.
+- Each page is a `LayoutPage` (the interface Mosaic and Gallery already provide) built from that page's photos and the seed `hash(seed, pageNumber)`. `toLayout()` of the book puts each page's layout in a row offset by `(pageWidth + gap) × k`, so the preview and the hit testing work on one list of placements; `Placement` gains `page` and `Layout` gains `pages` (each page's place in the row); a photo's page is `Photo.bookPage`.
 - `swapPhotos(a, b)` across pages moves the two photos into each other's place and re-arranges only the two pages concerned.
 
 ## Rendering

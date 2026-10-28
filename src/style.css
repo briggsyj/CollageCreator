@@ -470,6 +470,10 @@ select {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.card.wide-card {
+  grid-column: 1 / -1;
+}
+
 .card {
   gap: 6px;
   padding: 10px 12px;
@@ -877,6 +881,42 @@ dialog h3 {
   text-align: center;
   font-size: 0.85rem;
   color: var(--sub);
+}
+
+.page-group + .page-group {
+  margin-top: 14px;
+}
+
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+  margin: 0 0 6px;
+}
+
+.page-head h4 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.page-head .count {
+  font-weight: 400;
+  color: var(--sub);
+}
+
+.page-actions {
+  display: flex;
+  gap: 2px;
+}
+
+#book-style {
+  margin: 8px 0 12px;
+}
+
+.move-page {
+  margin-top: 8px;
 }
 
 .photo-list {
@@ -1649,6 +1689,8 @@ dialog .button-row {
   margin-top: 12px;
 }
 
+#book-style[hidden],
+#shuffle-pages[hidden],
 .split-controls[hidden] {
   display: none;
 }

@@ -47,6 +47,8 @@ export interface Photo extends LayoutPhoto {
   id: string;
   /** File name, used in messages. */
   name: string;
+  /** The page of a book this photo is on (0 for the first); unused outside Book. */
+  bookPage?: number;
 }
 
 export type ImageFormat = "png" | "jpeg";
@@ -107,6 +109,8 @@ export interface Placement {
   photoIndex: number;
   /** The cell the photo is shown in. Cells tile the page exactly. */
   cell: Rect;
+  /** In a book: the page this cell is on (0 for the first). */
+  page?: number;
 }
 
 export interface Layout {
@@ -115,4 +119,9 @@ export interface Layout {
   /** Page height in layout units: the poster height / width ratio. */
   height: number;
   placements: Placement[];
+  /**
+   * In a book: where each page is in the row, in the same units as the cells (`x` and `w` are
+   * shares of the whole width; a page is as high as the layout).
+   */
+  pages?: { x: number; w: number }[];
 }

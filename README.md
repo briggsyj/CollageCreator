@@ -52,6 +52,7 @@ general information, not legal advice.
 - A refresh keeps your photos, sizes and settings (saved in this browser only; removing photos deletes them)
 - Choose the **number of columns** for Mosaic, or leave it on automatic (the original's choice)
 - Poster size in pixels: Screen, A4, A3, A2 and B1 (300 DPI) and social presets, each in landscape or portrait, or a custom width and height; sizes your browser cannot produce are reduced to the largest available
+- A **Book** layout: several pages in a row, each arranged on its own and saved as its own image (a zip of them); photos fill the pages in order and can be swapped or moved between pages
 - An **Instagram post** size: one wide collage, previewed whole with dashed cut marks, saved as a zip of square images numbered `_1`, `_2`, … from left to right
 - Border colour (swatches or any colour), thickness (0.5 % white by default), corner style (square, slightly rounded or rounded), and an option to leave out the border around the whole collage
 - Swap two photos by clicking or from the keyboard; remove photos from the collage (Delete), all at once, with undo
@@ -82,6 +83,16 @@ that only allows its own files.
 To publish your own copy of the fork, enable it once under **Settings → Pages → Build and
 deployment → Source: GitHub Actions**; later pushes to `master` deploy automatically. The build
 uses relative paths, so it works under any `/<repo>/` sub-path.
+
+### Pull request previews
+
+Each pull request is also built and published to
+`https://<user>.github.io/<repo>/pr-preview/pr-<number>/` by the
+[PR preview workflow](.github/workflows/preview.yaml), with a comment on the pull request that
+links to it; the preview is removed when the pull request is closed. It needs **Settings → Pages →
+Source: Deploy from a branch → `gh-pages`**, which the Pages workflow keeps up to date with the
+main site, so the main site keeps working. Previews share the main site's browser storage (same
+origin), so saved work appears in both. Pull requests from forks get no preview.
 
 ## Run with Docker
 

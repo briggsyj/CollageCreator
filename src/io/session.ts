@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2026 John Briggs
 
+import { BOOK_MAX_PAGES, normalisePageCount, normalisePerPage } from "../core/book";
 import { clampCrop, isDefaultCrop } from "../core/crop";
 import { normaliseSplit } from "../core/split";
 import {
@@ -23,6 +24,8 @@ export interface SavedPhoto {
   span: PhotoSpan;
   /** Absent for a photo shown the plain way. */
   crop?: PhotoCrop;
+  /** In a book: the page the photo is on (0 for the first). */
+  page?: number;
 }
 
 export interface SavedSession {
@@ -33,6 +36,8 @@ export interface SavedSession {
   columns: number | undefined;
   /** Mosaic or Gallery; absent in work saved before Gallery existed (that was Mosaic). */
   layoutStyle?: LayoutStyle;
+  /** Present when the work is a book: how many pages, and how many photos a page takes. */
+  book?: { pages: number; perPage: number };
   settings: PosterSettings;
 }
 
@@ -156,6 +161,16 @@ export function isSpan(value: unknown): value is PhotoSpan {
   );
 }
 
+function isBookState(value: unknown): value is { pages: number; perPage: number } {
+  const b = value as { pages?: unknown; perPage?: unknown } | null;
+  return (
+    typeof b === "object" &&
+    b !== null &&
+    typeof b.pages === "number" &&
+    typeof b.perPage === "number"
+  );
+}
+
 export function isCrop(value: unknown): value is PhotoCrop {
   const c = value as Partial<PhotoCrop> | null;
   return (
@@ -202,6 +217,9 @@ export function checkSession(raw: unknown, defaults: PosterSettings): SavedSessi
     if (typeof p?.key !== "string") continue;
     const photo: SavedPhoto = { key: p.key, span: isSpan(p.span) ? p.span : { ...NO_SPAN } };
     if (isCrop(p.crop) && !isDefaultCrop(p.crop)) photo.crop = clampCrop(p.crop);
+    if (typeof p.page === "number" && Number.isInteger(p.page) && p.page >= 0) {
+      photo.page = Math.min(BOOK_MAX_PAGES - 1, p.page);
+    }
     photos.push(photo);
   }
   const seed = r.seed;
@@ -214,6 +232,14 @@ export function checkSession(raw: unknown, defaults: PosterSettings): SavedSessi
         : 0,
     columns: typeof r.columns === "number" && r.columns >= 1 ? Math.floor(r.columns) : undefined,
     layoutStyle: r.layoutStyle === "gallery" ? "gallery" : "mosaic",
+    ...(isBookState(r.book)
+      ? {
+          book: {
+            pages: normalisePageCount(r.book.pages),
+            perPage: normalisePerPage(r.book.perPage),
+          },
+        }
+      : {}),
     settings: checkSettings(r.settings, defaults),
   };
 }

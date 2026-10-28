@@ -16,7 +16,7 @@
 - Progress reads "Page 2 of 5" and counts photos as now; Cancel stops and discards the partial zip.
 - Empty pages are skipped, the notice says which, and the numbers follow the pages saved.
 - "Save this page" (beside Save, and in the page label's menu) saves only the selected or current page as one image.
-- The book is kept over a refresh and in the address (seed and page count), like the other layouts.
+- The book is kept over a refresh (pages, photos per page and each photo's page). The address carries the seed only, as for the other layouts.
 
 ## Open questions
 
