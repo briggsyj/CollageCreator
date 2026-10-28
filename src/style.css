@@ -1503,8 +1503,6 @@ button.notices-toggle {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  /* The lowest the add-page button goes, so it is never cut off by the edge. */
-  --add-page-floor: calc(100% - 64px);
 }
 
 #preview {
@@ -1956,10 +1954,6 @@ dialog .button-row {
   .modes button {
     width: 52px;
     min-height: 52px;
-  }
-
-  .canvas-box {
-    --add-page-floor: calc(100% - var(--inset) - 184px);
   }
 
   .status-pill {

@@ -187,12 +187,32 @@ test.describe("A collage is a book of one page", () => {
       Math.abs((at?.x ?? 0) + (at?.width ?? 0) - ((canvas?.x ?? 0) + sheet.x + sheet.w)),
     ).toBeLessThan(2);
     expect(at?.y ?? 0).toBeGreaterThan((canvas?.y ?? 0) + sheet.y + sheet.h);
-    for (let n = 2; n <= 5; n++) {
+    for (let n = 2; n <= 3; n++) {
       await page.click("#add-page-tile");
       await expect(page.locator("#photo-list .page-group")).toHaveCount(n);
       await previewIdle(page);
       expect(await page.locator("#add-page-tile").boundingBox()).toEqual(at);
     }
+  });
+
+  test("Add page hides with the page pills when the pages are small on screen", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 900, height: 700 });
+    await setSize(page, 320, 240);
+    await addPhotos(page, await makeImages(page, names(3)));
+    await addPages(page, 2);
+    await expect(page.locator(".page-pill")).toHaveCount(2);
+    await expect(page.locator("#add-page-tile")).toBeVisible();
+    // A third page makes every page too small on screen for its pill, and Add page goes too.
+    await page.click("#add-page-tile");
+    await expect(page.locator("#photo-list .page-group")).toHaveCount(3);
+    await expect(page.locator(".page-pill")).toHaveCount(0);
+    await expect(page.locator("#add-page-tile")).toHaveCount(0);
+    // Zoomed in, both come back.
+    await page.click("#zoom-in");
+    await page.click("#zoom-in");
+    await expect(page.locator("#add-page-tile")).toBeVisible();
   });
 });
 

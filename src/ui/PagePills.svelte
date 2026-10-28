@@ -24,6 +24,12 @@
    */
   let held = $state<{ left: number; top: number } | null>(null);
   const addPos = $derived(held ?? addAt);
+  /** The last page's width on screen: the add button hides when the pills would (zoomed out). */
+  const lastWidth = $derived.by(() => {
+    if (!box) return 0;
+    const last = pages[pages.length - 1];
+    return last ? last.w * box.w : box.w;
+  });
 </script>
 
 {#if box && app.hasPhotos && app.book}
@@ -91,14 +97,14 @@
     {/each}
 {/if}
 
-{#if box && app.hasPhotos && app.pageCount < app.maxPages}
+{#if box && app.hasPhotos && app.pageCount < app.maxPages && lastWidth >= COMPACT}
     <button
       type="button"
       id="add-page-tile"
       title={tr("Add a blank page after the last one")}
       class="add-page"
       style:left={`${addPos?.left ?? 0}px`}
-      style:top={`min(${addPos?.top ?? 0}px, var(--add-page-floor))`}
+      style:top={`${addPos?.top ?? 0}px`}
       onpointerenter={() => (held = addAt)}
       onpointerleave={() => (held = null)}
       onclick={() => app.addPage()}
