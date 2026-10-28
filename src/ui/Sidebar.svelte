@@ -208,7 +208,11 @@
 
   <div class="util" id="util">
     <div class="util-row">
-      <label class="inline">
+      <!-- A round globe button; the language list opens when it is pressed. -->
+      <label
+        class="help-btn lang-btn"
+        title={`${tr("Language")}: ${languageName(app.lang)}`}
+      >
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="12" cy="12" r="9" />
           <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
@@ -216,6 +220,7 @@
         <span class="sr-only">{tr("Language")}</span>
         <select
           id="language"
+          class="lang-select"
           value={app.lang}
           onchange={(e) => app.chooseLanguage(e.currentTarget.value)}
         >

@@ -963,7 +963,7 @@ test.describe("Removing photos", () => {
   }) => {
     await addPhotos(page, await makeImages(page, SIX));
     const all = await names(page);
-    await expect(page.locator("#undo-remove")).toBeDisabled();
+    await expect(page.locator("#undo-remove")).toBeHidden();
 
     await removeFromList(page, 2);
     await expect(page.locator("#photo-list li")).toHaveCount(5);
@@ -973,7 +973,7 @@ test.describe("Removing photos", () => {
     await page.click("#undo-remove");
     await expect(page.locator("#photo-list li")).toHaveCount(6);
     expect(await names(page)).toEqual(all);
-    await expect(page.locator("#undo-remove")).toBeDisabled();
+    await expect(page.locator("#undo-remove")).toBeHidden();
   });
 
   test("the orange keyboard ring shows only once the keyboard is used", async ({ page }) => {

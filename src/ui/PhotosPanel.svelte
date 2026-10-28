@@ -159,7 +159,7 @@
         id="undo-remove"
         title={tr("Put back the photos removed last")}
         class="link"
-        disabled={app.removed === null}
+        hidden={app.removed === null}
         onclick={() => app.undoRemove()}
       >
         {tr("Undo remove")}
