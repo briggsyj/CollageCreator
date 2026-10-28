@@ -71,7 +71,7 @@
     <li>
       <strong>{tr("Book")}</strong>:
       <span
-        >{tr("in Style, choose Book for several pages in a row, each saved as its own image. Swap works between pages.")}</span
+        >{tr("press Add page under the collage for more pages in a row, each saved as its own image. Swap works between pages.")}</span
       >
     </li>
   </ul>

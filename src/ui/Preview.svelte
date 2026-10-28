@@ -8,6 +8,7 @@
   import { posterOrigin, posterSize } from "../render/view";
   import { onWheel } from "./actions";
   import { app } from "./app-state.svelte";
+  import PagePills from "./PagePills.svelte";
   import { tr } from "./tr.svelte";
 
   let box: HTMLElement;
@@ -91,7 +92,14 @@
     const layout = app.layout;
     if (!layout) {
       lastRects = [];
+      if (app.posterBox !== null) app.posterBox = null;
       return;
+    }
+    // Where the page controls go: they are buttons over the canvas, placed from this box.
+    const at = { x: ox / dpr, y: oy / dpr, w: pw / dpr, h: ph / dpr };
+    const was = app.posterBox;
+    if (!was || was.x !== at.x || was.y !== at.y || was.w !== at.w || was.h !== at.h) {
+      app.posterBox = at;
     }
 
     // The poster's white sheet and shadow; a book has one for each page.
@@ -132,20 +140,29 @@
     if (settings.splitImages > 1) {
       const colour =
         getComputedStyle(document.documentElement).getPropertyValue("--sub").trim() || "#3b3b37";
-      drawSplitMarks(
-        ctx,
-        { x: ox, y: oy, w: pw, h: ph },
-        settings.splitImages,
-        dpr,
-        colour,
-        t("Cut along the dashed lines: the collage is split into %(n)s images for the post.", {
-          n: settings.splitImages,
-        }),
-      );
+      // Every page of a book made for a post has its own cuts; one note is enough.
+      (layout.pages ?? [{ x: 0, w: 1 }]).forEach((page, k) => {
+        const x = Math.round(page.x * pw);
+        drawSplitMarks(
+          ctx,
+          { x: ox + x, y: oy, w: Math.round((page.x + page.w) * pw) - x, h: ph },
+          settings.splitImages,
+          dpr,
+          colour,
+          k > 0
+            ? ""
+            : t(
+                "Cut along the dashed lines: the collage is split into %(n)s images for the post.",
+                {
+                  n: settings.splitImages,
+                },
+              ),
+        );
+      });
     }
   }
 
-  /** A book's labels under the pages, and an outline round the page of the selected photo. */
+  /** A book's empty pages, and an outline round the page of the selected photo. */
   function drawPageMarks(
     ctx: CanvasRenderingContext2D,
     layout: Layout,
@@ -164,9 +181,6 @@
       const x = poster.x + Math.round(page.x * poster.w);
       const w = Math.round((page.x + page.w) * poster.w) - Math.round(page.x * poster.w);
       const photos = app.pageCounts[k] ?? 0;
-      const label = t("Page %(n)s of %(total)s", { n: k + 1, total: pages.length });
-      const text = photos === 0 ? `${label} · ${t("empty")}` : label;
-      ctx.fillText(text, x + w / 2, poster.y + poster.h + 10 * dpr, w);
       if (photos === 0) {
         ctx.setLineDash([6 * dpr, 4 * dpr]);
         ctx.strokeStyle = colour;
@@ -477,6 +491,7 @@
     }}
     onblur={() => (app.canvasFocused = false)}
   ></canvas>
+  <PagePills />
   <section
     id="empty-state"
     class="empty"

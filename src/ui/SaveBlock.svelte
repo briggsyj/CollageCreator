@@ -9,16 +9,17 @@
 
   const kind = $derived(app.settings.format === "jpeg" ? "JPEG" : "PNG");
   const filledPages = $derived(app.pageCounts.filter((n) => n > 0).length);
+  const post = $derived(app.settings.splitImages > 1);
+  /** Images in a book: one per page, or one per square of every page made for a post. */
+  const bookImages = $derived(filledPages * (post ? app.settings.splitImages : 1));
   const summary = $derived(
-    app.book
-      ? filledPages > 1
-        ? tr("ZIP of %(n)s %(kind)s images, %(w)s × %(h)s px each", {
-            n: filledPages,
-            kind,
-            w: app.settings.width,
-            h: app.settings.height,
-          })
-        : `${kind}, ${app.settings.width} × ${app.settings.height} px`
+    app.book && bookImages > 1
+      ? tr("ZIP of %(n)s %(kind)s images, %(w)s × %(h)s px each", {
+          n: bookImages,
+          kind,
+          w: post ? app.settings.height : app.settings.width,
+          h: app.settings.height,
+        })
       : app.settings.splitImages > 1
         ? tr("ZIP of %(n)s %(kind)s images, %(px)s × %(px)s px each", {
             n: app.settings.splitImages,

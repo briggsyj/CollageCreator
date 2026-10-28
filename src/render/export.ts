@@ -46,6 +46,26 @@ export function extension(format: PosterSettings["format"]): string {
  * few are alive at once. Cancelling terminates the pool's workers.
  */
 export async function exportCollage(input: ExportInput): Promise<Blob> {
+  const pieces = await exportPieces(input);
+  const { settings } = input;
+  const count = settings.splitImages;
+  if (count < 2) return pieces[0] as Blob;
+  // One square image per part of the collage, named in order from the leftmost.
+  const names = splitFileNames(input.baseName ?? "collage", count, extension(settings.format));
+  const entries = await Promise.all(
+    pieces.map(async (blob, i) => ({
+      name: names[i] as string,
+      data: new Uint8Array(await blob.arrayBuffer()),
+    })),
+  );
+  return zipBlob(entries);
+}
+
+/**
+ * The images of one page: one image, or for a page made for a multi-image post one square
+ * image per part, from the leftmost.
+ */
+export async function exportPieces(input: ExportInput): Promise<Blob[]> {
   const { layout, photos, settings, pool, signal, onProgress } = input;
   const { width, height } = settings;
   const canvas = new OffscreenCanvas(width, height);
@@ -104,21 +124,18 @@ export async function exportCollage(input: ExportInput): Promise<Blob> {
       quality: settings.format === "jpeg" ? settings.jpegQuality : undefined,
     };
     const count = settings.splitImages;
-    if (count < 2) return await canvas.convertToBlob(options);
+    if (count < 2) return [await canvas.convertToBlob(options)];
 
-    // One square image per part of the collage, named in order from the leftmost.
-    const names = splitFileNames(input.baseName ?? "collage", count, extension(settings.format));
-    const entries = [];
-    for (const [i, part] of sliceRects(count, height).entries()) {
+    const pieces: Blob[] = [];
+    for (const part of sliceRects(count, height)) {
       if (signal?.aborted) throw new DOMException("Cancelled", "AbortError");
       const piece = new OffscreenCanvas(part.w, part.h);
       const pieceCtx = piece.getContext("2d");
       if (!pieceCtx) throw new Error("2D canvas is not available");
       pieceCtx.drawImage(canvas, part.x, part.y, part.w, part.h, 0, 0, part.w, part.h);
-      const blob = await piece.convertToBlob(options);
-      entries.push({ name: names[i] as string, data: new Uint8Array(await blob.arrayBuffer()) });
+      pieces.push(await piece.convertToBlob(options));
     }
-    return zipBlob(entries);
+    return pieces;
   } finally {
     signal?.removeEventListener("abort", abort);
   }

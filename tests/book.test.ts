@@ -5,6 +5,7 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   BOOK_MAX_PAGES,
+  BookPage,
   bookFileNames,
   countsPerPage,
   fillPage,
@@ -35,7 +36,10 @@ describe("book pages", () => {
 
   it("fills the first page with room, then adds a page, up to the limit", () => {
     expect(fillPage([], 6)).toBe(0);
-    expect(fillPage([6], 6)).toBe(1);
+    // One page takes every photo, however many.
+    expect(fillPage([6], 6)).toBe(0);
+    expect(fillPage([40], 6)).toBe(0);
+    expect(fillPage([6, 6], 6)).toBe(2);
     expect(fillPage([6, 2], 6)).toBe(1);
     expect(fillPage([6, 6], 6)).toBe(2);
     // A blank page added by hand takes the next photos.
@@ -169,6 +173,23 @@ describe("a book's layout", () => {
     expect(cellOf(after, 8)).toEqual(a);
     expect(after.placements.find((p) => p.photoIndex === 0)?.page).toBe(2);
     expect(book.pageOfPhoto(8)).toBe(0);
+  });
+
+  it("a one-page collage can be wrapped into a book and given more pages as it is", () => {
+    const sub = generateBook("mosaic", photos(5), [0, 0, 0, 0, 0], 1, ratio, 3);
+    const plain = sub.toLayout();
+    const book = BookPage.wrap(sub, 5, ratio);
+    expect(book.pageCount).toBe(1);
+    book.addPage();
+    const layout = book.toLayout();
+    expect(layout.pages).toHaveLength(2);
+    expect(pagesWithPhotos(layout)).toEqual([0]);
+    // Page one is the same collage as before (page widths changed, so compare shapes).
+    const first = pageLayout(layout, 0);
+    expect(first.placements.map((p) => p.photoIndex)).toEqual(
+      plain.placements.map((p) => p.photoIndex),
+    );
+    expect(first.placements[0]?.cell.w).toBeCloseTo(plain.placements[0]?.cell.w ?? -1, 9);
   });
 
   it("pages can be added and moved without re-arranging the others", () => {

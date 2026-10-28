@@ -47,9 +47,11 @@ export function countsPerPage(pageOf: readonly number[], pages: number): number[
 
 /**
  * The page the next photo goes to: the first page with room, else a new page after the last
- * (until the limit, then the last page).
+ * (until the limit, then the last page). With one page, always that page.
  */
 export function fillPage(counts: readonly number[], perPage: number): number {
+  // A single page takes every photo: pages are only added by hand until there are two.
+  if (counts.length <= 1) return 0;
   const room = counts.findIndex((n) => n < perPage);
   if (room >= 0) return room;
   return Math.min(counts.length, BOOK_MAX_PAGES - 1);
@@ -112,6 +114,11 @@ export class BookPage implements LayoutPage {
     private maps: number[][],
     private ratio: number,
   ) {}
+
+  /** A one-page collage as page one of a book, so more pages can be added to it as it is. */
+  static wrap(sub: LayoutPage, photoCount: number, ratio: number): BookPage {
+    return new BookPage([sub], [Array.from({ length: photoCount }, (_, i) => i)], ratio);
+  }
 
   get pageCount(): number {
     return this.subs.length;

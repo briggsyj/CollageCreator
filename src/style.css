@@ -228,6 +228,8 @@ body:has(.app[data-empty="true"]) {
 .side,
 .modes,
 .pill,
+.page-pill,
+.add-page,
 .zoomers .sq,
 .help-btn,
 .dock,
@@ -1302,6 +1304,74 @@ body.dragging .canvas-box {
 
 .pill:empty {
   display: none;
+}
+
+/* The controls of a page: a pill above it (two or more pages), and the add button below. */
+.page-pill {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -100%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 4px;
+  border-radius: 22px;
+  font-size: 0.85rem;
+  color: var(--sub);
+  white-space: nowrap;
+}
+
+#pages-count {
+  margin-bottom: 10px;
+}
+
+#spread-pages {
+  margin-top: 10px;
+}
+
+.page-label {
+  padding: 0 8px 0 10px;
+  font-weight: 600;
+}
+
+.page-count {
+  font-weight: 400;
+}
+
+.page-pill .icon-btn {
+  width: 32px;
+  min-height: 32px;
+  height: 32px;
+  border-radius: 16px;
+}
+
+.page-icon {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.page-pill .page-remove {
+  color: var(--danger);
+}
+
+.add-page {
+  position: absolute;
+  z-index: 2;
+  transform: translateX(-100%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 16px 0 12px;
+  border-radius: 20px;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
 }
 
 .hint-pill {

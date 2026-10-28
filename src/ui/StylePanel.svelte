@@ -55,7 +55,7 @@
         type="button"
         class="card"
         id="layout-mosaic"
-        aria-pressed={!gallery && !app.book}
+        aria-pressed={!gallery}
         onclick={() => app.chooseLayout("mosaic")}
       >
         <svg viewBox="0 0 40 30" aria-hidden="true">
@@ -75,7 +75,7 @@
         type="button"
         class="card"
         id="layout-gallery"
-        aria-pressed={gallery && !app.book}
+        aria-pressed={gallery}
         onclick={() => app.chooseLayout("gallery")}
       >
         <svg viewBox="0 0 40 30" aria-hidden="true">
@@ -88,39 +88,6 @@
         </svg>
         <b>{tr("Gallery")}</b>
         <small>{tr("The poster is split into panels, one per photo.")}</small>
-      </button>
-      <button
-        type="button"
-        class="card wide-card"
-        id="layout-book"
-        aria-pressed={app.book}
-        onclick={() => app.chooseBook()}
-      >
-        <svg viewBox="0 0 40 30" aria-hidden="true">
-          <rect x="1" y="3" width="11" height="24" rx="1.5" />
-          <rect x="14.5" y="3" width="11" height="24" rx="1.5" />
-          <rect x="28" y="3" width="11" height="24" rx="1.5" />
-        </svg>
-        <b>{tr("Book")}</b>
-        <small>{tr("Several pages in a row, each saved as its own image.")}</small>
-      </button>
-    </fieldset>
-    <fieldset class="seg group" id="book-style" aria-label={tr("Page style")} hidden={!app.book}>
-      <button
-        type="button"
-        id="book-style-mosaic"
-        aria-pressed={!gallery}
-        onclick={() => app.chooseBookStyle("mosaic")}
-      >
-        {tr("Mosaic pages")}
-      </button>
-      <button
-        type="button"
-        id="book-style-gallery"
-        aria-pressed={gallery}
-        onclick={() => app.chooseBookStyle("gallery")}
-      >
-        {tr("Gallery pages")}
       </button>
     </fieldset>
     <div id="columns-block" class="columns-block" hidden={gallery}>

@@ -1,5 +1,7 @@
 # Spec 014: Book (several pages, each its own image)
 
+> Partly superseded by [spec 016](../016-pages-everywhere/spec.md): there is no Book card or mode; a collage is a book of one page, and the page controls appear from the second page. The rest (pages, filling, moving photos, editing) stands.
+
 **Gate**: a collage can be made of several pages shown side by side in the preview; photos can be edited as before and moved between pages; every page has the chosen output size.
 
 ## What it is

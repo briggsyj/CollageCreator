@@ -91,17 +91,18 @@
         </button>
       </div>
     </div>
-    <div class="button-row">
-      <button type="button" id="add-page" disabled={app.pageCount >= app.maxPages} onclick={() => app.addPage()}>
-        {tr("Add page")}
-      </button>
-      <button type="button" id="spread-pages" disabled={!app.hasPhotos} onclick={() => app.spreadPhotos()}>
-        {tr("Spread evenly")}
-      </button>
-    </div>
+    <button
+      type="button"
+      id="spread-pages"
+      class="wide"
+      disabled={!app.hasPhotos}
+      onclick={() => app.spreadPhotos()}
+    >
+      {tr("Spread evenly")}
+    </button>
     <p class="hint">
       {tr(
-        "New photos fill the pages in order and a page is added when all are full. Each page is saved as its own image; several are saved as a zip.",
+        "New photos fill the pages in order and a page is added when all are full. Add a page with the button under the last page. Each page is saved as its own image; several are saved as a zip.",
       )}
     </p>
   </section>

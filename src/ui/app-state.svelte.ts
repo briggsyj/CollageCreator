@@ -25,7 +25,7 @@
 
 import {
   BOOK_MAX_PAGES,
-  type BookPage,
+  BookPage,
   bookFileNames,
   countsPerPage,
   fillPage,
@@ -60,6 +60,7 @@ import {
   SPLIT_MIN,
   SPLIT_SIDE_DEFAULT,
   SPLIT_SIDE_MIN,
+  splitFileNames,
 } from "../core/split";
 import {
   type Layout,
@@ -82,13 +83,16 @@ import {
 import { loadSession, saveSession } from "../io/session";
 import { zipBlob } from "../io/zip";
 import { type CanvasLimits, clampSize, detectLimits, FALLBACK_LIMITS } from "../platform/limits";
-import { exportCollage } from "../render/export";
+import { exportCollage, exportPieces } from "../render/export";
 import { WorkerPool } from "../render/pool";
 import { fitSize } from "../render/preview";
 import { SPLIT_MARGIN } from "../render/splitmarks";
 import { FIT_VIEW, isFit, panBy, type Size, type View, zoomAt, zoomPercent } from "../render/view";
 import { findChoice, orientationOf, SIZE_CHOICES, sizeOf } from "./presets";
 import { parseSeed, withSeed } from "./url";
+
+/** Room (in CSS pixels) kept above a book's pages for their pills, and below for the add button. */
+export const PAGE_PILL_ROOM = 48;
 
 export type Tab = "photos" | "poster" | "style" | "save";
 export type Mode = "pan" | "swap" | "select";
@@ -165,10 +169,12 @@ export class AppState {
   /** Chosen number of columns (Mosaic only); undefined lets the original heuristic decide. */
   columns = $state<number | undefined>(undefined);
   layoutStyle = $state<LayoutStyle>("mosaic");
-  /** Book: several pages in a row, each saved as its own image (`layoutStyle` arranges each page). */
-  book = $state(false);
-  /** How many pages the book has (1 to 20), empty ones included. */
+  /** How many pages there are (1 to 20), empty ones included. A collage is one page. */
   pageCount = $state(1);
+  /** More than one page: the pages are shown in a row, each with its own controls. */
+  book = $derived(this.pageCount > 1);
+  /** Where the poster is in the preview area, in CSS pixels (set by the preview each draw). */
+  posterBox = $state.raw<{ x: number; y: number; w: number; h: number } | null>(null);
   /** How many photos a page takes before the next photo goes to the next page. */
   perPage = $state(PER_PAGE_DEFAULT);
   /** The arrangement. It is changed in place by swaps and resizes, which bump `pageRev`. */
@@ -472,10 +478,8 @@ export class AppState {
   }
 
   chooseLayout(style: LayoutStyle): void {
-    if (this.layoutStyle === style && !this.book) return;
+    if (this.layoutStyle === style) return;
     this.layoutStyle = style;
-    this.book = false;
-    this.reshape();
     this.relayout("search");
   }
 
@@ -509,31 +513,6 @@ export class AppState {
     });
   }
 
-  /** Turn Book on: the photos fill the pages in order; the arrangement is made again. */
-  chooseBook(): void {
-    if (this.book) return;
-    if (this.settings.splitImages > 1) {
-      // The one wide collage of a post becomes one page of the size of a post's image.
-      const side = this.settings.height;
-      this.settings.splitImages = 0;
-      this.applySize(side, side);
-    }
-    this.book = true;
-    this.customSize = false;
-    this.pageCount = Math.max(1, this.pageCount);
-    this.photos = this.withPages(this.photos, []);
-    this.reshape();
-    this.relayout("search");
-    this.setStatus(t("Book: %(n)s page(s).", { n: this.pageCount }));
-  }
-
-  /** The style of each page of a book (Mosaic or Gallery); the book stays a book. */
-  chooseBookStyle(style: LayoutStyle): void {
-    if (this.layoutStyle === style) return;
-    this.layoutStyle = style;
-    this.relayout("search");
-  }
-
   get perPageMin(): number {
     return PER_PAGE_MIN;
   }
@@ -555,9 +534,13 @@ export class AppState {
     this.photos = this.photos.map((p, i) => ({ ...p, bookPage: pageOf[i] ?? 0 }));
   }
 
-  /** A new blank page after the last. */
+  /** A new blank page after the last. The first time, the collage becomes page one of a book. */
   addPage(): void {
-    if (!this.book || this.pageCount >= BOOK_MAX_PAGES) return;
+    if (this.pageCount >= BOOK_MAX_PAGES) return;
+    if (this.page && !this.book) {
+      this.page = BookPage.wrap(this.page, this.photos.length, this.ratio);
+      this.photos = this.photos.map((p) => ({ ...p, bookPage: 0 }));
+    }
     this.pageCount++;
     (this.page as BookPage | null)?.addPage();
     this.pageRev++;
@@ -693,7 +676,9 @@ export class AppState {
           seed: this.seed,
           columns: this.columns,
           layoutStyle: this.layoutStyle,
-          ...(this.book ? { book: { pages: this.pageCount, perPage: this.perPage } } : {}),
+          ...(this.pageCount > 1 || this.perPage !== PER_PAGE_DEFAULT
+            ? { book: { pages: this.pageCount, perPage: this.perPage } }
+            : {}),
           settings: $state.snapshot(this.settings),
         },
         files,
@@ -720,7 +705,6 @@ export class AppState {
         this.columns = saved.session.columns;
         this.layoutStyle = saved.session.layoutStyle ?? "mosaic";
         const book = saved.session.book;
-        this.book = book !== undefined;
         this.pageCount = book?.pages ?? 1;
         this.perPage = book?.perPage ?? PER_PAGE_DEFAULT;
         this.restoreEpoch++;
@@ -786,7 +770,8 @@ export class AppState {
     const padY = this.narrow ? 104 : 72;
     // A collage for a multi-image post keeps room above and below for the cut marks, and a
     // book room below its pages for their labels.
-    const marks = this.settings.splitImages > 1 || this.book ? 2 * SPLIT_MARGIN : 0;
+    const marks =
+      (this.settings.splitImages > 1 ? 2 * SPLIT_MARGIN : 0) + (this.book ? 2 * PAGE_PILL_ROOM : 0);
     const row = this.rowSize;
     const fit = fitSize(
       row.w,
@@ -1111,7 +1096,6 @@ export class AppState {
 
   chooseInstagramPost(): void {
     this.customSize = false;
-    this.book = false;
     this.setSplit(SPLIT_DEFAULT, SPLIT_SIDE_DEFAULT, true);
   }
 
@@ -1291,32 +1275,44 @@ export class AppState {
       });
     }
     const stem = `book-${this.seed}`;
-    const pageSettings = { ...settings, splitImages: 0 };
-    const images: Blob[] = [];
+    const carousel = settings.splitImages > 1;
+    const total = layout.pages?.length ?? 1;
+    const pad = (n: number) => String(n).padStart(String(total).length, "0");
+    // Each page makes one image, or for a page made for a post one image per square.
+    const files: { name: string; blob: Blob }[] = [];
     for (const [i, page] of pages.entries()) {
-      images.push(
-        await exportCollage({
-          layout: pageLayout(layout, page),
-          photos: this.photos,
-          settings: pageSettings,
-          pool: this.exportPool,
-          signal,
-          onProgress: (done, total) => {
-            this.progress = ((i + (total ? done / total : 1)) / pages.length) * 100;
-          },
-        }),
-      );
+      const pieces = await exportPieces({
+        layout: pageLayout(layout, page),
+        photos: this.photos,
+        settings,
+        pool: this.exportPool,
+        signal,
+        onProgress: (done, count) => {
+          this.progress = ((i + (count ? done / count : 1)) / pages.length) * 100;
+        },
+      });
+      if (carousel) {
+        const names = splitFileNames(`${stem}_p${pad(page + 1)}`, pieces.length, ext);
+        for (const [j, blob] of pieces.entries()) files.push({ name: names[j] as string, blob });
+      } else {
+        files.push({ name: "", blob: pieces[0] as Blob });
+      }
     }
-    if (images.length === 1) {
+    if (!carousel) {
+      const names = bookFileNames(stem, files.length, ext);
+      files.forEach((f, i) => {
+        f.name = names[i] as string;
+      });
+    }
+    if (files.length === 1) {
       const name = onlyPage === undefined ? stem : `${stem}_page-${(pages[0] ?? 0) + 1}`;
-      download(images[0] as Blob, `${name}.${ext}`);
+      download((files[0] as { blob: Blob }).blob, `${name}.${ext}`);
       return;
     }
-    const names = bookFileNames(stem, images.length, ext);
     const entries = await Promise.all(
-      images.map(async (blob, i) => ({
-        name: names[i] as string,
-        data: new Uint8Array(await blob.arrayBuffer()),
+      files.map(async (f) => ({
+        name: f.name,
+        data: new Uint8Array(await f.blob.arrayBuffer()),
       })),
     );
     download(zipBlob(entries), `${stem}.zip`);

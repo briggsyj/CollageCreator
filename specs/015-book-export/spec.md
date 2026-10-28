@@ -1,5 +1,7 @@
 # Spec 015: Saving a book
 
+> Extended by [spec 016](../016-pages-everywhere/spec.md): a book of Instagram-post pages saves every page's square images, named `book-<seed>_p<page>_<n>`.
+
 **Gate**: saving a book gives one image per page, in order, each exactly the output size and matching what the preview shows for that page.
 
 ## User stories
