@@ -529,6 +529,22 @@ test.describe("Hand edits and shuffling", () => {
     expect(await pagesOfNames(page)).toEqual([["p02.png"], ["p03.png", "p04.png", "p01.png"]]);
   });
 
+  test("dropping photos on the new page target after the last page makes a page for them", async ({
+    page,
+  }) => {
+    await setSize(page, 320, 240);
+    await addPhotos(page, await makeImages(page, names(4)));
+    await setPages(page, 2);
+    await page.click("#tab-photos");
+    await page.locator("#photo-list .new-page").scrollIntoViewIfNeeded();
+    await page
+      .locator("#photo-list .tile")
+      .first()
+      .dragTo(page.locator("#photo-list .new-page .page-empty"));
+    await expect(page.locator("#photo-list .page-group")).toHaveCount(3);
+    expect(await pagesOfNames(page)).toEqual([["p02.png"], ["p03.png", "p04.png"], ["p01.png"]]);
+  });
+
   test("shuffling asks first after a hand edit, and not again until the next one", async ({
     page,
   }) => {

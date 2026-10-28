@@ -1039,7 +1039,8 @@ dialog h3 {
   color: var(--sub);
 }
 
-.page-group + .page-group {
+.page-group + .page-group,
+.page-group + .new-page {
   margin-top: 14px;
 }
 
@@ -1081,7 +1082,12 @@ dialog h3 {
   text-align: center;
 }
 
-.page-group.drop-target .page-empty {
+.new-page .page-head h4 {
+  color: var(--faint);
+}
+
+.page-group.drop-target .page-empty,
+.new-page.drop-target .page-empty {
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -1398,7 +1404,7 @@ button.notices-toggle {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 0 16px 14px;
+  padding: 12px 16px 14px;
 }
 
 .util-row {

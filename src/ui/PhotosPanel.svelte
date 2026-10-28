@@ -30,6 +30,10 @@
   const DRAG_TYPE = "application/x-collage-photos";
   /** The page a dragged photo is over, to highlight it. */
   let dropPage = $state(-1);
+  /** A photo from the list is being dragged (the "new page" target shows then on one page). */
+  let dragging = $state(false);
+  /** The "new page" target appears after the last page while there is room for one more. */
+  const canAddPage = $derived(app.hasPhotos && app.pageCount < app.maxPages);
 
   function dragStart(e: DragEvent, index: number): void {
     const photo = app.photos[index];
@@ -40,6 +44,21 @@
       : [photo.id];
     e.dataTransfer.setData(DRAG_TYPE, JSON.stringify(ids));
     e.dataTransfer.effectAllowed = "move";
+    dragging = true;
+  }
+
+  /** Photos dropped on the "new page" target: add the page, then move them onto it. */
+  function dropOnNewPage(e: DragEvent): void {
+    const data = e.dataTransfer?.getData(DRAG_TYPE);
+    dropPage = -1;
+    dragging = false;
+    if (!data) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const ids: unknown = JSON.parse(data);
+    if (!Array.isArray(ids)) return;
+    app.addPage();
+    app.movePhotosToPage(ids.map(String), app.pageCount - 1);
   }
 
   function dragOver(e: DragEvent, page: number): void {
@@ -250,9 +269,12 @@
               <button
                 type="button"
                 class="tile"
-                draggable={app.book}
+                draggable={app.book || canAddPage}
                 ondragstart={(e) => dragStart(e, index)}
-                ondragend={() => (dropPage = -1)}
+                ondragend={() => {
+                  dropPage = -1;
+                  dragging = false;
+                }}
                 title={tr("Select %(name)s (Shift-click to select several)", { name: photo.name })}
                 aria-pressed={app.selection.includes(index)}
                 aria-label={app.book
@@ -272,5 +294,26 @@
         </ul>
       </section>
     {/each}
+    <!-- Always there with two or more pages; with one, only while a photo is dragged. -->
+    {#if canAddPage && (app.book || dragging)}
+      <section
+        class="new-page"
+        class:drop-target={dropPage === app.pageCount}
+        aria-label={tr("New page")}
+        ondragover={(e) => dragOver(e, app.pageCount)}
+        ondragleave={(e) => {
+          if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) dropPage = -1;
+        }}
+        ondrop={dropOnNewPage}
+      >
+        <div class="page-head">
+          <h4>
+            {tr("Page %(n)s", { n: app.pageCount + 1 })}
+            <span class="count">· {tr("new")}</span>
+          </h4>
+        </div>
+        <p class="page-empty">{tr("Drop photos here for a new page")}</p>
+      </section>
+    {/if}
   </div>
 </section>
