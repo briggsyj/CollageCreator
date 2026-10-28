@@ -477,6 +477,7 @@ test.describe("Selecting several photos", () => {
     await tiles.nth(2).click({ modifiers: ["Shift"] });
     await expect(page.locator("#dock-name")).toHaveText("2 photos selected");
     await page.click("#remove-selected");
+    await page.click("#confirm-ok");
     await expect(page.locator("#photo-list li")).toHaveCount(3);
     await page.click("#undo-remove");
     await expect(page.locator("#photo-list li")).toHaveCount(5);

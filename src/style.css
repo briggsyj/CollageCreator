@@ -1114,7 +1114,7 @@ dialog h3 {
 }
 
 .move-page {
-  margin-top: 8px;
+  margin: 0;
 }
 
 .photo-list {
@@ -1319,6 +1319,7 @@ button.notices-toggle {
 }
 
 .span-group button {
+  gap: 6px;
   padding: 0 6px;
   font-size: 0.9rem;
   font-weight: 600;
@@ -1330,9 +1331,28 @@ button.notices-toggle {
   color: var(--press-text);
 }
 
-.span-group #crop-toggle,
-.span-group #remove-selected {
-  grid-column: 1 / -1;
+/* Crop: once on, the button and its tools share one recessed panel, so they read as one. */
+.crop-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-radius: calc(var(--r-ctl) + 4px);
+}
+
+.crop-area.open {
+  padding: 6px 6px 10px;
+  background: var(--inset-bg);
+  box-shadow: var(--inset-shadow);
+}
+
+#crop-toggle {
+  gap: 8px;
+}
+
+#crop-toggle[aria-pressed="true"] {
+  background: var(--press-bg);
+  box-shadow: var(--press-shadow);
+  color: var(--press-text);
 }
 
 .crop-tools {
@@ -1340,7 +1360,7 @@ button.notices-toggle {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
-  margin-top: 8px;
+  padding: 0 6px;
 }
 
 .crop-tools .hint {

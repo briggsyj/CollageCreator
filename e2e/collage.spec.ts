@@ -1022,10 +1022,14 @@ test.describe("Removing photos", () => {
     await addPhotos(page, await makeImages(page, SIX));
     await page.locator("#preview").focus();
     await page.keyboard.press("Delete");
+    // It asks first; Enter confirms.
+    await expect(page.locator("#confirm-dialog")).toBeVisible();
+    await page.keyboard.press("Enter");
     await expect(page.locator("#photo-list li")).toHaveCount(5);
     await expect(page.locator("#messages")).toContainText("Removed");
-    // The focus stays on the preview, so the next Delete works too.
+    // The focus goes back to the preview, so the next Delete works too.
     await page.keyboard.press("Backspace");
+    await page.keyboard.press("Enter");
     await expect(page.locator("#photo-list li")).toHaveCount(4);
   });
 
@@ -1042,6 +1046,7 @@ test.describe("Removing photos", () => {
     expect(picked).toBeTruthy();
 
     await page.click("#remove-selected");
+    await page.click("#confirm-ok");
     await expect(page.locator("#photo-list li")).toHaveCount(5);
     expect(await names(page)).not.toContain(picked);
     await expect(page.locator("#remove-selected")).toBeHidden();
@@ -1054,6 +1059,7 @@ test.describe("Removing photos", () => {
       (await page.locator("#messages").textContent()) ?? "",
     )?.[1];
     await page.keyboard.press("Delete");
+    await page.keyboard.press("Enter");
     await expect(page.locator("#photo-list li")).toHaveCount(5);
     expect(await names(page)).not.toContain(picked);
   });
@@ -1079,6 +1085,7 @@ test.describe("Removing photos", () => {
     await addPhotos(page, await makeImages(page, SIX));
     await page.locator("#preview").focus();
     await page.keyboard.press("Delete");
+    await page.keyboard.press("Enter");
     await expect(page.locator("#photo-list li")).toHaveCount(5);
     await page.keyboard.press("Control+z");
     await expect(page.locator("#photo-list li")).toHaveCount(6);
@@ -1428,14 +1435,14 @@ test.describe("Asking for a photo to be bigger", () => {
     await selectPhoto(page, COLORS.red);
     await expect(page.getByRole("button", { name: "Wider" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Taller" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Normal size" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Default size" })).toBeDisabled();
     await page.keyboard.press("Escape");
     await page.locator("#preview").focus();
     await page.keyboard.press("Escape");
     await expect(page.locator("#span-group")).toBeHidden();
   });
 
-  test("Taller gives a photo more of the height, in steps, and Normal size takes it back", async ({
+  test("Taller gives a photo more of the height, in steps, and Default size takes it back", async ({
     page,
   }) => {
     await setSize(page, 400, 400);
@@ -1463,7 +1470,7 @@ test.describe("Asking for a photo to be bigger", () => {
     expect(await shareDown(page, COLORS.red)).toBeCloseTo(normal, 1);
 
     await page.locator("#span-taller").click();
-    await page.getByRole("button", { name: "Normal size" }).click();
+    await page.getByRole("button", { name: "Default size" }).click();
     await expect(page.locator("#span-taller")).toHaveText("Taller");
     await expect(page.locator("#photo-list li").first()).not.toContainText("taller");
     expect(await shareDown(page, COLORS.red)).toBeCloseTo(normal, 1);

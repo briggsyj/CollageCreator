@@ -440,6 +440,7 @@ export async function swapMode(page: Page): Promise<void> {
 export async function removeFromList(page: Page, index: number): Promise<void> {
   await page.locator("#photo-list li button").nth(index).click();
   await page.click("#remove-selected");
+  await page.click("#confirm-ok");
 }
 /** The files in a ZIP archive, in the order they are listed (stored or deflated entries are read as stored). */
 export function readZip(zip: Buffer): { name: string; data: Buffer }[] {

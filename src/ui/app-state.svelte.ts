@@ -1156,15 +1156,30 @@ export class AppState {
   }
 
   removeSelected(): void {
-    const photos = this.selection.flatMap((i) => this.photos[i] ?? []);
+    this.askRemovePhotos(this.selection.flatMap((i) => this.photos[i] ?? []));
+  }
+
+  /** Ask, then take these photos out (Undo remove brings them back). */
+  askRemovePhotos(photos: readonly ImportedPhoto[]): void {
     const first = photos[0];
     if (!first) return;
-    this.removePhotos(
-      new Set(photos.map((p) => p.id)),
-      photos.length === 1
-        ? t("Removed %(name)s.", { name: first.name })
-        : t("Removed %(n)s photos.", { n: photos.length }),
-    );
+    const one = photos.length === 1;
+    this.confirm({
+      title: one
+        ? t("Remove %(name)s?", { name: first.name })
+        : t("Remove %(n)s photos?", { n: photos.length }),
+      text: one
+        ? t("The photo is taken out of the collage. Undo remove brings it back.")
+        : t("The photos are taken out of the collage. Undo remove brings them back."),
+      action: t("Remove"),
+      run: () =>
+        this.removePhotos(
+          new Set(photos.map((p) => p.id)),
+          one
+            ? t("Removed %(name)s.", { name: first.name })
+            : t("Removed %(n)s photos.", { n: photos.length }),
+        ),
+    });
   }
 
   /** Ask, then take every photo out and go back to one page. Undo remove brings them back. */

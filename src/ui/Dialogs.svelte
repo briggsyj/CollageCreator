@@ -19,8 +19,11 @@
     };
     for (const name of Object.keys(shown) as DialogName[]) {
       const dialog = shown[name];
-      if (app.dialog === name && !dialog.open) dialog.showModal();
-      else if (app.dialog !== name && dialog.open) dialog.close();
+      if (app.dialog === name && !dialog.open) {
+        dialog.showModal();
+        // Enter confirms (the main button has the focus); Escape cancels.
+        if (name === "confirm") dialog.querySelector<HTMLElement>("#confirm-ok")?.focus();
+      } else if (app.dialog !== name && dialog.open) dialog.close();
     }
   });
 

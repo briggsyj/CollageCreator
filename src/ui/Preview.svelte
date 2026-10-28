@@ -482,9 +482,7 @@
       const photoIndex = app.selected ?? layout.placements[order[app.focused] ?? -1]?.photoIndex;
       const photo = photoIndex === undefined ? undefined : app.photos[photoIndex];
       e.preventDefault();
-      if (photo) {
-        app.removePhotos(new Set([photo.id]), t("Removed %(name)s.", { name: photo.name }));
-      }
+      if (photo) app.askRemovePhotos([photo]);
       return;
     }
     if (e.key === "ArrowRight" || e.key === "ArrowDown") {
