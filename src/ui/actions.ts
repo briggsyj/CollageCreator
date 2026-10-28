@@ -8,8 +8,14 @@
 export function pullToClose(head: HTMLElement, close: () => void): { destroy(): void } {
   const sheet = head.parentElement;
   let from: number | null = null;
+  /** The latest pull, applied once a frame: setting it on every move restyles the glass sheet. */
+  let pull = 0;
+  let frame = 0;
   const reset = () => {
     from = null;
+    cancelAnimationFrame(frame);
+    frame = 0;
+    sheet?.classList.remove("pulling");
     sheet?.style.removeProperty("--drag");
   };
   const down = (e: PointerEvent) => {
@@ -17,10 +23,15 @@ export function pullToClose(head: HTMLElement, close: () => void): { destroy(): 
     from = e.clientY;
     head.setPointerCapture(e.pointerId);
     sheet?.classList.remove("rise");
+    sheet?.classList.add("pulling");
   };
   const move = (e: PointerEvent) => {
     if (from === null) return;
-    sheet?.style.setProperty("--drag", `${Math.max(0, e.clientY - from)}px`);
+    pull = Math.max(0, e.clientY - from);
+    frame ||= requestAnimationFrame(() => {
+      frame = 0;
+      if (from !== null) sheet?.style.setProperty("--drag", `${pull}px`);
+    });
   };
   const up = (e: PointerEvent) => {
     if (from === null) return;
@@ -83,6 +94,104 @@ export function showValue(
     update(next) {
       if (!(next.sticky && next.again === last.again)) node.value = next.value;
       last = next;
+    },
+  };
+}
+
+/** What a touch drag reports to the page that uses it. */
+export interface TouchDragHandlers {
+  /** The finger has been held still long enough: the drag begins here. Return false to refuse. */
+  start(x: number, y: number): boolean;
+  move(x: number, y: number): void;
+  /** The finger was lifted where the drag ended (or the drag was cancelled: `dropped` false). */
+  end(x: number, y: number, dropped: boolean): void;
+}
+
+/** How long a finger stays still on a photo before it can be dragged. */
+const HOLD_MS = 350;
+/** Moving further than this before then is a scroll, not a drag. */
+const HOLD_SLOP = 8;
+
+/**
+ * Drag with a finger: press and hold, then move. Browsers do not offer HTML drag and drop for
+ * touch, so the Photos step uses this on phones. Before the hold the list scrolls as usual;
+ * once the drag has begun, scrolling stops until the finger is lifted, and the click that
+ * follows the lift is swallowed so the photo is not also selected.
+ */
+export function touchDrag(
+  node: HTMLElement,
+  handlers: TouchDragHandlers,
+): { update(h: TouchDragHandlers): void; destroy(): void } {
+  let h = handlers;
+  let timer = 0;
+  let start: { x: number; y: number; id: number } | null = null;
+  let dragging = false;
+  let swallowClick = false;
+  let last = { x: 0, y: 0 };
+
+  const clear = () => {
+    clearTimeout(timer);
+    start = null;
+  };
+  const down = (e: PointerEvent) => {
+    if (e.pointerType !== "touch") return;
+    start = { x: e.clientX, y: e.clientY, id: e.pointerId };
+    last = { x: e.clientX, y: e.clientY };
+    timer = window.setTimeout(() => {
+      if (!start) return;
+      dragging = h.start(last.x, last.y);
+      if (dragging) navigator.vibrate?.(10);
+    }, HOLD_MS);
+  };
+  const move = (e: PointerEvent) => {
+    if (!start || e.pointerId !== start.id) return;
+    last = { x: e.clientX, y: e.clientY };
+    if (dragging) h.move(e.clientX, e.clientY);
+    else if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > HOLD_SLOP) clear();
+  };
+  const up = (e: PointerEvent) => {
+    if (!start || e.pointerId !== start.id) return;
+    if (dragging) {
+      h.end(e.clientX, e.clientY, e.type === "pointerup");
+      swallowClick = e.type === "pointerup";
+    }
+    dragging = false;
+    clear();
+  };
+  // Only a touchmove can stop the page scrolling, and only while the drag is on.
+  const touchmove = (e: TouchEvent) => {
+    if (dragging) e.preventDefault();
+  };
+  const click = (e: MouseEvent) => {
+    if (!swallowClick) return;
+    swallowClick = false;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  };
+  // A long press would otherwise open the browser's own menu for the photo.
+  const contextmenu = (e: Event) => {
+    if (start || dragging) e.preventDefault();
+  };
+  node.addEventListener("pointerdown", down);
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+  window.addEventListener("pointercancel", up);
+  node.addEventListener("touchmove", touchmove, { passive: false });
+  node.addEventListener("click", click, true);
+  node.addEventListener("contextmenu", contextmenu);
+  return {
+    update(next) {
+      h = next;
+    },
+    destroy() {
+      clear();
+      node.removeEventListener("pointerdown", down);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+      node.removeEventListener("touchmove", touchmove);
+      node.removeEventListener("click", click, true);
+      node.removeEventListener("contextmenu", contextmenu);
     },
   };
 }

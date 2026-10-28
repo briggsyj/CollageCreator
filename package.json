@@ -22,6 +22,7 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "check:headers": "node scripts/check-headers.mjs",
+    "check:i18n": "node scripts/check-i18n.mjs",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "bench": "tsx scripts/bench-layout.ts"

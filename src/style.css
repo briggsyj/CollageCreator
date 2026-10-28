@@ -694,7 +694,8 @@ select {
   background: var(--knob);
   border: var(--ctl-border);
   box-shadow: var(--ctl-shadow);
-  transition: left var(--t) cubic-bezier(0.3, 0.9, 0.3, 1);
+  /* Moved with translate, which the browser animates without laying the page out again. */
+  transition: translate var(--t) cubic-bezier(0.3, 0.9, 0.3, 1);
 }
 
 .switch input:checked {
@@ -702,7 +703,7 @@ select {
 }
 
 .switch input:checked::before {
-  left: 23px;
+  translate: 20px -50%;
 }
 
 /* Colours. */
@@ -984,6 +985,15 @@ dialog h3 {
   border-radius: 24px;
 }
 
+/* The round help button in the phone header: as wide as it is tall. */
+.icon-btn.help-btn {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+}
+
 .tabs {
   flex: none;
   display: flex;
@@ -1144,6 +1154,27 @@ dialog h3 {
   border: 0;
   box-shadow: none;
   text-align: left;
+}
+
+/* No browser menu or text selection on a long press: it starts a drag on phones. */
+.tile {
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+.drag-ghost {
+  position: fixed;
+  z-index: 50;
+  transform: translate(-50%, calc(-100% - 18px));
+  padding: 6px 12px;
+  border-radius: 14px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
 }
 
 .tile canvas {
@@ -1481,8 +1512,6 @@ button.notices-toggle {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  /* The lowest the add-page button goes, so it is never cut off by the edge. */
-  --add-page-floor: calc(100% - 64px);
 }
 
 #preview {
@@ -1868,6 +1897,12 @@ dialog .button-row {
     animation: sheet-rise var(--t-sheet) cubic-bezier(0.2, 0.85, 0.25, 1);
   }
 
+  /* While a sheet is pulled down by its head, keep it on its own layer so moving it is cheap. */
+  .sheet.pulling,
+  .save-block.pulling {
+    will-change: transform;
+  }
+
   .sheet-head {
     touch-action: none;
   }
@@ -1928,10 +1963,6 @@ dialog .button-row {
   .modes button {
     width: 52px;
     min-height: 52px;
-  }
-
-  .canvas-box {
-    --add-page-floor: calc(100% - var(--inset) - 184px);
   }
 
   .status-pill {

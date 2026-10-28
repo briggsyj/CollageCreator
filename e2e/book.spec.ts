@@ -187,12 +187,32 @@ test.describe("A collage is a book of one page", () => {
       Math.abs((at?.x ?? 0) + (at?.width ?? 0) - ((canvas?.x ?? 0) + sheet.x + sheet.w)),
     ).toBeLessThan(2);
     expect(at?.y ?? 0).toBeGreaterThan((canvas?.y ?? 0) + sheet.y + sheet.h);
-    for (let n = 2; n <= 5; n++) {
+    for (let n = 2; n <= 3; n++) {
       await page.click("#add-page-tile");
       await expect(page.locator("#photo-list .page-group")).toHaveCount(n);
       await previewIdle(page);
       expect(await page.locator("#add-page-tile").boundingBox()).toEqual(at);
     }
+  });
+
+  test("Add page hides with the page pills when the pages are small on screen", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 900, height: 700 });
+    await setSize(page, 320, 240);
+    await addPhotos(page, await makeImages(page, names(3)));
+    await addPages(page, 2);
+    await expect(page.locator(".page-pill")).toHaveCount(2);
+    await expect(page.locator("#add-page-tile")).toBeVisible();
+    // A third page makes every page too small on screen for its pill, and Add page goes too.
+    await page.click("#add-page-tile");
+    await expect(page.locator("#photo-list .page-group")).toHaveCount(3);
+    await expect(page.locator(".page-pill")).toHaveCount(0);
+    await expect(page.locator("#add-page-tile")).toHaveCount(0);
+    // Zoomed in, both come back.
+    await page.click("#zoom-in");
+    await page.click("#zoom-in");
+    await expect(page.locator("#add-page-tile")).toBeVisible();
   });
 });
 
@@ -543,6 +563,43 @@ test.describe("Hand edits and shuffling", () => {
       .dragTo(page.locator("#photo-list .new-page .page-empty"));
     await expect(page.locator("#photo-list .page-group")).toHaveCount(3);
     expect(await pagesOfNames(page)).toEqual([["p02.png"], ["p03.png", "p04.png"], ["p01.png"]]);
+  });
+
+  test("on a touch screen, press and hold a photo, then drag it onto another page", async ({
+    page,
+  }) => {
+    await setSize(page, 320, 240);
+    await addPhotos(page, await makeImages(page, names(4)));
+    await setPages(page, 2);
+    await page.click("#tab-photos");
+    const tile = page.locator("#photo-list .tile").first();
+    const from = await tile.boundingBox();
+    const to = await page.locator("#photo-list .page-group").nth(1).boundingBox();
+    if (!from || !to) throw new Error("no layout");
+    const touch = (type: string, x: number, y: number) =>
+      tile.evaluate(
+        (el, a) => {
+          const target = a.type === "pointerdown" ? el : window;
+          target.dispatchEvent(
+            new PointerEvent(a.type, {
+              pointerId: 7,
+              pointerType: "touch",
+              clientX: a.x,
+              clientY: a.y,
+              bubbles: true,
+            }),
+          );
+        },
+        { type, x, y },
+      );
+    await touch("pointerdown", from.x + 20, from.y + 20);
+    // Held still long enough, the drag begins and a label follows the finger.
+    await page.waitForTimeout(500);
+    await touch("pointermove", to.x + 40, to.y + to.height / 2);
+    await expect(page.locator(".drag-ghost")).toContainText("Moving 1 photo");
+    await touch("pointerup", to.x + 40, to.y + to.height / 2);
+    await expect(page.locator(".drag-ghost")).toHaveCount(0);
+    expect(await pagesOfNames(page)).toEqual([["p02.png"], ["p03.png", "p04.png", "p01.png"]]);
   });
 
   test("shuffling asks first after a hand edit, and not again until the next one", async ({

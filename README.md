@@ -116,6 +116,7 @@ npm run dev            # dev server
 npm test               # unit and property tests (Vitest)
 npm run test:e2e       # end-to-end tests (Playwright; first run: npx playwright install)
 npm run lint && npm run typecheck && npm run check:headers
+npm run check:i18n     # which interface strings each language still lacks
 npm run build          # production build in dist/
 npm run bench          # layout benchmark
 ```
@@ -127,6 +128,9 @@ the original author's copyright line and carry a dated "CHANGED on" notice (see 
 such as `src/core/layout.ts`). `npm run check:headers`, also run in CI, enforces both.
 
 ## How the project is organised
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for how the code fits together and
+[CONTRIBUTING.md](CONTRIBUTING.md) for how to contribute.
 
 The project follows spec-driven development (Spec Kit layout). The principles
 are in [.specify/memory/constitution.md](.specify/memory/constitution.md); each
