@@ -551,16 +551,6 @@ select {
   font-weight: 600;
 }
 
-.trim {
-  margin: 14px 0 0;
-  font-size: 0.9rem;
-  line-height: 1.4;
-}
-
-.trim .hint {
-  display: block;
-}
-
 /* An accordion: a recessed row with a chevron that turns when it opens. */
 .technical {
   padding: 0 16px;
@@ -716,14 +706,15 @@ select {
 /* Colours. */
 .swatches {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-wrap: nowrap;
+  gap: 6px;
   align-items: center;
 }
 
 .swatches button {
-  width: 44px;
-  min-height: 44px;
+  width: 28px;
+  min-height: 28px;
+  height: 28px;
   padding: 0;
   border-radius: 50%;
   border: 1px solid rgba(0, 0, 0, 0.35);
@@ -738,15 +729,6 @@ select {
     0 0 0 5px var(--on);
 }
 
-.custom-colour {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 10px;
-  font-weight: 600;
-  color: var(--sub);
-}
-
 input[type="color"] {
   width: 56px;
   height: 36px;
@@ -754,6 +736,164 @@ input[type="color"] {
   border: var(--field-border);
   border-radius: var(--r-ctl);
   background: none;
+}
+
+/* ------------------------------------------------------------ the Style step */
+
+/* A group of settings on a card of its own, so a long step reads as a few short ones. */
+.panel-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border-radius: calc(var(--r-ctl) + 2px);
+  background: var(--ctl-bg);
+  border: var(--ctl-border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.card-title {
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* A label on the left, its control on the right. */
+.inline-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 36px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.inline-row .range {
+  flex: 1;
+  min-width: 0;
+}
+
+.inline-row output {
+  min-width: 3.2em;
+  text-align: right;
+  font-weight: 500;
+  color: var(--sub);
+}
+
+.layout-cards .card {
+  gap: 4px;
+  padding: 8px 10px;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.layout-cards .card svg[viewBox="0 0 40 30"] {
+  width: 28px;
+  height: 21px;
+}
+
+.stepper.mini {
+  gap: 4px;
+}
+
+.stepper.mini button.sq {
+  width: 34px;
+  min-height: 34px;
+  border-radius: 10px;
+}
+
+.stepper.mini input {
+  flex: none;
+  width: 88px;
+  min-height: 34px;
+  padding: 0 6px;
+  font-size: 0.9rem;
+}
+
+.ico16 {
+  width: 16px;
+  height: 16px;
+}
+
+button.mini-btn {
+  min-height: 34px;
+  padding: 0 12px;
+  gap: 6px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+#columns-auto[hidden] {
+  display: none;
+}
+
+.trim {
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: var(--sub);
+}
+
+input.custom-swatch {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  border-radius: 50%;
+  background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);
+  cursor: pointer;
+}
+
+.custom-swatch::-webkit-color-swatch-wrapper {
+  padding: 0;
+  opacity: 0;
+}
+
+.custom-swatch::-moz-color-swatch {
+  opacity: 0;
+}
+
+.corners-seg {
+  flex: none;
+  gap: 2px;
+  padding: 3px;
+}
+
+.corners-seg button {
+  flex: none;
+  width: 40px;
+  min-height: 32px;
+  padding: 0;
+}
+
+.corners-seg .shape {
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: auto;
+  background: #9fb0c4;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+
+.corners-seg .shape.slight {
+  border-radius: 4px;
+}
+
+.corners-seg .shape.rounded {
+  border-radius: 9px;
+}
+
+.panel-card .switch {
+  min-height: 36px;
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 /* ---------------------------------------------------------------- the sidebar */
