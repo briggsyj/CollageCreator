@@ -789,7 +789,7 @@ test.describe("Preview area, zoom and pan", () => {
     await page.mouse.wheel(0, -400);
     await expect.poll(async () => (await posterRect(page)).w).toBeGreaterThan(fit.w * 1.2);
     await expect(page.locator("#reset-view")).toBeEnabled();
-    await expect(page.locator("#view-zoom")).toContainText("Zoom:");
+    await expect(page.locator("#view-zoom")).toContainText("%");
 
     await page.mouse.wheel(0, 1200);
     await expect.poll(async () => (await posterRect(page)).w).toBeLessThan(fit.w);
@@ -797,7 +797,7 @@ test.describe("Preview area, zoom and pan", () => {
     await page.click("#reset-view");
     await expect.poll(async () => (await posterRect(page)).w).toBeCloseTo(fit.w, 0);
     await expect(page.locator("#reset-view")).toBeDisabled();
-    await expect(page.locator("#view-zoom")).toHaveText("");
+    await expect(page.locator("#view-zoom")).toHaveText("100%");
   });
 
   test("zooming keeps the point under the mouse in place", async ({ page }) => {
@@ -817,7 +817,7 @@ test.describe("Preview area, zoom and pan", () => {
     await addPhotos(page, await makeImages(page, FOUR));
     await hover(page, 0.5, 0.5);
     for (let i = 0; i < 12; i++) await page.mouse.wheel(0, -600);
-    await expect(page.locator("#view-zoom")).toHaveText("Zoom: 800%");
+    await expect(page.locator("#view-zoom")).toHaveText("800%");
   });
 
   test("holding Space and dragging moves the collage", async ({ page }) => {
@@ -1679,7 +1679,7 @@ test.describe("Collage Creator: layout, modes, sizes and notices", () => {
   async function zoomInUntilPannable(page: import("@playwright/test").Page) {
     const before = await posterRect(page);
     for (let i = 0; i < 3; i++) await page.click("#zoom-in");
-    await expect(page.locator("#view-zoom")).toContainText("Zoom:");
+    await expect(page.locator("#view-zoom")).toContainText("%");
     await expect.poll(async () => (await posterRect(page)).w).toBeGreaterThan(before.w * 1.3);
   }
 

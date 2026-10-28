@@ -7,6 +7,7 @@
   color-scheme: light dark;
   --text: #1b1b1a;
   --sub: #3b3b37;
+  --faint: #66655e;
   --accent: #1a56b0;
   --danger: #a3221b;
   --focus: #ff9d00;
@@ -63,6 +64,7 @@
   :root {
     --text: #f3f2ee;
     --sub: #cfcdc6;
+    --faint: #a9a79f;
     --accent: #8fb8ff;
     --danger: #f2a09a;
     --stage-bg: #101012;
@@ -227,10 +229,10 @@ body:has(.app[data-empty="true"]) {
 
 .side,
 .modes,
+.zoomers,
 .pill,
 .page-pill,
 .add-page,
-.zoomers .sq,
 .help-btn,
 .dock,
 dialog {
@@ -380,7 +382,8 @@ select {
 
 .seg button,
 .tabs button,
-.modes button {
+.modes button,
+.zoomers .sq {
   background: none;
   border: 0;
   box-shadow: none;
@@ -878,6 +881,11 @@ dialog h3 {
   margin-top: 14px;
 }
 
+#shuffle-pages {
+  flex: none;
+  margin-top: 8px;
+}
+
 .drop-tip {
   margin: -8px 0 0;
   text-align: center;
@@ -926,7 +934,7 @@ dialog h3 {
 }
 
 #book-style {
-  margin: 8px 0 12px;
+  margin: 12px 0 16px;
 }
 
 .move-page {
@@ -1460,20 +1468,22 @@ body.dragging .canvas-box {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  padding: 4px;
+  border-radius: calc(var(--r-ctl) + 6px);
 }
 
 .zoomers .sq {
+  width: 60px;
   height: 48px;
   font-size: 0.85rem;
-  font-weight: 600;
-  background: var(--ctl-bg);
 }
 
 .zoom-pct {
-  font-size: 0.78rem;
-  color: var(--sub);
-  min-height: 1em;
+  padding: 2px 0 4px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--faint);
 }
 
 dialog {
@@ -1789,8 +1799,20 @@ dialog .button-row {
     max-width: calc(100% - 2 * var(--inset));
   }
 
+  .zoomers {
+    height: 68px;
+    align-items: center;
+  }
+
+  .zoomers .sq {
+    width: 48px;
+    height: 100%;
+  }
+
   .zoom-pct {
-    display: none;
+    min-width: 3.2em;
+    padding: 0 6px;
+    text-align: center;
   }
 }
 
