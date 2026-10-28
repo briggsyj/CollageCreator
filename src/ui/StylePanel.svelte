@@ -23,7 +23,12 @@
   ];
 
   const gallery = $derived(app.layoutStyle === "gallery");
-  const percent = $derived(Math.round(app.settings.borderWidth * 1000) / 10);
+  /**
+   * The border slider runs 0 to 100% of its track, for borders of 0 to 10% of the collage's
+   * longer side (wider looks heavy). It shows how full it is, not the share of the side.
+   */
+  const BORDER_MAX = 0.1;
+  const percent = $derived(Math.round((app.settings.borderWidth / BORDER_MAX) * 100));
   const rangeFill = (value: number, min: number, max: number) =>
     `${Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100))}%`;
   /** Bumped when the columns field should show the stored value again (the edit is done). */
@@ -36,7 +41,9 @@
 
   function setBorderWidth(raw: string): void {
     const pct = Number(raw);
-    app.settings.borderWidth = Number.isFinite(pct) ? Math.min(20, Math.max(0, pct)) / 100 : 0;
+    app.settings.borderWidth = Number.isFinite(pct)
+      ? (Math.min(100, Math.max(0, pct)) / 100) * BORDER_MAX
+      : 0;
   }
 </script>
 
@@ -201,7 +208,7 @@
   <section class="panel-card" aria-labelledby="border-h">
     <h3 id="border-h" class="card-title">{tr("Border")}</h3>
     <div class="inline-row">
-      <span id="bw-h" title={tr("A share of the collage's longer side. 0 removes the border.")}>
+      <span id="bw-h" title={tr("0 removes the border; full is a tenth of the collage's longer side.")}>
         {tr("Thickness")}
       </span>
       <input
@@ -209,11 +216,11 @@
         class="range"
         type="range"
         min="0"
-        max="20"
-        step="0.1"
+        max="100"
+        step="1"
         aria-labelledby="bw-h"
-        title={tr("A share of the collage's longer side. 0 removes the border.")}
-        style:--p={rangeFill(percent, 0, 20)}
+        title={tr("0 removes the border; full is a tenth of the collage's longer side.")}
+        style:--p={rangeFill(percent, 0, 100)}
         use:showValue={{ value: String(percent), again: app.restoreEpoch, sticky: true }}
         oninput={(e) => setBorderWidth(e.currentTarget.value)}
       />

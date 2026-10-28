@@ -400,7 +400,7 @@ test.describe("Photos are shown the right way up", () => {
 test.describe("Collage editing: borders and swapping", () => {
   test("the border colour and thickness show in the saved image", async ({ page }) => {
     await setSize(page, 400, 300);
-    await page.fill("#border-width", "5");
+    await page.fill("#border-width", "50");
     await page.locator("#border-color").fill("#00ff00");
     await addPhotos(
       page,
@@ -417,7 +417,7 @@ test.describe("Collage editing: borders and swapping", () => {
 
   test("preview and saved image match, with a border", async ({ page }) => {
     await setSize(page, 640, 480);
-    await page.fill("#border-width", "2");
+    await page.fill("#border-width", "20");
     await page.locator("#border-color").fill("#202020");
     await addPhotos(page, await makeImages(page, SIX));
     const png = await saveAndRead(page);
@@ -458,6 +458,9 @@ test.describe("Collage editing: borders and swapping", () => {
     await click(a);
     await click(b);
     await expect(page.locator("#messages")).toContainText("Swapped");
+    // Away from the photos, so the hover shade is not read as their colour.
+    await page.mouse.move(1, 1);
+    await settle(page);
 
     const afterA = await previewColor(page, candidates[a]![0], candidates[a]![1]);
     const afterB = await previewColor(page, candidates[b]![0], candidates[b]![1]);
@@ -903,7 +906,7 @@ test.describe("Border default and corner style", () => {
   const RED = [{ name: "a.png", w: 400, h: 300, color: "red" as const }];
 
   test("defaults to a 0.5 % white border and square corners", async ({ page }) => {
-    await expect(page.locator("#border-width")).toHaveValue("0.5");
+    await expect(page.locator("#border-width")).toHaveValue("5");
     await expect(page.locator("#border-color")).toHaveValue("#ffffff");
     await expect(page.locator("#corner-style")).toHaveValue("none");
   });
@@ -917,7 +920,7 @@ test.describe("Border default and corner style", () => {
     page,
   }) => {
     await setSize(page, 400, 300);
-    await page.fill("#border-width", "5");
+    await page.fill("#border-width", "50");
     await page.locator("#border-color").fill("#00ff00");
     await addPhotos(page, await makeImages(page, RED));
 
@@ -943,7 +946,7 @@ test.describe("Border default and corner style", () => {
 
   test("the saved image matches the preview for every corner style", async ({ page }) => {
     await setSize(page, 480, 360);
-    await page.fill("#border-width", "2");
+    await page.fill("#border-width", "20");
     await page.locator("#border-color").fill("#202020");
     await addPhotos(page, await makeImages(page, SIX));
     for (const style of ["none", "slight", "rounded"]) {
@@ -1110,7 +1113,7 @@ test.describe("Removing photos", () => {
 test.describe("The poster's edge", () => {
   test("border seams stay inside the poster", async ({ page }) => {
     await setSize(page, 480, 360);
-    await page.fill("#border-width", "5");
+    await page.fill("#border-width", "50");
     await page.locator("#border-color").fill("#000000");
     await addPhotos(page, await makeImages(page, SIX));
 
@@ -1288,7 +1291,7 @@ test.describe("Border around the whole collage", () => {
 
   test("off: the border stays between photos but not around the collage", async ({ page }) => {
     await setSize(page, 400, 800);
-    await page.fill("#border-width", "5");
+    await page.fill("#border-width", "50");
     await page.locator("#border-color").fill("#00ff00");
     await page.fill("#columns", "1");
     await addPhotos(page, await makeImages(page, TWO));
@@ -1324,7 +1327,7 @@ test.describe("Border around the whole collage", () => {
     page,
   }) => {
     await setSize(page, 400, 800);
-    await page.fill("#border-width", "5");
+    await page.fill("#border-width", "50");
     await page.locator("#border-color").fill("#00ff00");
     await addPhotos(page, await makeImages(page, TWO));
     await page.fill("#columns", "1");
@@ -1374,7 +1377,7 @@ test.describe("Border around the whole collage", () => {
     page,
   }) => {
     await setSize(page, 480, 360);
-    await page.fill("#border-width", "2");
+    await page.fill("#border-width", "20");
     await page.locator("#border-color").fill("#202020");
     await addPhotos(page, await makeImages(page, SIX));
     await page.uncheck("#outer-border");
@@ -1948,7 +1951,7 @@ test.describe("Address, saved work and language", () => {
     await addPhotos(page, await makeImages(page, SIX));
     await removeFromList(page, 0);
     await page.click("#tab-style");
-    await page.fill("#border-width", "3");
+    await page.fill("#border-width", "30");
     await page.click('[data-corner="rounded"]');
     await page.click("#tab-poster");
     await page.fill("#columns", "3");
@@ -1961,7 +1964,7 @@ test.describe("Address, saved work and language", () => {
     await openTechnical(page);
     await expect(page.locator("#seed")).toHaveValue("4242");
     await expect(page.locator("#width")).toHaveValue("480");
-    await expect(page.locator("#border-width")).toHaveValue("3");
+    await expect(page.locator("#border-width")).toHaveValue("30");
     await expect(page.locator('[data-corner="rounded"]')).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator("#columns")).toHaveValue("3");
     await expect(page.locator("#save")).toBeEnabled();

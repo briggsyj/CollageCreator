@@ -3,6 +3,8 @@
 <script lang="ts">
   import type { Layout, Rect } from "../core/types";
   import { t } from "../i18n";
+  import { cornerRadius } from "../render/draw";
+  import { pressPixels } from "../render/press";
   import { drawCollage, drawSelection } from "../render/preview";
   import { drawSplitMarks } from "../render/splitmarks";
   import { posterOrigin, posterSize } from "../render/view";
@@ -139,16 +141,16 @@
     const chosen = new Set(app.selection);
     const hovered = lastRects[hoverCell];
     if (picking && hovered && !chosen.has(photoAt(hoverCell) ?? -1)) {
-      ctx.fillStyle = "rgba(0, 0, 0, 0.14)";
+      ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
       ctx.fillRect(hovered.x, hovered.y, hovered.w, hovered.h);
     }
     for (const photoIndex of app.selection) {
       const i = layout.placements.findIndex((p) => p.photoIndex === photoIndex);
       const rect = lastRects[i];
       if (!rect) continue;
-      // While its crop is adjusted the photo stays in place, outlined; otherwise it is lifted.
+      // While its crop is adjusted the photo is outlined; otherwise it looks pressed in.
       if (app.cropping) drawSelection(ctx, rect, "#1f5fbf");
-      else lift(ctx, rect, ox, oy, dpr);
+      else press(ctx, rect, ox, oy, dpr, cornerRadius(settings.cornerStyle, rect.w, rect.h));
     }
     ctx.restore();
     if (layout.pages) drawPageMarks(ctx, layout, { x: ox, y: oy, w: pw, h: ph }, dpr);
@@ -178,28 +180,37 @@
   }
 
   /**
-   * Draw a selected photo again on top, a little larger and with a shadow, as if lifted
-   * towards the viewer. `rect` is in poster pixels; the context is translated to the poster.
+   * Show a selected photo as pressed in: its middle drawn a little smaller (the edges stay put,
+   * so neighbours and the frame are untouched) with a soft shadow just inside its edges.
+   * `rect` is in poster pixels; the context is translated to the poster.
    */
-  function lift(ctx: CanvasRenderingContext2D, rect: Rect, ox: number, oy: number, dpr: number) {
+  function press(
+    ctx: CanvasRenderingContext2D,
+    rect: Rect,
+    ox: number,
+    oy: number,
+    dpr: number,
+    radius: number,
+  ): void {
+    const x = Math.round(ox + rect.x);
+    const y = Math.round(oy + rect.y);
     const w = Math.max(1, Math.round(rect.w));
     const h = Math.max(1, Math.round(rect.h));
-    const copy = document.createElement("canvas");
-    copy.width = w;
-    copy.height = h;
-    copy.getContext("2d")?.drawImage(canvas, ox + rect.x, oy + rect.y, w, h, 0, 0, w, h);
-    const grow = Math.min(1.04, 1 + (8 * dpr) / Math.max(w, h));
+    const pixels = ctx.getImageData(x, y, w, h);
+    ctx.putImageData(new ImageData(pressPixels(pixels.data, w, h), w, h), x, y);
+    // The inner shadow: a frame round the photo, clipped to it, casting its shadow inwards.
     ctx.save();
-    ctx.shadowColor = "rgba(0, 0, 0, 0.38)";
-    ctx.shadowBlur = 16 * dpr;
-    ctx.shadowOffsetY = 5 * dpr;
-    ctx.drawImage(
-      copy,
-      rect.x - (w * (grow - 1)) / 2,
-      rect.y - (h * (grow - 1)) / 2,
-      w * grow,
-      h * grow,
-    );
+    ctx.beginPath();
+    ctx.roundRect(rect.x, rect.y, rect.w, rect.h, radius);
+    ctx.clip();
+    ctx.beginPath();
+    const pad = 40 * dpr;
+    ctx.rect(rect.x - pad, rect.y - pad, rect.w + 2 * pad, rect.h + 2 * pad);
+    ctx.roundRect(rect.x, rect.y, rect.w, rect.h, radius);
+    ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
+    ctx.shadowBlur = 14 * dpr;
+    ctx.fillStyle = "#000";
+    ctx.fill("evenodd");
     ctx.restore();
   }
 
