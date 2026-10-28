@@ -7,7 +7,7 @@
   let progress: HTMLDialogElement;
   let help: HTMLDialogElement;
   let about: HTMLDialogElement;
-  let removePage: HTMLDialogElement;
+  let confirmBox: HTMLDialogElement;
 
   /** Open the dialog that app.dialog names and close the others. */
   $effect(() => {
@@ -15,7 +15,7 @@
       progress,
       help,
       about,
-      "remove-page": removePage,
+      confirm: confirmBox,
     };
     for (const name of Object.keys(shown) as DialogName[]) {
       const dialog = shown[name];
@@ -44,31 +44,20 @@
 </dialog>
 
 <dialog
-  id="remove-page-dialog"
-  aria-labelledby="remove-page-title"
-  bind:this={removePage}
-  onclose={closed("remove-page")}
+  id="confirm-dialog"
+  aria-labelledby="confirm-title"
+  aria-describedby="confirm-text"
+  bind:this={confirmBox}
+  onclose={closed("confirm")}
 >
-  <h2 id="remove-page-title">{tr("Remove page %(n)s?", { n: app.removingPage + 1 })}</h2>
-  <p>
-    {app.pageCounts[app.removingPage]
-      ? tr("Its photos move to a neighbouring page. The page's own arrangement is lost.")
-      : tr("This page is empty.")}
-  </p>
+  <h2 id="confirm-title">{app.confirming?.title ?? ""}</h2>
+  <p id="confirm-text">{app.confirming?.text ?? ""}</p>
   <div class="button-row">
-    <button type="button" id="remove-page-cancel" onclick={() => (app.dialog = null)}>
+    <button type="button" id="confirm-cancel" onclick={() => (app.dialog = null)}>
       {tr("Cancel")}
     </button>
-    <button
-      type="button"
-      id="remove-page-confirm"
-      class="danger"
-      onclick={() => {
-        app.dialog = null;
-        app.removePage(app.removingPage);
-      }}
-    >
-      {tr("Remove page")}
+    <button type="button" id="confirm-ok" class="danger" onclick={() => app.confirmed()}>
+      {app.confirming?.action ?? ""}
     </button>
   </div>
 </dialog>

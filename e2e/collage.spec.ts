@@ -1061,6 +1061,7 @@ test.describe("Removing photos", () => {
     await addPhotos(page, await makeImages(page, SIX));
     const all = await names(page);
     await page.click("#remove-all");
+    await page.click("#confirm-ok");
     await expect(page.locator("#photo-list li")).toHaveCount(0);
     await expect(page.locator("#save")).toBeDisabled();
     await expect(page.locator("#remove-all")).toBeDisabled();
@@ -1798,7 +1799,8 @@ test.describe("Collage Creator: layout, modes, sizes and notices", () => {
     await expect(page.locator("#notices")).toBeHidden();
     await page.setInputFiles("#file-input", [path]);
     await expect(page.locator("#notices")).toBeVisible();
-    await expect(page.locator("#notices-summary")).toContainText("1 skipped: 1 already added");
+    await expect(page.locator("#notices-summary")).toContainText("1 file was not added");
+    await expect(page.locator("#notices-reasons")).toContainText("1 already added");
     await expect(page.locator("#notices-list")).toBeHidden();
     await page.click("#notices-details");
     await expect(page.locator("#notices-list")).toContainText("dup.png");
@@ -2016,6 +2018,7 @@ test.describe("Address, saved work and language", () => {
     await addPhotos(page, await makeImages(page, SIX.slice(0, 3)));
     await page.click("#tab-photos");
     await page.click("#remove-all");
+    await page.click("#confirm-ok");
     await savedWork(page);
     await page.reload();
     await expect(page.locator("#photo-list li")).toHaveCount(0);

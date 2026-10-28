@@ -32,7 +32,8 @@
   /** Set when a press switched the selection while cropping, so its release does not act as a click. */
   let switchedWhileCropping = false;
 
-  const fit = $derived(app.fitPoster({ w: boxWidth, h: boxHeight }));
+  // The drop area before any photos is one page, however many pages are set.
+  const fit = $derived(app.fitPoster({ w: boxWidth, h: boxHeight }, true));
 
   $effect(() => {
     app.viewport = { w: boxWidth, h: boxHeight };

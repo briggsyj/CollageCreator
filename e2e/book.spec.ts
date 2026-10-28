@@ -4,6 +4,7 @@
 // Specs 014 to 016: a collage is a book of one page; more pages, each saved as its own image.
 
 import { expect, type Page, test } from "@playwright/test";
+import { zipBytes } from "../src/io/zip";
 import {
   addPhotos,
   analyse,
@@ -67,9 +68,9 @@ async function addPages(page: Page, count: number) {
   }
 }
 
-/** Set the page count in the Style step; the photos are shared evenly across the pages. */
+/** Set the page count in the Poster step; the photos are shared evenly across the pages. */
 async function setPages(page: Page, count: number) {
-  await page.click("#tab-style");
+  await page.click("#tab-poster");
   await page.fill("#pages", String(count));
   await page.locator("#pages").press("Tab");
   await expect(page.locator("#photo-list .page-group")).toHaveCount(count);
@@ -87,7 +88,6 @@ test.describe("A collage is a book of one page", () => {
     await setSize(page, 320, 240);
     await addPhotos(page, await makeImages(page, names(9)));
     await expect(page.locator("#layout-book")).toHaveCount(0);
-    await expect(page.locator("#pages-block")).toBeHidden();
     await expect(page.locator(".page-pill")).toHaveCount(0);
     await expect(page.locator("#add-page-tile")).toBeVisible();
     await page.click("#tab-photos");
@@ -116,7 +116,7 @@ test.describe("A collage is a book of one page", () => {
     await addPhotos(page, await makeImages(page, names(4)));
     await addPages(page, 2);
     await page.locator(".page-remove").nth(1).click();
-    await page.click("#remove-page-confirm");
+    await page.click("#confirm-ok");
     await expect(page.locator(".page-pill")).toHaveCount(0);
     expect(await posterRatio(page)).toBeCloseTo(320 / 240, 1);
   });
@@ -126,9 +126,52 @@ test.describe("A collage is a book of one page", () => {
     await addPhotos(page, await makeImages(page, names(4)));
     await addPages(page, 2);
     await page.locator(".page-remove").nth(1).click();
-    await expect(page.locator("#remove-page-dialog")).toBeVisible();
-    await page.click("#remove-page-cancel");
+    await expect(page.locator("#confirm-dialog")).toBeVisible();
+    await page.click("#confirm-cancel");
     await expect(page.locator(".page-pill")).toHaveCount(2);
+  });
+
+  test("Remove all asks first, then empties every page and goes back to one page; Undo brings the pages back", async ({
+    page,
+  }) => {
+    await setSize(page, 320, 240);
+    await addPhotos(page, await makeImages(page, names(4)));
+    await setPages(page, 2);
+    await page.click("#remove-all");
+    await expect(page.locator("#confirm-dialog")).toBeVisible();
+    await page.click("#confirm-cancel");
+    await expect(page.locator("#photo-list li")).toHaveCount(4);
+    await page.click("#remove-all");
+    await page.click("#confirm-ok");
+    await expect(page.locator("#photo-list li")).toHaveCount(0);
+    await expect(page.locator("#pages")).toHaveValue("1");
+    await page.click("#undo-remove");
+    await expect(page.locator("#photo-list li")).toHaveCount(4);
+    await expect(page.locator(".page-pill")).toHaveCount(2);
+  });
+
+  test("the drop area before any photos is one page, whatever the page count", async ({ page }) => {
+    await setSize(page, 320, 240);
+    const before = await page.locator("#empty-state").boundingBox();
+    await setPages(page, 3);
+    expect(await page.locator("#empty-state").boundingBox()).toEqual(before);
+  });
+
+  test("a zipped folder of photos adds the images inside it", async ({ page }) => {
+    const images = await makeImages(page, names(3));
+    const zip = zipBytes([
+      ...images.map((f) => ({ name: `Holiday/${f.name}`, data: new Uint8Array(f.buffer) })),
+      { name: "Holiday/readme.txt", data: new TextEncoder().encode("hi") },
+      { name: "__MACOSX/Holiday/._p01.png", data: new Uint8Array([0]) },
+    ]);
+    await addPhotos(
+      page,
+      [{ name: "Holiday.zip", mimeType: "application/zip", buffer: Buffer.from(zip) }],
+      3,
+    );
+    await expect(page.locator("#notices-summary")).toContainText("1 file was not added");
+    await page.click("#notices-details");
+    await expect(page.locator("#notices-list")).toContainText("readme.txt");
   });
 
   test("Add page sits under the last page and stays under the pointer, so clicking again and again adds a page each time", async ({
@@ -209,7 +252,7 @@ test.describe("Book: pages", () => {
     await setPages(page, 3);
     expect((await pagesOfNames(page)).map((p) => p.length)).toEqual([2, 2, 2]);
     await page.locator(".page-remove").nth(1).click();
-    await page.click("#remove-page-confirm");
+    await page.click("#confirm-ok");
     // Page 2's photos went to page 1.
     const after = await pagesOfNames(page);
     expect(after).toHaveLength(2);

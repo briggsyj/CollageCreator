@@ -49,7 +49,7 @@
   >
     {tr("Add images...")}
   </button>
-  <p class="drop-tip">{tr("or drop photos anywhere on this page")}</p>
+  <p class="drop-tip">{tr("or drop photos or a .zip of them anywhere here")}</p>
   <p id="privacy-note" class="sr-only">
     {tr("Everything runs in your browser. Your photos are never uploaded.")}
   </p>
@@ -74,28 +74,45 @@
     </div>
   {/if}
 
-  <div id="notices" class="notices" hidden={app.notice === null} data-kind={app.notice?.kind}>
-    <p id="notices-summary" class="notices-summary">{app.notice?.summary ?? ""}</p>
-    <div class="notices-actions">
+  <div
+    id="notices"
+    class="notices"
+    role="status"
+    hidden={app.notice === null}
+    data-kind={app.notice?.kind}
+  >
+    <svg class="notices-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <path d={app.notice?.kind === "error" ? "M12 7.5v5.5M12 16.5v.01" : "M12 11v5.5M12 7.5v.01"} />
+    </svg>
+    <div class="notices-body">
+      <p id="notices-summary" class="notices-summary">{app.notice?.summary ?? ""}</p>
+      <p id="notices-reasons" class="notices-reasons">{app.notice?.reasons ?? ""}</p>
       <button
         type="button"
         id="notices-details"
-        class="link"
+        class="link notices-toggle"
         aria-expanded={app.noticeDetailsOpen}
         aria-controls="notices-list"
         onclick={() => (app.noticeDetailsOpen = !app.noticeDetailsOpen)}
       >
-        {tr("Details")}
+        {app.noticeDetailsOpen ? tr("Hide files") : tr("Show files")}
       </button>
-      <button type="button" id="notices-dismiss" class="link" onclick={() => app.hideNotice()}>
-        {tr("Dismiss")}
-      </button>
+      <ul id="notices-list" class="notices-list" hidden={!app.noticeDetailsOpen}>
+        {#each app.notice?.items ?? [] as item (item)}
+          <li>{item}</li>
+        {/each}
+      </ul>
     </div>
-    <ul id="notices-list" class="notices-list" hidden={!app.noticeDetailsOpen}>
-      {#each app.notice?.items ?? [] as item (item)}
-        <li>{item}</li>
-      {/each}
-    </ul>
+    <button
+      type="button"
+      id="notices-dismiss"
+      class="icon-btn notices-close"
+      aria-label={tr("Dismiss")}
+      onclick={() => app.hideNotice()}
+    >
+      <svg class="page-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+    </button>
   </div>
 
   <div class="rowhead">
@@ -115,7 +132,7 @@
         id="remove-all"
         class="link"
         disabled={!app.hasPhotos}
-        onclick={() => app.removeAll()}
+        onclick={() => app.askRemoveAll()}
       >
         {tr("Remove all")}
       </button>
@@ -136,30 +153,30 @@
             <div class="page-actions">
               <button
                 type="button"
-                class="link move-page-left"
-                aria-label={tr("Move page %(n)s left", { n: group.page + 1 })}
+                class="icon-btn move-page-left"
+                aria-label={tr("Move page %(n)s up", { n: group.page + 1 })}
                 disabled={group.page === 0}
                 onclick={() => app.movePage(group.page, -1)}
               >
-                ◀
+                <svg class="page-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 15 6-6 6 6" /></svg>
               </button>
               <button
                 type="button"
-                class="link move-page-right"
-                aria-label={tr("Move page %(n)s right", { n: group.page + 1 })}
+                class="icon-btn move-page-right"
+                aria-label={tr("Move page %(n)s down", { n: group.page + 1 })}
                 disabled={group.page === app.pageCount - 1}
                 onclick={() => app.movePage(group.page, 1)}
               >
-                ▶
+                <svg class="page-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
               </button>
               <button
                 type="button"
-                class="link remove-page"
+                class="icon-btn remove-page"
                 aria-label={tr("Remove page %(n)s", { n: group.page + 1 })}
                 disabled={app.pageCount <= 1}
                 onclick={() => app.askRemovePage(group.page)}
               >
-                {tr("Remove page")}
+                <svg class="page-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
               </button>
             </div>
           </div>

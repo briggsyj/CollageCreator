@@ -90,7 +90,7 @@
   <input
     id="file-input"
     type="file"
-    accept="image/*,.heic,.heif"
+    accept="image/*,.heic,.heif,.zip,application/zip"
     multiple
     hidden
     bind:this={fileInput}

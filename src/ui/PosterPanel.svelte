@@ -35,6 +35,8 @@
   }
 
   let row: HTMLElement;
+  /** Bumped when the pages field should show the stored value again. */
+  let pagesEdited = $state(0);
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
@@ -45,6 +47,46 @@
   aria-labelledby="tab-poster"
   hidden={app.tab !== "poster"}
 >
+  <section aria-labelledby="pages-h" id="pages-block">
+    <h3 id="pages-h"><label for="pages">{tr("Pages")}</label></h3>
+    <div class="stepper">
+      <button
+        type="button"
+        id="pages-less"
+        class="sq"
+        aria-label={tr("Fewer pages")}
+        disabled={app.pageCount <= 1}
+        onclick={() => app.setPageCount(app.pageCount - 1)}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" /></svg>
+      </button>
+      <input
+        id="pages"
+        type="number"
+        min="1"
+        max={app.maxPages}
+        step="1"
+        inputmode="numeric"
+        use:showValue={{ value: String(app.pageCount), again: pagesEdited }}
+        onchange={(e) => {
+          app.setPageCount(Number(e.currentTarget.value));
+          pagesEdited++;
+        }}
+      />
+      <button
+        type="button"
+        id="pages-more"
+        class="sq"
+        aria-label={tr("More pages")}
+        disabled={app.pageCount >= app.maxPages}
+        onclick={() => app.setPageCount(app.pageCount + 1)}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+      </button>
+    </div>
+    <p class="hint pages-hint">{tr("Photos are shared evenly across the pages. To place them yourself, add or remove pages and send photos between them.")}</p>
+  </section>
+
   <section aria-labelledby="size-h">
     <h3 id="size-h">{tr("Output image size")}</h3>
     <fieldset id="size-choices" class="choices group" aria-labelledby="size-h">

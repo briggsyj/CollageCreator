@@ -908,9 +908,21 @@ dialog h3 {
   color: var(--sub);
 }
 
+.pages-hint {
+  margin-top: 8px;
+}
+
 .page-actions {
   display: flex;
   gap: 2px;
+}
+
+.page-actions .icon-btn {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  border-radius: 16px;
+  color: var(--sub);
 }
 
 #book-style {
@@ -1016,13 +1028,15 @@ dialog h3 {
 
 .notices {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px;
-  background: var(--inset-bg);
-  box-shadow: var(--inset-shadow);
-  border-radius: calc(var(--r-ctl) - 2px);
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 6px 10px 12px;
+  background: var(--chrome-bg);
+  border: var(--chrome-border);
+  box-shadow: var(--ctl-shadow);
+  border-radius: var(--r-ctl);
   font-size: 0.9rem;
+  animation: fade-in var(--t-sheet) ease both;
 }
 
 .notices[hidden],
@@ -1030,26 +1044,60 @@ dialog h3 {
   display: none;
 }
 
-.notices-summary {
-  margin: 0;
+.notices-icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
 }
 
-.notices[data-kind="error"] .notices-summary {
-  color: var(--danger);
+.notices[data-kind="error"] .notices-icon {
+  stroke: var(--danger);
+}
+
+.notices-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.notices-summary {
+  margin: 0;
   font-weight: 600;
 }
 
-.notices-actions {
-  display: flex;
-  gap: 4px;
+.notices-reasons {
+  margin: 2px 0 0;
+  color: var(--sub);
+  font-size: 0.85rem;
+}
+
+button.notices-toggle {
+  min-height: 32px;
+  margin-left: -8px;
+  font-size: 0.85rem;
 }
 
 .notices-list {
   margin: 0;
   padding-left: 18px;
+  max-height: 160px;
+  overflow: auto;
   font-size: 0.85rem;
   color: var(--sub);
   white-space: pre-line;
+}
+
+.notices .notices-close {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  border-radius: 16px;
+  color: var(--sub);
 }
 
 .dock {
@@ -1432,12 +1480,11 @@ dialog {
   max-width: min(520px, calc(100vw - 32px));
   padding: 20px;
   color: var(--text);
-  background: var(--solid-bg);
-  border-radius: 18px;
+  border-radius: 22px;
 }
 
 dialog::backdrop {
-  background: rgb(0 0 0 / 0.5);
+  background: rgb(30 30 40 / 0.3);
 }
 
 progress {

@@ -78,6 +78,7 @@ import {
   type SkippedFile,
 } from "../io/import";
 import { loadSession, saveSession } from "../io/session";
+import { isZip, unzipImages } from "../io/unzip";
 import { zipBlob } from "../io/zip";
 import { type CanvasLimits, clampSize, detectLimits, FALLBACK_LIMITS } from "../platform/limits";
 import { exportCollage, exportPieces } from "../render/export";
@@ -94,7 +95,15 @@ export const PAGE_PILL_ROOM = 48;
 export type Tab = "photos" | "poster" | "style" | "save";
 export type Mode = "pan" | "swap" | "select";
 /** Which dialog is open, if any. */
-export type DialogName = "help" | "about" | "progress" | "remove-page";
+export type DialogName = "help" | "about" | "progress" | "confirm";
+
+/** What the confirm dialog asks, and what its main button does. */
+export interface Confirmation {
+  title: string;
+  text: string;
+  action: string;
+  run: () => void;
+}
 
 const LANG_KEY = "collage-creator.language";
 /** What the key was called before the app was renamed, still read so a saved choice is kept. */
@@ -134,6 +143,8 @@ const STATUS_MS = 6000;
 /** What was skipped while adding photos, for the notice in the Photos step. */
 export interface Notice {
   summary: string;
+  /** Why, by reason: "3 already added, 1 not an image". */
+  reasons: string;
   items: string[];
   kind: "info" | "error";
 }
@@ -223,6 +234,8 @@ export class AppState {
   focusRing = $state(false);
   /** What the last removal took out and where, so it can be undone. */
   removed = $state.raw<{ photo: ImportedPhoto; index: number }[] | null>(null);
+  /** The page count before Remove all, so Undo remove can bring the pages back too. */
+  private removedPageCount: number | null = null;
 
   // -------------------------------------------------------------------- messages
   /** The line in the pill over the preview, and in the live region for screen readers. */
@@ -235,8 +248,8 @@ export class AppState {
   /** The language in use. Reading it makes `tr` re-run when the language changes. */
   lang = $state(getLanguage());
   dialog = $state<DialogName | null>(null);
-  /** The page the remove-page dialog is asking about. */
-  removingPage = $state(0);
+  /** What the confirm dialog is asking. */
+  confirming = $state.raw<Confirmation | null>(null);
   progress = $state(0);
   /** Becomes true once saved work has been restored; nothing is saved before. */
   persistReady = $state(false);
@@ -339,7 +352,11 @@ export class AppState {
     if (unreadable) parts.push(t("%(n)s could not be opened", { n: unreadable }));
     const onlyDuplicates = duplicates === skipped.length;
     this.notice = {
-      summary: t("%(n)s skipped: %(what)s", { n: skipped.length, what: parts.join(", ") }),
+      summary:
+        skipped.length === 1
+          ? t("1 file was not added")
+          : t("%(n)s files were not added", { n: skipped.length }),
+      reasons: parts.join(", "),
       items: skipped.map((s) => {
         const why =
           s.reason === "duplicate"
@@ -534,8 +551,28 @@ export class AppState {
   /** Ask before taking a page out. */
   askRemovePage(page: number): void {
     if (!this.book || page < 0 || page >= this.pageCount) return;
-    this.removingPage = page;
-    this.dialog = "remove-page";
+    this.confirm({
+      title: t("Remove page %(n)s?", { n: page + 1 }),
+      text: this.pageCounts[page]
+        ? t("Its photos move to a neighbouring page. The page's own arrangement is lost.")
+        : t("This page is empty."),
+      action: t("Remove page"),
+      run: () => this.removePage(page),
+    });
+  }
+
+  /** Ask before doing something that is hard to take back. */
+  confirm(question: Confirmation): void {
+    this.confirming = question;
+    this.dialog = "confirm";
+  }
+
+  /** The confirm dialog's main button. */
+  confirmed(): void {
+    const run = this.confirming?.run;
+    this.dialog = null;
+    this.confirming = null;
+    run?.();
   }
 
   /** Take a page out: its photos go to the prior page (the next one for the first). */
@@ -757,14 +794,15 @@ export class AppState {
    * The poster's size on screen when the view is "fit", in CSS pixels. Room is left for the
    * tools on the right and the pill on the top (wide screens), or for the bars (phones).
    */
-  fitPoster(viewport: Size = this.viewport): Size {
+  fitPoster(viewport: Size = this.viewport, onePage = false): Size {
     const padX = this.narrow ? 12 : 88;
     const padY = this.narrow ? 104 : 72;
     // A collage for a multi-image post keeps room above and below for the cut marks, and a
     // book room below its pages for their labels.
     const marks =
-      (this.settings.splitImages > 1 ? 2 * SPLIT_MARGIN : 0) + (this.book ? 2 * PAGE_PILL_ROOM : 0);
-    const row = this.rowSize;
+      (this.settings.splitImages > 1 ? 2 * SPLIT_MARGIN : 0) +
+      (this.book && !onePage ? 2 * PAGE_PILL_ROOM : 0);
+    const row = onePage ? { w: this.settings.width, h: this.settings.height } : this.rowSize;
     const fit = fitSize(
       row.w,
       row.h,
@@ -961,7 +999,7 @@ export class AppState {
     this.setStatus(t("Please wait"));
     const skipped: SkippedFile[] = [];
     const added = await importFiles(
-      files,
+      await this.openZips(files, skipped),
       this.photos,
       this.importPool,
       (m) => this.addMessage(m),
@@ -975,6 +1013,26 @@ export class AppState {
       this.photos = [...this.photos, ...placed];
       this.relayout("search");
     }
+  }
+
+  /** Swap each ZIP (such as a zipped folder of photos) for the images inside it. */
+  private async openZips(files: readonly File[], skipped: SkippedFile[]): Promise<File[]> {
+    const out: File[] = [];
+    for (const file of files) {
+      if (!isZip(file)) {
+        out.push(file);
+        continue;
+      }
+      try {
+        const inside = await unzipImages(file);
+        out.push(...inside.files);
+        for (const name of inside.others) skipped.push({ reason: "not-image", name });
+        for (const name of inside.unreadable) skipped.push({ reason: "unreadable", name });
+      } catch {
+        skipped.push({ reason: "unreadable", name: file.name });
+      }
+    }
+    return out;
   }
 
   /** Close the thumbnails of photos that can no longer be brought back. */
@@ -991,6 +1049,7 @@ export class AppState {
     if (items.length === 0) return;
     this.discardRemoved();
     this.removed = items;
+    this.removedPageCount = null;
     this.photos = this.photos.filter((p) => !ids.has(p.id));
     this.relayout("search");
     this.setStatus(`${message} ${t("Undo remove brings it back.")}`);
@@ -1001,9 +1060,27 @@ export class AppState {
     if (photo) this.removePhotos(new Set([photo.id]), t("Removed %(name)s.", { name: photo.name }));
   }
 
+  /** Ask, then take every photo out and go back to one page. Undo remove brings them back. */
+  askRemoveAll(): void {
+    const n = this.photos.length;
+    if (n === 0) return;
+    this.confirm({
+      title: t("Remove all photos?"),
+      text:
+        this.pageCount > 1
+          ? t("All %(n)s photos are taken out and the book goes back to one page.", { n })
+          : t("All %(n)s photos are taken out.", { n }),
+      action: t("Remove all"),
+      run: () => this.removeAll(),
+    });
+  }
+
   removeAll(): void {
     const n = this.photos.length;
+    const pages = this.pageCount;
+    this.pageCount = 1;
     this.removePhotos(new Set(this.photos.map((p) => p.id)), t("Removed all %(n)s photos.", { n }));
+    this.removedPageCount = pages;
   }
 
   /** Put the last removed photos back where they were. */
@@ -1020,6 +1097,10 @@ export class AppState {
     const photos = [...this.photos];
     for (const entry of restored) {
       photos.splice(Math.min(entry.index, photos.length), 0, entry.photo);
+    }
+    if (this.removedPageCount !== null) {
+      this.pageCount = Math.max(this.pageCount, this.removedPageCount);
+      this.removedPageCount = null;
     }
     this.photos = photos;
     this.removed = null;
