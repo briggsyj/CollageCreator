@@ -161,39 +161,41 @@
       </p>
     </div>
     <p id="gallery-note" class="hint" hidden={!gallery}>{tr("Gallery sizes its panels itself.")}</p>
-    <div class="inline-row">
-      <span
-        id="crop-note"
-        class="trim"
-        title={tr("Lower means more of each photo is visible.")}
-      >{app.layout ? tr("%(pct)s% of each photo is trimmed to fit.", { pct: app.cropPercent }) : ""}</span>
+    <span
+      id="crop-note"
+      class="trim"
+      title={tr("Lower means more of each photo is visible.")}
+    >{app.layout ? tr("%(pct)s% of each photo is trimmed to fit.", { pct: app.cropPercent }) : ""}</span>
+    <div class="shuffle-row">
       <button
         type="button"
         id="regenerate"
         class="mini-btn"
-        title={tr("Try a new arrangement of the same photos")}
+        title={app.book
+          ? tr("A new arrangement on every page; photos stay on their pages")
+          : tr("Try a new arrangement of the same photos")}
         onclick={() => app.shuffle()}
       >
         <svg class="ico16" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M20 11a8 8 0 1 0-2.3 5.7" />
           <path d="M20 4v7h-7" />
         </svg>
-        <span>{tr("Shuffle")}</span>
+        <span>{app.book ? tr("Shuffle layouts") : tr("Shuffle layout")}</span>
+      </button>
+      <button
+        type="button"
+        id="shuffle-pages"
+        title={tr("Mix the photos between the pages, keeping how many each has")}
+        class="mini-btn"
+        hidden={!app.book}
+        onclick={() => app.shufflePages()}
+      >
+        <svg class="ico16" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 7h11l-3-3M20 17H9l3 3" />
+        </svg>
+        <span>{tr("Mix pages")}</span>
       </button>
     </div>
-    <button
-      type="button"
-      id="shuffle-pages"
-      title={tr("Mix the photos between the pages, keeping how many each has")}
-      class="mini-btn"
-      hidden={!app.book}
-      onclick={() => app.shufflePages()}
-    >
-      <svg class="ico16" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M4 7h11l-3-3M20 17H9l3 3" />
-      </svg>
-      <span>{tr("Shuffle photos between pages")}</span>
-    </button>
   </section>
 
   <section class="panel-card" aria-labelledby="border-h">

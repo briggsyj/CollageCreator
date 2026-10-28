@@ -188,12 +188,11 @@
         ctx.lineWidth = 1.5 * dpr;
         ctx.strokeRect(x + 0.5 * dpr, poster.y + 0.5 * dpr, w - dpr, poster.h - dpr);
         ctx.setLineDash([]);
-        ctx.fillText(
-          t("Drop or move photos here"),
-          x + w / 2,
-          poster.y + poster.h / 2,
-          w - 16 * dpr,
-        );
+        // Only when it fits as it is: squeezed narrower it is hard to read.
+        const note = t("Drop or move photos here");
+        if (ctx.measureText(note).width <= w - 16 * dpr) {
+          ctx.fillText(note, x + w / 2, poster.y + poster.h / 2);
+        }
       }
     });
     const selectedPage = app.selected === null ? undefined : app.selectedPhoto?.bookPage;

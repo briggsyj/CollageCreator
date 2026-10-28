@@ -6,8 +6,9 @@
   import { tr } from "./tr.svelte";
 
   /** Narrower than this a page has no room for its pill; the Photos step has the same buttons. */
-  const FULL = 190;
-  const COMPACT = 136;
+  // A little wider than each kind of pill, so neighbouring pills never touch.
+  const FULL = 240;
+  const COMPACT = 156;
 
   const box = $derived(app.posterBox);
   const pages = $derived(app.layout?.pages ?? []);
