@@ -26,16 +26,12 @@
 import {
   BOOK_MAX_PAGES,
   BookPage,
-  bookFileNames,
   countsPerPage,
   generateBestBook,
   generateBook,
   movedPageOf,
   normalisePageCount,
   PAGE_GAP,
-  PER_PAGE_DEFAULT,
-  pageLayout,
-  pagesWithPhotos,
   removedPageOf,
   shuffleAcrossPages,
   spreadEvenly,
@@ -57,7 +53,6 @@ import {
   SPLIT_MIN,
   SPLIT_SIDE_DEFAULT,
   SPLIT_SIDE_MIN,
-  splitFileNames,
 } from "../core/split";
 import {
   type Layout,
@@ -79,15 +74,20 @@ import {
 } from "../io/import";
 import { loadSession, saveSession } from "../io/session";
 import { isZip, unzipImages } from "../io/unzip";
-import { zipBlob } from "../io/zip";
 import { type CanvasLimits, clampSize, detectLimits, FALLBACK_LIMITS } from "../platform/limits";
-import { exportCollage, exportPieces } from "../render/export";
+import { exportBook } from "../render/book-export";
+import { exportCollage } from "../render/export";
 import { WorkerPool } from "../render/pool";
 import { fitSize } from "../render/preview";
 import { SPLIT_MARGIN } from "../render/splitmarks";
 import { FIT_VIEW, isFit, panBy, type Size, type View, zoomAt, zoomPercent } from "../render/view";
 import { findChoice, orientationOf, SIZE_CHOICES, sizeOf } from "./presets";
+import { browserLanguages, download, readStoredLanguage, storeLanguage } from "./state/browser";
+import { DUPLICATE_NOTICE_MS, describeSpan, type Notice, summariseSkipped } from "./state/notices";
+import { toSavedSession, withSavedDetails } from "./state/saved-work";
 import { parseSeed, withSeed } from "./url";
+
+export { describeSpan, type Notice };
 
 /** Room (in CSS pixels) kept above a book's pages for their pills, and below for the add button. */
 export const PAGE_PILL_ROOM = 48;
@@ -105,68 +105,8 @@ export interface Confirmation {
   run: () => void;
 }
 
-const LANG_KEY = "collage-creator.language";
-/** What the key was called before the app was renamed, still read so a saved choice is kept. */
-const OLD_LANG_KEY = "collage-web.language";
-
-function readStoredLanguage(): string | null {
-  try {
-    return localStorage.getItem(LANG_KEY) ?? localStorage.getItem(OLD_LANG_KEY);
-  } catch {
-    return null;
-  }
-}
-
-/** The browser's language preferences, most preferred first; empty if it does not say. */
-function browserLanguages(): readonly string[] {
-  try {
-    const list = navigator.languages;
-    return list?.length ? list : navigator.language ? [navigator.language] : [];
-  } catch {
-    return [];
-  }
-}
-
-function storeLanguage(code: string): void {
-  try {
-    localStorage.setItem(LANG_KEY, code);
-  } catch {
-    // storage may be unavailable (private mode); the choice just isn't remembered
-  }
-}
-
-/** How long a notice about already-added photos stays before it goes by itself. */
-const DUPLICATE_NOTICE_MS = 10_000;
 /** How long a status line replaces the hint in the pill over the preview. */
 const STATUS_MS = 6000;
-
-/** What was skipped while adding photos, for the notice in the Photos step. */
-export interface Notice {
-  summary: string;
-  /** Why, by reason: "3 already added, 1 not an image". */
-  reasons: string;
-  items: string[];
-  kind: "info" | "error";
-}
-
-function download(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.append(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
-}
-
-/** Describe a photo's requested size for the list ("" when it asks for nothing). */
-export function describeSpan(span: PhotoSpan | undefined): string {
-  const parts: string[] = [];
-  if (span?.columns === 2) parts.push(t("wider"));
-  if (span && span.rows > 1) parts.push(`${t("taller")} ×${span.rows}`);
-  return parts.join(" · ");
-}
 
 export class AppState {
   // ------------------------------------------------------------------ the collage
@@ -359,35 +299,10 @@ export class AppState {
   /** Summarise what was not added: counts by reason, with the file names under Details. */
   showNotice(skipped: readonly SkippedFile[]): void {
     this.hideNotice();
-    if (skipped.length === 0) return;
-    const count = (reason: SkippedFile["reason"]) =>
-      skipped.filter((s) => s.reason === reason).length;
-    const duplicates = count("duplicate");
-    const notImages = count("not-image");
-    const unreadable = count("unreadable");
-    const parts: string[] = [];
-    if (duplicates) parts.push(t("%(n)s already added", { n: duplicates }));
-    if (notImages) parts.push(t("%(n)s not an image", { n: notImages }));
-    if (unreadable) parts.push(t("%(n)s could not be opened", { n: unreadable }));
-    const onlyDuplicates = duplicates === skipped.length;
-    this.notice = {
-      summary:
-        skipped.length === 1
-          ? t("1 file was not added")
-          : t("%(n)s files were not added", { n: skipped.length }),
-      reasons: parts.join(", "),
-      items: skipped.map((s) => {
-        const why =
-          s.reason === "duplicate"
-            ? t("already added")
-            : s.reason === "not-image"
-              ? t("not an image")
-              : t("could not be opened");
-        return `${s.name}: ${why}`;
-      }),
-      kind: onlyDuplicates ? "info" : "error",
-    };
-    if (onlyDuplicates) this.noticeTimer = setTimeout(() => this.hideNotice(), DUPLICATE_NOTICE_MS);
+    this.notice = summariseSkipped(skipped);
+    if (this.notice?.kind === "info") {
+      this.noticeTimer = setTimeout(() => this.hideNotice(), DUPLICATE_NOTICE_MS);
+    }
   }
 
   // ------------------------------------------------------------------ language
@@ -751,22 +666,14 @@ export class AppState {
     const files = new Map(this.photos.map((p) => [fileKey(p.file), p.file]));
     try {
       await saveSession(
-        {
-          v: 1,
-          photos: this.photos.map((p) => ({
-            key: fileKey(p.file),
-            span: p.span ?? { ...NO_SPAN },
-            ...(p.crop ? { crop: p.crop } : {}),
-            ...(this.book && p.bookPage !== undefined ? { page: p.bookPage } : {}),
-          })),
+        toSavedSession({
+          photos: this.photos,
+          pageCount: this.pageCount,
           seed: this.seed,
           columns: this.columns,
           layoutStyle: this.layoutStyle,
-          ...(this.pageCount > 1
-            ? { book: { pages: this.pageCount, perPage: PER_PAGE_DEFAULT } }
-            : {}),
           settings: $state.snapshot(this.settings),
-        },
+        }),
         files,
       );
     } catch {
@@ -806,16 +713,7 @@ export class AppState {
             this.restoring = { done, total };
           },
         );
-        const saves = new Map(saved.session.photos.map((p) => [p.key, p]));
-        this.photos = photos.map((photo) => {
-          const saved = saves.get(fileKey(photo.file));
-          return {
-            ...photo,
-            span: { ...(saved?.span ?? NO_SPAN) },
-            ...(saved?.crop ? { crop: saved.crop } : {}),
-            ...(saved?.page !== undefined ? { bookPage: saved.page } : {}),
-          };
-        });
+        this.photos = withSavedDetails(photos, saved.session.photos);
         // An address with a seed wins over the stored one.
         this.seed = parseSeed(location.search) ?? saved.session.seed;
         this.applySize(this.settings.width, this.settings.height);
@@ -1452,7 +1350,7 @@ export class AppState {
     }
   }
 
-  /** Make the pages one after another (one canvas at a time) and download them. */
+  /** Make a book's pages and download them (see `exportBook`), saying what was left out. */
   private async saveBook(
     layout: Layout,
     settings: PosterSettings,
@@ -1460,61 +1358,32 @@ export class AppState {
     signal: AbortSignal,
     onlyPage?: number,
   ): Promise<void> {
-    const filled = pagesWithPhotos(layout);
-    const pages = onlyPage === undefined ? filled : filled.filter((k) => k === onlyPage);
-    if (pages.length === 0) {
+    const result = await exportBook({
+      layout,
+      photos: this.photos,
+      settings,
+      pool: this.exportPool,
+      signal,
+      stem: `book-${this.seed}`,
+      ext,
+      onlyPage,
+      onProgress: (share) => {
+        this.progress = share * 100;
+      },
+    });
+    if (!result.file) {
       this.addMessage({ kind: "error", text: t("That page has no photos to save.") });
       return;
     }
-    if (onlyPage === undefined && pages.length < (layout.pages?.length ?? 0)) {
-      const empty = (layout.pages ?? []).map((_, k) => k).filter((k) => !filled.includes(k));
+    if (result.skipped.length > 0) {
       this.addMessage({
         kind: "info",
-        text: t("Skipped empty page(s): %(list)s.", { list: empty.map((k) => k + 1).join(", ") }),
+        text: t("Skipped empty page(s): %(list)s.", {
+          list: result.skipped.map((k) => k + 1).join(", "),
+        }),
       });
     }
-    const stem = `book-${this.seed}`;
-    const carousel = settings.splitImages > 1;
-    const total = layout.pages?.length ?? 1;
-    const pad = (n: number) => String(n).padStart(String(total).length, "0");
-    // Each page makes one image, or for a page made for a post one image per square.
-    const files: { name: string; blob: Blob }[] = [];
-    for (const [i, page] of pages.entries()) {
-      const pieces = await exportPieces({
-        layout: pageLayout(layout, page),
-        photos: this.photos,
-        settings,
-        pool: this.exportPool,
-        signal,
-        onProgress: (done, count) => {
-          this.progress = ((i + (count ? done / count : 1)) / pages.length) * 100;
-        },
-      });
-      if (carousel) {
-        const names = splitFileNames(`${stem}_p${pad(page + 1)}`, pieces.length, ext);
-        for (const [j, blob] of pieces.entries()) files.push({ name: names[j] as string, blob });
-      } else {
-        files.push({ name: "", blob: pieces[0] as Blob });
-      }
-    }
-    if (!carousel) {
-      const names = bookFileNames(stem, files.length, ext);
-      files.forEach((f, i) => {
-        f.name = names[i] as string;
-      });
-    }
-    if (files.length === 1) {
-      const name = onlyPage === undefined ? stem : `${stem}_page-${(pages[0] ?? 0) + 1}`;
-      download((files[0] as { blob: Blob }).blob, `${name}.${ext}`);
-      return;
-    }
-    const entries = await Promise.all(
-      files.map(async (f) => ({
-        name: f.name,
-        data: new Uint8Array(await f.blob.arrayBuffer()),
-      })),
-    );
-    download(zipBlob(entries), `${stem}.zip`);
+    download(result.file.blob, result.file.name);
   }
 
   cancelExport: () => void = () => {};
