@@ -842,6 +842,11 @@ button.mini-btn {
 
 .shuffle-row .mini-btn {
   flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  padding: 4px 10px;
+  white-space: normal;
+  line-height: 1.2;
 }
 
 .trim {
@@ -1059,6 +1064,12 @@ dialog h3 {
 
 .pages-hint {
   margin-top: 8px;
+}
+
+.page-group.drop-target {
+  outline: 2px dashed var(--accent);
+  outline-offset: 4px;
+  border-radius: 12px;
 }
 
 .page-actions {

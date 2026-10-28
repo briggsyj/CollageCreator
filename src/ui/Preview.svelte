@@ -25,6 +25,8 @@
 
   // Pointer state.
   let dragFrom = -1;
+  /** The cell under the mouse, darkened a little while the Swap or Select tool is in use. */
+  let hoverCell = $state(-1);
   let panning: { x: number; y: number } | null = null;
   let pointerOver = false;
   /** While adjusting a crop: the last pointer position of the drag moving the photo. */
@@ -131,10 +133,20 @@
       const rect = lastRects[focusCell];
       if (rect) drawSelection(ctx, rect, "#ff9d00");
     }
+    const picking = app.activeMode !== "pan" && !app.cropping;
+    const chosen = new Set(app.selection);
+    const hovered = lastRects[hoverCell];
+    if (picking && hovered && !chosen.has(photoAt(hoverCell) ?? -1)) {
+      ctx.fillStyle = "rgba(0, 0, 0, 0.14)";
+      ctx.fillRect(hovered.x, hovered.y, hovered.w, hovered.h);
+    }
     for (const photoIndex of app.selection) {
       const i = layout.placements.findIndex((p) => p.photoIndex === photoIndex);
       const rect = lastRects[i];
-      if (rect) drawSelection(ctx, rect, "#1f5fbf");
+      if (!rect) continue;
+      // While its crop is adjusted the photo stays in place, outlined; otherwise it is lifted.
+      if (app.cropping) drawSelection(ctx, rect, "#1f5fbf");
+      else lift(ctx, rect, ox, oy, dpr);
     }
     ctx.restore();
     if (layout.pages) drawPageMarks(ctx, layout, { x: ox, y: oy, w: pw, h: ph }, dpr);
@@ -163,7 +175,33 @@
     }
   }
 
-  /** A book's empty pages, and an outline round the page of the selected photo. */
+  /**
+   * Draw a selected photo again on top, a little larger and with a shadow, as if lifted
+   * towards the viewer. `rect` is in poster pixels; the context is translated to the poster.
+   */
+  function lift(ctx: CanvasRenderingContext2D, rect: Rect, ox: number, oy: number, dpr: number) {
+    const w = Math.max(1, Math.round(rect.w));
+    const h = Math.max(1, Math.round(rect.h));
+    const copy = document.createElement("canvas");
+    copy.width = w;
+    copy.height = h;
+    copy.getContext("2d")?.drawImage(canvas, ox + rect.x, oy + rect.y, w, h, 0, 0, w, h);
+    const grow = Math.min(1.04, 1 + (8 * dpr) / Math.max(w, h));
+    ctx.save();
+    ctx.shadowColor = "rgba(0, 0, 0, 0.38)";
+    ctx.shadowBlur = 16 * dpr;
+    ctx.shadowOffsetY = 5 * dpr;
+    ctx.drawImage(
+      copy,
+      rect.x - (w * (grow - 1)) / 2,
+      rect.y - (h * (grow - 1)) / 2,
+      w * grow,
+      h * grow,
+    );
+    ctx.restore();
+  }
+
+  /** A book's empty pages. */
   function drawPageMarks(
     ctx: CanvasRenderingContext2D,
     layout: Layout,
@@ -195,16 +233,6 @@
         }
       }
     });
-    const selectedPage = app.selected === null ? undefined : app.selectedPhoto?.bookPage;
-    const outlined = selectedPage === undefined ? undefined : pages[selectedPage];
-    if (outlined) {
-      const x = poster.x + Math.round(outlined.x * poster.w);
-      const w =
-        Math.round((outlined.x + outlined.w) * poster.w) - Math.round(outlined.x * poster.w);
-      ctx.strokeStyle = "#1f5fbf";
-      ctx.lineWidth = 3 * dpr;
-      ctx.strokeRect(x - 2 * dpr, poster.y - 2 * dpr, w + 4 * dpr, poster.h + 4 * dpr);
-    }
     ctx.restore();
   }
 
@@ -215,6 +243,8 @@
     void $state.snapshot(app.settings);
     void app.view;
     void app.selection;
+    void hoverCell;
+    void app.activeMode;
     void app.pageCounts;
     void app.cropping;
     void app.focused;
@@ -284,7 +314,10 @@
       cropDrag = { x: e.clientX, y: e.clientY };
       return;
     }
-    if (!panning) return;
+    if (!panning) {
+      hoverCell = app.activeMode === "pan" ? -1 : cellAt(e.clientX, e.clientY);
+      return;
+    }
     const dx = e.clientX - panning.x;
     const dy = e.clientY - panning.y;
     panning = { x: e.clientX, y: e.clientY };
@@ -471,7 +504,10 @@
   bind:clientWidth={boxWidth}
   bind:clientHeight={boxHeight}
   onpointerenter={() => (pointerOver = true)}
-  onpointerleave={() => (pointerOver = false)}
+  onpointerleave={() => {
+    pointerOver = false;
+    hoverCell = -1;
+  }}
 >
   <!-- svelte-ignore a11y_no_interactive_element_to_noninteractive_role -->
   <!-- biome-ignore lint/a11y/noInteractiveElementToNoninteractiveRole: the canvas handles its own arrow-key navigation, so screen readers must pass keys through (application role) -->

@@ -514,3 +514,37 @@ test.describe("Selecting several photos", () => {
     await expect(page.locator("#dock-name")).toHaveText("2 photos selected");
   });
 });
+
+test.describe("Hand edits and shuffling", () => {
+  test("photos can be dragged onto another page in the Photos step", async ({ page }) => {
+    await setSize(page, 320, 240);
+    await addPhotos(page, await makeImages(page, names(4)));
+    await setPages(page, 2);
+    await page.click("#tab-photos");
+    await page
+      .locator("#photo-list .tile")
+      .first()
+      .dragTo(page.locator("#photo-list .page-group").nth(1));
+    expect(await pagesOfNames(page)).toEqual([["p02.png"], ["p03.png", "p04.png", "p01.png"]]);
+  });
+
+  test("shuffling asks first after a hand edit, and not again until the next one", async ({
+    page,
+  }) => {
+    await setSize(page, 320, 240);
+    await addPhotos(page, await makeImages(page, names(4)));
+    await setPages(page, 2);
+    await page.click("#tab-style");
+    await page.click("#shuffle-pages");
+    await expect(page.locator("#confirm-dialog")).toBeHidden();
+    await page.click("#tab-photos");
+    await page.locator("#photo-list .tile").first().click();
+    await page.selectOption("#move-page", "1");
+    await page.click("#tab-style");
+    await page.click("#regenerate");
+    await expect(page.locator("#confirm-dialog")).toBeVisible();
+    await page.click("#confirm-ok");
+    await page.click("#shuffle-pages");
+    await expect(page.locator("#confirm-dialog")).toBeHidden();
+  });
+});

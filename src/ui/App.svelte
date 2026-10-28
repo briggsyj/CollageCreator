@@ -62,6 +62,8 @@
 <svelte:window
   onpopstate={() => app.onPopState()}
   ondragover={(e) => {
+    // Only files from outside are added; photos dragged between pages are handled where dropped.
+    if (!e.dataTransfer?.types.includes("Files")) return;
     e.preventDefault();
     document.body.classList.add("dragging");
   }}
@@ -69,6 +71,7 @@
     if (!e.relatedTarget) document.body.classList.remove("dragging");
   }}
   ondrop={(e) => {
+    if (!e.dataTransfer?.types.includes("Files")) return;
     e.preventDefault();
     document.body.classList.remove("dragging");
     void app.addFiles(Array.from(e.dataTransfer?.files ?? []));

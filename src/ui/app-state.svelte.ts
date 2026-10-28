@@ -219,6 +219,11 @@ export class AppState {
   mode = $state<Mode>("pan");
   selected = $state<number | null>(null);
   /**
+   * Photos were swapped or moved between pages by hand since the arrangement was last made.
+   * Shuffling would undo that, so it asks first; a fresh arrangement clears it.
+   */
+  arrangedByHand = $state(false);
+  /**
    * Photos selected as well as `selected` (by id), from Shift-click in the Photos step or with
    * the Select tool. Only what works on many photos at once is offered then: size, page, remove.
    */
@@ -440,6 +445,7 @@ export class AppState {
    */
   relayout(mode: "search" | "single" = "single", keepSelection = false): void {
     if (!keepSelection) this.clearSelection();
+    this.arrangedByHand = false;
     this.focused = 0;
     if (this.photos.length === 0) {
       this.page = null;
@@ -495,6 +501,21 @@ export class AppState {
   shuffle(): void {
     this.seed = randomSeed();
     this.relayout();
+  }
+
+  /** Shuffle the layout within the pages, or every photo between them; asks after hand edits. */
+  askShuffle(between: boolean): void {
+    const run = () => (between ? this.shufflePages() : this.shuffle());
+    if (!this.arrangedByHand) {
+      run();
+      return;
+    }
+    this.confirm({
+      title: t("Shuffle and lose your changes?"),
+      text: t("You swapped or moved photos by hand. Shuffling arranges them again."),
+      action: t("Shuffle"),
+      run,
+    });
   }
 
   setSeed(value: number): boolean {
@@ -646,10 +667,19 @@ export class AppState {
 
   /** Move the selected photos to another page; they go last there, in their order. */
   moveSelectedToPage(page: number): void {
+    const ids = this.selection.flatMap((i) => this.photos[i]?.id ?? []);
+    this.movePhotosToPage(ids, page);
+  }
+
+  /**
+   * Move photos (by id) to another page, last there and in their order; used by Move to page
+   * and by dragging photos onto a page in the Photos step. Selected photos stay selected.
+   */
+  movePhotosToPage(photoIds: readonly string[], page: number): void {
     if (!this.book || page < 0 || page >= this.pageCount) return;
-    const ids = new Set(this.selection.flatMap((i) => this.photos[i]?.id ?? []));
-    const main = this.selectedPhoto;
-    if (!main || ids.size === 0) return;
+    const ids = new Set(photoIds);
+    const selectedIds = this.selection.flatMap((i) => this.photos[i]?.id ?? []);
+    const mainId = this.selectedPhoto?.id;
     const moving = this.photos
       .filter((p) => ids.has(p.id) && (p.bookPage ?? 0) !== page)
       .map((p) => ({ ...p, bookPage: page }));
@@ -664,9 +694,13 @@ export class AppState {
     rest.splice(at, 0, ...moving);
     this.photos = rest;
     this.relayout("single", false);
+    this.arrangedByHand = true;
     // Keep the same photos selected at their new places.
-    this.selected = rest.findIndex((p) => p.id === main.id);
-    this.alsoSelected = new Set([...ids].filter((id) => id !== main.id));
+    if (mainId !== undefined) {
+      const main = rest.findIndex((p) => p.id === mainId);
+      this.selected = main >= 0 ? main : null;
+      this.alsoSelected = new Set(selectedIds.filter((id) => id !== mainId));
+    }
     this.setStatus(
       moving.length === 1
         ? t("Moved %(name)s to page %(n)s.", { name: moving[0]?.name ?? "", n: page + 1 })
@@ -963,6 +997,7 @@ export class AppState {
         );
       }
       this.pageRev++;
+      this.arrangedByHand = true;
       this.setStatus(
         t("Swapped %(a)s and %(b)s.", {
           a: this.photos[this.selected]?.name ?? "",

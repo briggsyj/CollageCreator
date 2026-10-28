@@ -174,13 +174,13 @@
         title={app.book
           ? tr("A new arrangement on every page; photos stay on their pages")
           : tr("Try a new arrangement of the same photos")}
-        onclick={() => app.shuffle()}
+        onclick={() => app.askShuffle(false)}
       >
         <svg class="ico16" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M20 11a8 8 0 1 0-2.3 5.7" />
           <path d="M20 4v7h-7" />
         </svg>
-        <span>{app.book ? tr("Shuffle layouts") : tr("Shuffle layout")}</span>
+        <span>{app.book ? tr("Shuffle layout within pages") : tr("Shuffle layout")}</span>
       </button>
       <button
         type="button"
@@ -188,12 +188,12 @@
         title={tr("Mix the photos between the pages, keeping how many each has")}
         class="mini-btn"
         hidden={!app.book}
-        onclick={() => app.shufflePages()}
+        onclick={() => app.askShuffle(true)}
       >
         <svg class="ico16" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M4 7h11l-3-3M20 17H9l3 3" />
         </svg>
-        <span>{tr("Mix pages")}</span>
+        <span>{tr("Shuffle all between pages")}</span>
       </button>
     </div>
   </section>

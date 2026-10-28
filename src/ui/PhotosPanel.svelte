@@ -26,6 +26,39 @@
     }));
   });
 
+  /** Photos being dragged between pages carry their ids under this type. */
+  const DRAG_TYPE = "application/x-collage-photos";
+  /** The page a dragged photo is over, to highlight it. */
+  let dropPage = $state(-1);
+
+  function dragStart(e: DragEvent, index: number): void {
+    const photo = app.photos[index];
+    if (!photo || !e.dataTransfer) return;
+    // Dragging one of the selected photos takes all of them along.
+    const ids = app.selection.includes(index)
+      ? app.selection.flatMap((i) => app.photos[i]?.id ?? [])
+      : [photo.id];
+    e.dataTransfer.setData(DRAG_TYPE, JSON.stringify(ids));
+    e.dataTransfer.effectAllowed = "move";
+  }
+
+  function dragOver(e: DragEvent, page: number): void {
+    if (!e.dataTransfer?.types.includes(DRAG_TYPE)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    dropPage = page;
+  }
+
+  function drop(e: DragEvent, page: number): void {
+    const data = e.dataTransfer?.getData(DRAG_TYPE);
+    dropPage = -1;
+    if (!data) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const ids: unknown = JSON.parse(data);
+    if (Array.isArray(ids)) app.movePhotosToPage(ids.map(String), page);
+  }
+
   const count = $derived(
     app.photos.length === 1 ? tr("1 photo") : tr("%(n)s photos", { n: app.photos.length }),
   );
@@ -148,7 +181,16 @@
   </p>
   <div id="photo-list" bind:this={list}>
     {#each groups as group (group.page)}
-      <section class="page-group" aria-label={group.page >= 0 ? tr("Page %(n)s", { n: group.page + 1 }) : undefined}>
+      <section
+        class="page-group"
+        class:drop-target={dropPage === group.page && group.page >= 0}
+        aria-label={group.page >= 0 ? tr("Page %(n)s", { n: group.page + 1 }) : undefined}
+        ondragover={(e) => group.page >= 0 && dragOver(e, group.page)}
+        ondragleave={(e) => {
+          if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) dropPage = -1;
+        }}
+        ondrop={(e) => group.page >= 0 && drop(e, group.page)}
+      >
         {#if group.page >= 0}
           <div class="page-head">
             <h4>
@@ -200,6 +242,9 @@
               <button
                 type="button"
                 class="tile"
+                draggable={app.book}
+                ondragstart={(e) => dragStart(e, index)}
+                ondragend={() => (dropPage = -1)}
                 title={tr("Select %(name)s (Shift-click to select several)", { name: photo.name })}
                 aria-pressed={app.selection.includes(index)}
                 aria-label={app.book
