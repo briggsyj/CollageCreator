@@ -218,6 +218,11 @@ export class AppState {
   narrow = $state(false);
   mode = $state<Mode>("pan");
   selected = $state<number | null>(null);
+  /**
+   * Photos selected as well as `selected` (by id), from Shift-click in the Photos step or with
+   * the Select tool. Only what works on many photos at once is offered then: size, page, remove.
+   */
+  alsoSelected = $state.raw<ReadonlySet<string>>(new Set());
   /** The photo whose crop is being adjusted; only counts while it is also the selected one. */
   cropFor = $state<number | null>(null);
   /** Counts the times the selected photo should be scrolled into view in the Photos step. */
@@ -276,6 +281,15 @@ export class AppState {
   isSplit = $derived(this.settings.splitImages > 1);
   /** The page of the selected photo (a book), if there is one. */
   selectedPage = $derived(this.selectedPhoto?.bookPage ?? 0);
+  /** Every selected photo by index, the main one first. */
+  selection = $derived.by(() => {
+    if (this.selected === null) return [];
+    const also = this.alsoSelected;
+    const rest = this.photos.flatMap((p, i) => (i !== this.selected && also.has(p.id) ? [i] : []));
+    return [this.selected, ...rest];
+  });
+  /** More than one photo is selected. */
+  multiSelected = $derived(this.selection.length > 1);
   /** How many photos each page of the book holds. */
   pageCounts = $derived(
     countsPerPage(
@@ -425,7 +439,7 @@ export class AppState {
    * `keepSelection` leaves the selected photo selected (its place in the list is unchanged).
    */
   relayout(mode: "search" | "single" = "single", keepSelection = false): void {
-    this.selected = keepSelection ? this.selected : null;
+    if (!keepSelection) this.clearSelection();
     this.focused = 0;
     if (this.photos.length === 0) {
       this.page = null;
@@ -628,28 +642,34 @@ export class AppState {
     this.setStatus(t("Photos shuffled between pages."));
   }
 
-  /** Move the selected photo to another page (it goes last there). */
+  /** Move the selected photos to another page; they go last there, in their order. */
   moveSelectedToPage(page: number): void {
-    const index = this.selected;
-    const photo = this.selectedPhoto;
-    if (!this.book || index === null || !photo || page < 0 || page >= this.pageCount) return;
-    if ((photo.bookPage ?? 0) === page) return;
-    // Last on the new page: take it out of the list and put it after that page's photos.
-    const moved = { ...photo, bookPage: page };
-    const rest = this.photos.filter((_, i) => i !== index);
-    let at = rest.length;
-    for (let i = rest.length - 1; i >= 0; i--) {
-      if ((rest[i]?.bookPage ?? 0) <= page) {
-        at = i + 1;
-        break;
-      }
-      at = i;
-    }
-    rest.splice(at, 0, moved);
+    if (!this.book || page < 0 || page >= this.pageCount) return;
+    const ids = new Set(this.selection.flatMap((i) => this.photos[i]?.id ?? []));
+    const main = this.selectedPhoto;
+    if (!main || ids.size === 0) return;
+    const moving = this.photos
+      .filter((p) => ids.has(p.id) && (p.bookPage ?? 0) !== page)
+      .map((p) => ({ ...p, bookPage: page }));
+    if (moving.length === 0) return;
+    const moved = new Set(moving.map((p) => p.id));
+    const rest = this.photos.filter((p) => !moved.has(p.id));
+    // After the last photo on that page or an earlier one.
+    let at = 0;
+    rest.forEach((p, i) => {
+      if ((p.bookPage ?? 0) <= page) at = i + 1;
+    });
+    rest.splice(at, 0, ...moving);
     this.photos = rest;
     this.relayout("single", false);
-    this.selected = at;
-    this.setStatus(t("Moved %(name)s to page %(n)s.", { name: photo.name, n: page + 1 }));
+    // Keep the same photos selected at their new places.
+    this.selected = rest.findIndex((p) => p.id === main.id);
+    this.alsoSelected = new Set([...ids].filter((id) => id !== main.id));
+    this.setStatus(
+      moving.length === 1
+        ? t("Moved %(name)s to page %(n)s.", { name: moving[0]?.name ?? "", n: page + 1 })
+        : t("Moved %(count)s photos to page %(n)s.", { count: moving.length, n: page + 1 }),
+    );
   }
 
   /** Empty means automatic. Apply while typing; the field is tidied once the edit is done. */
@@ -854,7 +874,12 @@ export class AppState {
   selectPhoto(photoIndex: number): void {
     const photo = this.photos[photoIndex];
     if (!photo) return;
-    if (this.selected === photoIndex) {
+    if (this.multiSelected) {
+      // A plain click on one of several selected photos narrows the selection to it.
+      this.alsoSelected = new Set();
+      this.selected = photoIndex;
+      this.setStatus(t("Selected %(name)s.", { name: photo.name }));
+    } else if (this.selected === photoIndex) {
       this.selected = null;
       this.setStatus("");
     } else {
@@ -863,13 +888,46 @@ export class AppState {
     }
   }
 
+  /** Add a photo to the selection, or take it out (Shift-click). */
+  toggleSelected(photoIndex: number): void {
+    const photo = this.photos[photoIndex];
+    if (!photo) return;
+    if (this.selected === null) {
+      this.selectPhoto(photoIndex);
+      return;
+    }
+    this.cropFor = null;
+    const also = new Set(this.alsoSelected);
+    if (photoIndex === this.selected) {
+      // The main photo leaves; the next selected one takes its place.
+      const next = this.selection[1];
+      this.selected = next ?? null;
+      const nextPhoto = next === undefined ? undefined : this.photos[next];
+      if (nextPhoto) also.delete(nextPhoto.id);
+    } else if (also.has(photo.id)) {
+      also.delete(photo.id);
+    } else {
+      also.add(photo.id);
+    }
+    this.alsoSelected = also;
+    const n = this.selection.length;
+    this.setStatus(n > 1 ? t("%(n)s photos selected.", { n }) : "");
+  }
+
+  /** Nothing selected. */
+  private clearSelection(): void {
+    this.selected = null;
+    if (this.alsoSelected.size > 0) this.alsoSelected = new Set();
+  }
+
   /**
    * The Select tool: choose a photo on the preview and show it in the Photos step (on wide
    * screens), where Wider, Taller and Remove are. On phones the action bar appears instead.
    */
-  selectInPhotos(photoIndex: number): void {
-    this.selectPhoto(photoIndex);
-    if (this.selected !== photoIndex || this.narrow) return;
+  selectInPhotos(photoIndex: number, add = false): void {
+    if (add) this.toggleSelected(photoIndex);
+    else this.selectPhoto(photoIndex);
+    if (!this.selection.includes(photoIndex) || this.narrow) return;
     this.setTab("photos", false);
     this.revealToken++;
   }
@@ -879,6 +937,8 @@ export class AppState {
     const placement = this.layout?.placements[cellIndex];
     if (!this.page || !placement) return;
     const photoIndex = placement.photoIndex;
+    // Swapping is one photo for another: a selection of several starts again.
+    if (this.multiSelected) this.clearSelection();
     if (this.selected === null) {
       this.selected = photoIndex;
       this.setStatus(
@@ -918,7 +978,7 @@ export class AppState {
 
   /** Turn adjusting the selected photo's crop on or off. */
   toggleCrop(): void {
-    if (this.selected === null) return;
+    if (this.selected === null || this.multiSelected) return;
     this.cropFor = this.cropping ? null : this.selected;
     this.setStatus(this.cropping ? t("Drag the photo to move it, scroll to zoom.") : "");
   }
@@ -980,7 +1040,7 @@ export class AppState {
   readonly maxZoom = MAX_ZOOM;
 
   deselect(): void {
-    this.selected = null;
+    this.clearSelection();
     this.setStatus("");
   }
 
@@ -1056,8 +1116,15 @@ export class AppState {
   }
 
   removeSelected(): void {
-    const photo = this.selectedPhoto;
-    if (photo) this.removePhotos(new Set([photo.id]), t("Removed %(name)s.", { name: photo.name }));
+    const photos = this.selection.flatMap((i) => this.photos[i] ?? []);
+    const first = photos[0];
+    if (!first) return;
+    this.removePhotos(
+      new Set(photos.map((p) => p.id)),
+      photos.length === 1
+        ? t("Removed %(name)s.", { name: first.name })
+        : t("Removed %(n)s photos.", { n: photos.length }),
+    );
   }
 
   /** Ask, then take every photo out and go back to one page. Undo remove brings them back. */
@@ -1114,36 +1181,45 @@ export class AppState {
    * collage is recalculated around it from the same seed.
    */
   setSpan(photoIndex: number, change: Partial<PhotoSpan> | "reset"): void {
-    const photo = this.photos[photoIndex];
-    if (!photo) return;
-    const span = change === "reset" ? { ...NO_SPAN } : { ...(photo.span ?? NO_SPAN), ...change };
-    const updated = { ...photo, span };
-    this.photos = this.photos.map((p, i) => (i === photoIndex ? updated : p));
+    this.setSpans([photoIndex], change);
+  }
+
+  /** The same size request for several photos at once, with one new arrangement. */
+  private setSpans(indices: readonly number[], change: Partial<PhotoSpan> | "reset"): void {
+    const first = this.photos[indices[0] ?? -1];
+    if (!first) return;
+    const wanted = new Set(indices);
+    const spanOf = (photo: ImportedPhoto): PhotoSpan =>
+      change === "reset" ? { ...NO_SPAN } : { ...(photo.span ?? NO_SPAN), ...change };
+    this.photos = this.photos.map((p, i) => (wanted.has(i) ? { ...p, span: spanOf(p) } : p));
     this.relayout("single", true);
-    const description = describeSpan(span);
+    const description = describeSpan(spanOf(first));
+    const name = indices.length === 1 ? first.name : t("%(n)s photos", { n: indices.length });
     this.setStatus(
       description
-        ? t("%(name)s: %(what)s.", { name: photo.name, what: description })
-        : t("%(name)s is back to its normal size.", { name: photo.name }),
+        ? t("%(name)s: %(what)s.", { name, what: description })
+        : t("%(name)s is back to its normal size.", { name }),
     );
   }
 
+  /** Wider for every selected photo, or back to one column when the main one is already wide. */
   toggleWider(): void {
     const index = this.selected;
     if (index === null) return;
     const wide = this.photos[index]?.span?.columns === 2;
-    this.setSpan(index, { columns: wide ? 1 : 2 });
+    this.setSpans(this.selection, { columns: wide ? 1 : 2 });
   }
 
+  /** Taller in steps (2 rows, 3 rows, back to 1), following the main selected photo. */
   cycleTaller(): void {
     const index = this.selected;
     if (index === null) return;
     const rows = this.photos[index]?.span?.rows ?? 1;
-    this.setSpan(index, { rows: rows === 1 ? 2 : rows === 2 ? 3 : 1 });
+    this.setSpans(this.selection, { rows: rows === 1 ? 2 : rows === 2 ? 3 : 1 });
   }
 
   resetSpan(): void {
-    if (this.selected !== null) this.setSpan(this.selected, "reset");
+    if (this.selected !== null) this.setSpans(this.selection, "reset");
   }
 
   // ---------------------------------------------------------------------- size

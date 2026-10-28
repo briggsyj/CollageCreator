@@ -445,3 +445,60 @@ test.describe("Tooltips", () => {
     expect(untitled).toEqual([]);
   });
 });
+
+test.describe("Selecting several photos", () => {
+  test("Shift-click in the Photos step selects several; size and remove work on all, crop is off", async ({
+    page,
+  }) => {
+    await addPhotos(page, await makeImages(page, names(5)));
+    await page.click("#tab-photos");
+    const tiles = page.locator("#photo-list .tile");
+    await tiles.nth(0).click();
+    await tiles.nth(2).click({ modifiers: ["Shift"] });
+    await tiles.nth(3).click({ modifiers: ["Shift"] });
+    await expect(page.locator("#photo-list .tile[aria-pressed='true']")).toHaveCount(3);
+    await expect(page.locator("#dock-name")).toHaveText("3 photos selected");
+    await expect(page.locator("#crop-toggle")).toBeDisabled();
+    await page.click("#span-wider");
+    await expect(page.locator("#photo-list .tag")).toHaveCount(3);
+    // Shift-click again takes one out.
+    await tiles.nth(2).click({ modifiers: ["Shift"] });
+    await expect(page.locator("#dock-name")).toHaveText("2 photos selected");
+    await page.click("#remove-selected");
+    await expect(page.locator("#photo-list li")).toHaveCount(3);
+    await page.click("#undo-remove");
+    await expect(page.locator("#photo-list li")).toHaveCount(5);
+  });
+
+  test("Shift-click with the Select tool adds to the selection, shown in the Photos step", async ({
+    page,
+  }) => {
+    await setSize(page, 320, 240);
+    await addPhotos(page, await makeImages(page, colourful(4)));
+    await page.click("#mode-select");
+    const a = await posterPoint(page, 0.1, 0.5);
+    const b = await posterPoint(page, 0.9, 0.5);
+    await page.mouse.click(a.x, a.y);
+    await page.keyboard.down("Shift");
+    await page.mouse.click(b.x, b.y);
+    await page.keyboard.up("Shift");
+    await expect(page.locator("#photo-list .tile[aria-pressed='true']")).toHaveCount(2);
+    await expect(page.locator("#dock-name")).toHaveText("2 photos selected");
+    // A plain click narrows it to one again.
+    await page.mouse.click(a.x, a.y);
+    await expect(page.locator("#photo-list .tile[aria-pressed='true']")).toHaveCount(1);
+  });
+
+  test("several selected photos move to another page together", async ({ page }) => {
+    await setSize(page, 320, 240);
+    await addPhotos(page, await makeImages(page, names(4)));
+    await setPages(page, 2);
+    await page.click("#tab-photos");
+    const tiles = page.locator("#photo-list .tile");
+    await tiles.nth(0).click();
+    await tiles.nth(1).click({ modifiers: ["Shift"] });
+    await page.selectOption("#move-page", "1");
+    expect(await pagesOfNames(page)).toEqual([[], ["p03.png", "p04.png", "p01.png", "p02.png"]]);
+    await expect(page.locator("#dock-name")).toHaveText("2 photos selected");
+  });
+});

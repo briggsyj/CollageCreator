@@ -200,12 +200,15 @@
               <button
                 type="button"
                 class="tile"
-                title={tr("Select %(name)s", { name: photo.name })}
-                aria-pressed={index === app.selected}
+                title={tr("Select %(name)s (Shift-click to select several)", { name: photo.name })}
+                aria-pressed={app.selection.includes(index)}
                 aria-label={app.book
                   ? `${label}, ${tr("Page %(n)s", { n: (photo.bookPage ?? 0) + 1 })}`
                   : label}
-                onclick={() => app.selectPhoto(index)}
+                onclick={(e) =>
+                  e.shiftKey || e.metaKey || e.ctrlKey
+                    ? app.toggleSelected(index)
+                    : app.selectPhoto(index)}
               >
                 <Thumb bitmap={photo.thumb} />
                 {#if wanted}<span class="tag">{wanted}</span>{/if}

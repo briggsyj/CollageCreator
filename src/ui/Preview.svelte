@@ -131,8 +131,8 @@
       const rect = lastRects[focusCell];
       if (rect) drawSelection(ctx, rect, "#ff9d00");
     }
-    if (app.selected !== null) {
-      const i = layout.placements.findIndex((p) => p.photoIndex === app.selected);
+    for (const photoIndex of app.selection) {
+      const i = layout.placements.findIndex((p) => p.photoIndex === photoIndex);
       const rect = lastRects[i];
       if (rect) drawSelection(ctx, rect, "#1f5fbf");
     }
@@ -215,7 +215,7 @@
     void app.photos;
     void $state.snapshot(app.settings);
     void app.view;
-    void app.selected;
+    void app.selection;
     void app.pageCounts;
     void app.cropping;
     void app.focused;
@@ -310,7 +310,8 @@
     if (to < 0) return;
     if (app.mode === "select") {
       const photoIndex = photoAt(to);
-      if (photoIndex !== undefined) app.selectInPhotos(photoIndex);
+      // Shift-click adds the photo to the selection (or takes it out).
+      if (photoIndex !== undefined) app.selectInPhotos(photoIndex, e.shiftKey);
       return;
     }
     if (dragFrom >= 0 && dragFrom !== to && app.selected === null) app.pick(dragFrom);
@@ -413,7 +414,12 @@
     const order = readingOrder(layout);
     if (e.key.startsWith("Arrow") || e.key === "Enter") app.focusRing = true;
     if (e.key === "Delete" || e.key === "Backspace") {
-      // Remove the selected photo, or else the one with the focus ring.
+      // Remove the selected photos, or else the one with the focus ring.
+      if (app.selected !== null) {
+        e.preventDefault();
+        app.removeSelected();
+        return;
+      }
       const photoIndex = app.selected ?? layout.placements[order[app.focused] ?? -1]?.photoIndex;
       const photo = photoIndex === undefined ? undefined : app.photos[photoIndex];
       e.preventDefault();

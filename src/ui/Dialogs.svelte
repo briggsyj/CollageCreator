@@ -86,7 +86,7 @@
     <li>
       <strong>{tr("Select")}</strong>:
       <span
-        >{tr("click a photo to select it in the Photos step, then make it wider or taller.")}</span
+        >{tr("click a photo to select it in the Photos step, then make it wider or taller. Shift-click to select several.")}</span
       >
     </li>
     <li>
