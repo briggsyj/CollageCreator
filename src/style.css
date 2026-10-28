@@ -1147,6 +1147,27 @@ dialog h3 {
   text-align: left;
 }
 
+/* No browser menu or text selection on a long press: it starts a drag on phones. */
+.tile {
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+.drag-ghost {
+  position: fixed;
+  z-index: 50;
+  transform: translate(-50%, calc(-100% - 18px));
+  padding: 6px 12px;
+  border-radius: 14px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+}
+
 .tile canvas {
   display: block;
   width: 100%;

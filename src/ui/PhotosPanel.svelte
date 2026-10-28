@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: GPL-2.0-or-later -->
 <!-- Copyright (C) 2026 John Briggs -->
 <script lang="ts">
+  import { type TouchDragHandlers, touchDrag } from "./actions";
   import { app, describeSpan } from "./app-state.svelte";
   import Thumb from "./Thumb.svelte";
   import { tr } from "./tr.svelte";
@@ -35,13 +36,18 @@
   /** The "new page" target appears after the last page while there is room for one more. */
   const canAddPage = $derived(app.hasPhotos && app.pageCount < app.maxPages);
 
-  function dragStart(e: DragEvent, index: number): void {
+  /** The photos a drag from this tile moves: all the selected ones if it is one of them. */
+  function draggedIds(index: number): string[] {
     const photo = app.photos[index];
-    if (!photo || !e.dataTransfer) return;
-    // Dragging one of the selected photos takes all of them along.
-    const ids = app.selection.includes(index)
+    if (!photo) return [];
+    return app.selection.includes(index)
       ? app.selection.flatMap((i) => app.photos[i]?.id ?? [])
       : [photo.id];
+  }
+
+  function dragStart(e: DragEvent, index: number): void {
+    const ids = draggedIds(index);
+    if (ids.length === 0 || !e.dataTransfer) return;
     e.dataTransfer.setData(DRAG_TYPE, JSON.stringify(ids));
     e.dataTransfer.effectAllowed = "move";
     dragging = true;
@@ -59,6 +65,59 @@
     if (!Array.isArray(ids)) return;
     app.addPage();
     app.movePhotosToPage(ids.map(String), app.pageCount - 1);
+  }
+
+  // ---- With a finger: press and hold a photo, then move it onto a page (see touchDrag).
+
+  /** The photos a finger is moving, and the label that follows it. */
+  let touchIds: string[] = [];
+  let ghost = $state<{ x: number; y: number; count: number } | null>(null);
+
+  /** The page under a point: a page group's number, the "new page" target's, or -1. */
+  function pageAt(x: number, y: number): number {
+    const el = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-drop-page]");
+    return el ? Number(el.dataset.dropPage) : -1;
+  }
+
+  /** Near the top or bottom of the scrolling list, the list scrolls to reach other pages. */
+  function edgeScroll(y: number): void {
+    const scroller = list.closest<HTMLElement>(".sheet, .panes, .side") ?? list.parentElement;
+    if (!scroller) return;
+    const r = scroller.getBoundingClientRect();
+    if (y < r.top + 48) scroller.scrollTop -= 12;
+    else if (y > r.bottom - 48) scroller.scrollTop += 12;
+  }
+
+  function touchHandlers(index: number): TouchDragHandlers {
+    return {
+      start: (x, y) => {
+        if (!(app.book || canAddPage)) return false;
+        touchIds = draggedIds(index);
+        if (touchIds.length === 0) return false;
+        dragging = true;
+        ghost = { x, y, count: touchIds.length };
+        return true;
+      },
+      move: (x, y) => {
+        ghost = { x, y, count: touchIds.length };
+        dropPage = pageAt(x, y);
+        edgeScroll(y);
+      },
+      end: (x, y, dropped) => {
+        const page = dropped ? pageAt(x, y) : -1;
+        ghost = null;
+        dropPage = -1;
+        dragging = false;
+        if (page < 0) return;
+        if (page >= app.pageCount) {
+          app.addPage();
+          app.movePhotosToPage(touchIds, app.pageCount - 1);
+        } else {
+          if (!app.book) return;
+          app.movePhotosToPage(touchIds, page);
+        }
+      },
+    };
   }
 
   function dragOver(e: DragEvent, page: number): void {
@@ -211,6 +270,7 @@
       <section
         class="page-group"
         class:drop-target={dropPage === group.page && group.page >= 0}
+        data-drop-page={group.page >= 0 ? group.page : undefined}
         aria-label={group.page >= 0 ? tr("Page %(n)s", { n: group.page + 1 }) : undefined}
         ondragover={(e) => group.page >= 0 && dragOver(e, group.page)}
         ondragleave={(e) => {
@@ -270,6 +330,7 @@
                 type="button"
                 class="tile"
                 draggable={app.book || canAddPage}
+                use:touchDrag={touchHandlers(index)}
                 ondragstart={(e) => dragStart(e, index)}
                 ondragend={() => {
                   dropPage = -1;
@@ -299,6 +360,7 @@
       <section
         class="new-page"
         class:drop-target={dropPage === app.pageCount}
+        data-drop-page={app.pageCount}
         aria-label={tr("New page")}
         ondragover={(e) => dragOver(e, app.pageCount)}
         ondragleave={(e) => {
@@ -317,3 +379,11 @@
     {/if}
   </div>
 </section>
+
+<!-- Follows the finger while photos are dragged to another page. -->
+{#if ghost}
+  <div class="drag-ghost" style:left={`${ghost.x}px`} style:top={`${ghost.y}px`} aria-hidden="true">
+    {ghost.count === 1 ? tr("Moving 1 photo") : tr("Moving %(n)s photos", { n: ghost.count })}
+  </div>
+{/if}
+
