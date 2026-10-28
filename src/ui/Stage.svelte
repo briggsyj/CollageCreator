@@ -3,6 +3,7 @@
 <script lang="ts">
   import { app } from "./app-state.svelte";
   import Preview from "./Preview.svelte";
+  import SaveBlock from "./SaveBlock.svelte";
   import { tr } from "./tr.svelte";
 
   const summary = $derived.by(() => {
@@ -17,9 +18,20 @@
     ].join(" · ");
   });
   const none = $derived(!app.hasPhotos);
+
+  /** The save panel's height, so the preview area stops above it and it never covers a page. */
+  let saveBlock: HTMLElement | undefined = $state();
+  let saveRoom = $state(0);
+  $effect(() => {
+    const el = saveBlock;
+    if (!el) return;
+    const watch = new ResizeObserver(() => (saveRoom = el.offsetHeight));
+    watch.observe(el);
+    return () => watch.disconnect();
+  });
 </script>
 
-<main class="stage" aria-label="Preview">
+<main class="stage" aria-label="Preview" style:--save-room={`${saveRoom}px`}>
   <p id="hint" class="pill hint-pill">{app.status}</p>
   <div class="tools" id="tools">
     <fieldset class="modes group" id="modes" aria-label="Mode">
@@ -107,6 +119,8 @@
   </div>
 
   <Preview />
+  <!-- On wide screens saving is a panel at the bottom right; on phones it is the Save sheet. -->
+  {#if !app.narrow}<SaveBlock bind:block={saveBlock} />{/if}
 
   <button
     type="button"

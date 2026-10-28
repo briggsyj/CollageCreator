@@ -434,6 +434,18 @@ test.describe("Book of Instagram posts", () => {
   });
 });
 
+test.describe("Add page while zoomed in", () => {
+  test("the view zooms out to show the new page", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, names(3)));
+    await page.click("#zoom-in");
+    await page.click("#zoom-in");
+    await expect(page.locator("#reset-view")).toBeEnabled();
+    await page.click("#add-page-tile");
+    await expect(page.locator(".page-pill")).toHaveCount(2);
+    await expect(page.locator("#reset-view")).toBeDisabled();
+  });
+});
+
 test.describe("Tooltips", () => {
   test("every button has a title, shown as a tooltip on hover", async ({ page }) => {
     await addPhotos(page, await makeImages(page, names(3)));

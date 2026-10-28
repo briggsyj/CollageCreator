@@ -559,6 +559,8 @@ export class AppState {
     this.pageCount++;
     (this.page as BookPage | null)?.addPage();
     this.pageRev++;
+    // Zoomed in, the new page would land out of sight: show every page.
+    if (!this.isFit) this.fitView();
     this.setStatus(t("Added page %(n)s.", { n: this.pageCount }));
   }
 

@@ -204,7 +204,7 @@
   </div>
 
   <SelectedDock />
-  <SaveBlock bind:block={saveBlock} />
+  {#if app.narrow}<SaveBlock bind:block={saveBlock} />{/if}
 
   <div class="util" id="util">
     <div class="util-row">

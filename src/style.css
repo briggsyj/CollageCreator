@@ -1901,16 +1901,78 @@ dialog .button-row {
   display: none;
 }
 
-/* Save options: under the Style step on wide screens (they are file settings, not looks), and
-   always inside the Save sheet on phones. */
+/* Save options: in the save panel on wide screens, and inside the Save sheet on phones. */
 .save-opts {
-  display: none;
+  display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.app[data-tab="style"] .save-opts {
-  display: flex;
+/* Wide screens: saving is a small panel at the bottom right of the preview, in a strip of its
+   own below the preview area so it never covers the pages or the Add page button. */
+@media (min-width: 761px) {
+  .canvas-box {
+    bottom: calc(var(--save-room, 64px) + 12px);
+  }
+
+  .stage .save-block {
+    position: absolute;
+    z-index: 3;
+    right: 16px;
+    bottom: 12px;
+    max-width: calc(100% - 96px);
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 8px 8px 8px 16px;
+    border-radius: 20px;
+    border-top: var(--chrome-border);
+    background: var(--chrome-bg);
+    -webkit-backdrop-filter: var(--chrome-filter);
+    backdrop-filter: var(--chrome-filter);
+    border: var(--chrome-border);
+    box-shadow: var(--chrome-shadow);
+  }
+
+  .stage .save-block .meta {
+    max-width: 190px;
+    font-size: 0.8rem;
+    line-height: 1.3;
+  }
+
+  .stage .save-opts {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .stage .save-opts .seg button {
+    min-height: 34px;
+    padding: 0 12px;
+  }
+
+  .stage #quality-field {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    width: 170px;
+  }
+
+  .stage #quality-field[hidden] {
+    display: none;
+  }
+
+  .stage .save-block button.wide {
+    width: auto;
+    min-height: 44px;
+    padding: 0 18px;
+  }
+
+  /* The main action last, at the right edge. */
+  .stage .save-block #save {
+    order: 2;
+  }
 }
 
 @media (max-width: 760px) {

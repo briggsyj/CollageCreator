@@ -80,7 +80,7 @@
     </select>
     <label class="field" id="quality-field" hidden={app.settings.format !== "jpeg"}>
       <span class="rowhead"
-        ><span>{tr("JPEG quality")}</span>
+        ><span>{tr("Quality")}</span>
         <output id="quality-output" for="quality">{quality}%</output></span
       >
       <input

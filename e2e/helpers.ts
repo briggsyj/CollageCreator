@@ -363,12 +363,7 @@ async function reveal(page: Page, selector: string): Promise<void> {
   const panel = await page
     .locator(selector)
     .first()
-    .evaluate(
-      (el) =>
-        el.closest('[role="tabpanel"]')?.id ?? (el.closest(".save-opts") ? "panel-style" : null),
-      undefined,
-      { timeout: 2000 },
-    )
+    .evaluate((el) => el.closest('[role="tabpanel"]')?.id ?? null, undefined, { timeout: 2000 })
     .catch(() => null);
   if (!panel) return;
   const hidden = await page.locator(`#${panel}`).evaluate((el) => (el as HTMLElement).hidden);
