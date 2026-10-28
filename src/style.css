@@ -227,8 +227,8 @@ body:has(.app[data-empty="true"]) {
 
 .side,
 .modes,
+.zoomers,
 .pill,
-.zoomers .sq,
 .help-btn,
 .dock,
 dialog {
@@ -378,7 +378,8 @@ select {
 
 .seg button,
 .tabs button,
-.modes button {
+.modes button,
+.zoomers .sq {
   background: none;
   border: 0;
   box-shadow: none;
@@ -876,6 +877,11 @@ dialog h3 {
   margin-top: 14px;
 }
 
+#shuffle-pages {
+  flex: none;
+  margin-top: 8px;
+}
+
 .drop-tip {
   margin: -8px 0 0;
   text-align: center;
@@ -912,7 +918,7 @@ dialog h3 {
 }
 
 #book-style {
-  margin: 8px 0 12px;
+  margin: 12px 0 16px;
 }
 
 .move-page {
@@ -1348,20 +1354,22 @@ body.dragging .canvas-box {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  padding: 4px;
+  border-radius: calc(var(--r-ctl) + 6px);
 }
 
 .zoomers .sq {
+  width: 60px;
   height: 48px;
   font-size: 0.85rem;
-  font-weight: 600;
-  background: var(--ctl-bg);
 }
 
 .zoom-pct {
+  padding: 2px 0 4px;
   font-size: 0.78rem;
+  font-weight: 600;
   color: var(--sub);
-  min-height: 1em;
 }
 
 dialog {
@@ -1670,8 +1678,20 @@ dialog .button-row {
     max-width: calc(100% - 2 * var(--inset));
   }
 
+  .zoomers {
+    height: 68px;
+    align-items: center;
+  }
+
+  .zoomers .sq {
+    width: 48px;
+    height: 100%;
+  }
+
   .zoom-pct {
-    display: none;
+    min-width: 3.2em;
+    padding: 0 6px;
+    text-align: center;
   }
 }
 

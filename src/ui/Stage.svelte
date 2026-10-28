@@ -94,8 +94,8 @@
       >
         {tr("Fit")}
       </button>
-      <span id="view-zoom" class="zoom-pct" aria-live="off"
-        >{app.isFit ? "" : tr("Zoom: %(pct)s%", { pct: app.zoomPercent })}</span
+      <span id="view-zoom" class="zoom-pct" aria-live="off" title={tr("Zoom")}
+        >{app.zoomPercent}%</span
       >
     </fieldset>
   </div>
