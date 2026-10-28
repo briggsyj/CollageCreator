@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2026 John Briggs
 
+import { pageLayout } from "../core/book";
 import type { Layout, PhotoCrop, PosterSettings, Rect } from "../core/types";
 import {
   borderPixels,
@@ -40,6 +41,44 @@ export function fitSize(
  * export uses, so what is previewed is what is saved.
  */
 export function drawCollage(
+  ctx: Ctx2D,
+  width: number,
+  height: number,
+  input: PreviewInput,
+): Rect[] {
+  const { layout } = input;
+  if (layout.pages) return drawBook(ctx, width, height, input);
+  return drawPage(ctx, width, height, input);
+}
+
+/**
+ * A book: each page is drawn on its own, as a collage of that page's size, in its place in the
+ * row. The gaps between the pages are left as they are (the backdrop shows). The rectangles
+ * returned follow `layout.placements`, in the row's own pixels.
+ */
+function drawBook(ctx: Ctx2D, width: number, height: number, input: PreviewInput): Rect[] {
+  const { layout } = input;
+  const rects: Rect[] = new Array(layout.placements.length);
+  (layout.pages ?? []).forEach((page, k) => {
+    const x = Math.round(page.x * width);
+    const w = Math.max(1, Math.round((page.x + page.w) * width) - x);
+    const indexes = layout.placements.flatMap((p, i) => (p.page === k ? [i] : []));
+    ctx.save();
+    ctx.translate(x, 0);
+    ctx.beginPath();
+    ctx.rect(0, 0, w, height);
+    ctx.clip();
+    const local = drawPage(ctx, w, height, { ...input, layout: pageLayout(layout, k) });
+    ctx.restore();
+    local.forEach((r, j) => {
+      const at = indexes[j];
+      if (at !== undefined) rects[at] = { x: r.x + x, y: r.y, w: r.w, h: r.h };
+    });
+  });
+  return rects;
+}
+
+function drawPage(
   ctx: Ctx2D,
   width: number,
   height: number,

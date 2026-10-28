@@ -2,7 +2,9 @@
 # Copyright (C) 2026 John Briggs
 
 # Builds the static site and publishes it to GitHub Pages when master changes.
-# One-time setup: repository Settings > Pages > Build and deployment > Source: GitHub Actions.
+# Pages source "GitHub Actions" serves it through the deploy job below. Pull request previews
+# (preview.yaml) need Source: Deploy from a branch, `gh-pages` instead; this workflow publishes
+# the main site to that branch too, so it works under either setting.
 name: GitHub Pages
 
 on:
@@ -20,7 +22,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 # A newer commit on the same branch makes the older run pointless.
 concurrency:
@@ -54,6 +56,14 @@ jobs:
           E2E_BASE_URL=http://localhost:4174/CollageCreator/ npx playwright test --project=chromium \
             --grep "saves a PNG|network disconnected|another language|About dialog|other origins|right way up"
 
+      # The same build, published to the gh-pages branch beside the pull request previews
+      # (preview.yaml). It is what GitHub serves once Pages is set to deploy from that branch.
+      - name: Publish to the gh-pages branch
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/publish-pages.sh site dist
+
       # Only a real deployment needs the Pages site to exist and be enabled.
       - uses: actions/configure-pages@v6
         if: github.event_name != 'pull_request'
@@ -64,6 +74,9 @@ jobs:
 
   deploy:
     name: Deploy to GitHub Pages
+    # While Pages is set to "GitHub Actions" this serves the site; once it is set to deploy from the
+    # gh-pages branch (needed for pull request previews) this step has nothing to do and may fail.
+    continue-on-error: true
     needs: build
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest

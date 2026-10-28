@@ -40,8 +40,8 @@
   /** Cells in reading order (top to bottom, left to right), for keyboard navigation. */
   function readingOrder(layout: Layout): number[] {
     return layout.placements
-      .map((p, i) => ({ i, y: Math.round(p.cell.y * 1000), x: p.cell.x }))
-      .sort((a, b) => a.y - b.y || a.x - b.x)
+      .map((p, i) => ({ i, page: p.page ?? 0, y: Math.round(p.cell.y * 1000), x: p.cell.x }))
+      .sort((a, b) => a.page - b.page || a.y - b.y || a.x - b.x)
       .map((e) => e.i);
   }
 
@@ -94,12 +94,16 @@
       return;
     }
 
+    // The poster's white sheet and shadow; a book has one for each page.
     ctx.save();
     ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
     ctx.shadowBlur = 12 * dpr;
     ctx.shadowOffsetY = 2 * dpr;
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(ox, oy, pw, ph);
+    for (const sheet of layout.pages ?? [{ x: 0, w: 1 }]) {
+      const x = Math.round(sheet.x * pw);
+      ctx.fillRect(ox + x, oy, Math.round((sheet.x + sheet.w) * pw) - x, ph);
+    }
     ctx.restore();
 
     ctx.save();
@@ -124,6 +128,7 @@
       if (rect) drawSelection(ctx, rect, "#1f5fbf");
     }
     ctx.restore();
+    if (layout.pages) drawPageMarks(ctx, layout, { x: ox, y: oy, w: pw, h: ph }, dpr);
     if (settings.splitImages > 1) {
       const colour =
         getComputedStyle(document.documentElement).getPropertyValue("--sub").trim() || "#3b3b37";
@@ -140,6 +145,55 @@
     }
   }
 
+  /** A book's labels under the pages, and an outline round the page of the selected photo. */
+  function drawPageMarks(
+    ctx: CanvasRenderingContext2D,
+    layout: Layout,
+    poster: { x: number; y: number; w: number; h: number },
+    dpr: number,
+  ): void {
+    const colour =
+      getComputedStyle(document.documentElement).getPropertyValue("--sub").trim() || "#3b3b37";
+    const pages = layout.pages ?? [];
+    ctx.save();
+    ctx.fillStyle = colour;
+    ctx.font = `${13 * dpr}px system-ui, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    pages.forEach((page, k) => {
+      const x = poster.x + Math.round(page.x * poster.w);
+      const w = Math.round((page.x + page.w) * poster.w) - Math.round(page.x * poster.w);
+      const photos = app.pageCounts[k] ?? 0;
+      const label = t("Page %(n)s of %(total)s", { n: k + 1, total: pages.length });
+      const text = photos === 0 ? `${label} · ${t("empty")}` : label;
+      ctx.fillText(text, x + w / 2, poster.y + poster.h + 10 * dpr, w);
+      if (photos === 0) {
+        ctx.setLineDash([6 * dpr, 4 * dpr]);
+        ctx.strokeStyle = colour;
+        ctx.lineWidth = 1.5 * dpr;
+        ctx.strokeRect(x + 0.5 * dpr, poster.y + 0.5 * dpr, w - dpr, poster.h - dpr);
+        ctx.setLineDash([]);
+        ctx.fillText(
+          t("Drop or move photos here"),
+          x + w / 2,
+          poster.y + poster.h / 2,
+          w - 16 * dpr,
+        );
+      }
+    });
+    const selectedPage = app.selected === null ? undefined : app.selectedPhoto?.bookPage;
+    const outlined = selectedPage === undefined ? undefined : pages[selectedPage];
+    if (outlined) {
+      const x = poster.x + Math.round(outlined.x * poster.w);
+      const w =
+        Math.round((outlined.x + outlined.w) * poster.w) - Math.round(outlined.x * poster.w);
+      ctx.strokeStyle = "#1f5fbf";
+      ctx.lineWidth = 3 * dpr;
+      ctx.strokeRect(x - 2 * dpr, poster.y - 2 * dpr, w + 4 * dpr, poster.h + 4 * dpr);
+    }
+    ctx.restore();
+  }
+
   // Everything the picture depends on: change any of it and the preview is redrawn.
   $effect(() => {
     void app.layout;
@@ -147,6 +201,7 @@
     void $state.snapshot(app.settings);
     void app.view;
     void app.selected;
+    void app.pageCounts;
     void app.cropping;
     void app.focused;
     void app.canvasFocused;
@@ -365,9 +420,20 @@
       return;
     }
     e.preventDefault();
-    const name =
-      app.photos[layout.placements[order[app.focused] as number]?.photoIndex ?? -1]?.name;
-    if (name && e.key.startsWith("Arrow")) app.setStatus(name);
+    const focusedPlacement = layout.placements[order[app.focused] as number];
+    const name = app.photos[focusedPlacement?.photoIndex ?? -1]?.name;
+    if (name && e.key.startsWith("Arrow")) {
+      // In a book the page is part of the name, so it is spoken too.
+      app.setStatus(
+        layout.pages
+          ? t("%(name)s, page %(n)s of %(total)s", {
+              name,
+              n: (focusedPlacement?.page ?? 0) + 1,
+              total: layout.pages.length,
+            })
+          : name,
+      );
+    }
   }
 </script>
 

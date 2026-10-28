@@ -45,6 +45,67 @@
   aria-labelledby="tab-poster"
   hidden={app.tab !== "poster"}
 >
+  <section aria-labelledby="pages-h" id="pages-block" hidden={!app.book}>
+    <h3 id="pages-h">{tr("Pages")}</h3>
+    <p class="hint" id="pages-count">
+      {tr("%(pages)s page(s), %(photos)s photo(s)", {
+        pages: app.pageCount,
+        photos: app.photos.length,
+      })}
+    </p>
+    <div class="field">
+      <span>{tr("Photos per page")}</span>
+      <div class="stepper">
+        <button
+          type="button"
+          id="per-page-less"
+          class="sq"
+          aria-label={tr("Fewer photos per page")}
+          disabled={app.perPage <= app.perPageMin}
+          onclick={() => app.setPerPage(app.perPage - 1)}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" /></svg>
+        </button>
+        <input
+          id="per-page"
+          type="number"
+          min={app.perPageMin}
+          max={app.perPageMax}
+          step="1"
+          inputmode="numeric"
+          use:showValue={{ value: String(app.perPage), again: app.sizeEpoch }}
+          onchange={(e) => {
+            app.setPerPage(Number(e.currentTarget.value));
+            e.currentTarget.value = String(app.perPage);
+          }}
+        />
+        <button
+          type="button"
+          id="per-page-more"
+          class="sq"
+          aria-label={tr("More photos per page")}
+          disabled={app.perPage >= app.perPageMax}
+          onclick={() => app.setPerPage(app.perPage + 1)}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+        </button>
+      </div>
+    </div>
+    <div class="button-row">
+      <button type="button" id="add-page" disabled={app.pageCount >= app.maxPages} onclick={() => app.addPage()}>
+        {tr("Add page")}
+      </button>
+      <button type="button" id="spread-pages" disabled={!app.hasPhotos} onclick={() => app.spreadPhotos()}>
+        {tr("Spread evenly")}
+      </button>
+    </div>
+    <p class="hint">
+      {tr(
+        "New photos fill the pages in order and a page is added when all are full. Each page is saved as its own image; several are saved as a zip.",
+      )}
+    </p>
+  </section>
+
   <section aria-labelledby="size-h">
     <h3 id="size-h">{tr("Output image size")}</h3>
     <fieldset id="size-choices" class="choices group" aria-labelledby="size-h">
@@ -204,6 +265,9 @@
         )}
       </p>
     </div>
+    <p id="book-size-hint" class="hint" hidden={!app.book}>
+      {tr("In a book, this is the size of each page.")}
+    </p>
     <p id="size-note" class="hint">{app.sizeNote}</p>
     <p id="split-note" class="hint" hidden={split <= 1}>
       {tr(

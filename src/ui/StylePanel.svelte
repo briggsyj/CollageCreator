@@ -55,7 +55,7 @@
         type="button"
         class="card"
         id="layout-mosaic"
-        aria-pressed={!gallery}
+        aria-pressed={!gallery && !app.book}
         onclick={() => app.chooseLayout("mosaic")}
       >
         <svg viewBox="0 0 40 30" aria-hidden="true">
@@ -75,7 +75,7 @@
         type="button"
         class="card"
         id="layout-gallery"
-        aria-pressed={gallery}
+        aria-pressed={gallery && !app.book}
         onclick={() => app.chooseLayout("gallery")}
       >
         <svg viewBox="0 0 40 30" aria-hidden="true">
@@ -88,6 +88,39 @@
         </svg>
         <b>{tr("Gallery")}</b>
         <small>{tr("The poster is split into panels, one per photo.")}</small>
+      </button>
+      <button
+        type="button"
+        class="card wide-card"
+        id="layout-book"
+        aria-pressed={app.book}
+        onclick={() => app.chooseBook()}
+      >
+        <svg viewBox="0 0 40 30" aria-hidden="true">
+          <rect x="1" y="3" width="11" height="24" rx="1.5" />
+          <rect x="14.5" y="3" width="11" height="24" rx="1.5" />
+          <rect x="28" y="3" width="11" height="24" rx="1.5" />
+        </svg>
+        <b>{tr("Book")}</b>
+        <small>{tr("Several pages in a row, each saved as its own image.")}</small>
+      </button>
+    </fieldset>
+    <fieldset class="seg group" id="book-style" aria-label={tr("Page style")} hidden={!app.book}>
+      <button
+        type="button"
+        id="book-style-mosaic"
+        aria-pressed={!gallery}
+        onclick={() => app.chooseBookStyle("mosaic")}
+      >
+        {tr("Mosaic pages")}
+      </button>
+      <button
+        type="button"
+        id="book-style-gallery"
+        aria-pressed={gallery}
+        onclick={() => app.chooseBookStyle("gallery")}
+      >
+        {tr("Gallery pages")}
       </button>
     </fieldset>
     <div id="columns-block" class="columns-block" hidden={gallery}>
@@ -152,6 +185,18 @@
         <path d="M20 4v7h-7" />
       </svg>
       <span>{tr("Shuffle layout")}</span>
+    </button>
+    <button
+      type="button"
+      id="shuffle-pages"
+      class="wide"
+      hidden={!app.book}
+      onclick={() => app.shufflePages()}
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 7h11l-3-3M20 17H9l3 3" />
+      </svg>
+      <span>{tr("Shuffle photos between pages")}</span>
     </button>
   </section>
 

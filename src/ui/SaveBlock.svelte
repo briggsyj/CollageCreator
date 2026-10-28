@@ -8,15 +8,31 @@
   let { block = $bindable() }: { block?: HTMLElement } = $props();
 
   const kind = $derived(app.settings.format === "jpeg" ? "JPEG" : "PNG");
+  const filledPages = $derived(app.pageCounts.filter((n) => n > 0).length);
   const summary = $derived(
-    app.settings.splitImages > 1
-      ? tr("ZIP of %(n)s %(kind)s images, %(px)s × %(px)s px each", {
-          n: app.settings.splitImages,
-          kind,
-          px: app.settings.height,
-        })
-      : `${kind}, ${app.settings.width} × ${app.settings.height} px`,
+    app.book
+      ? filledPages > 1
+        ? tr("ZIP of %(n)s %(kind)s images, %(w)s × %(h)s px each", {
+            n: filledPages,
+            kind,
+            w: app.settings.width,
+            h: app.settings.height,
+          })
+        : `${kind}, ${app.settings.width} × ${app.settings.height} px`
+      : app.settings.splitImages > 1
+        ? tr("ZIP of %(n)s %(kind)s images, %(px)s × %(px)s px each", {
+            n: app.settings.splitImages,
+            kind,
+            px: app.settings.height,
+          })
+        : `${kind}, ${app.settings.width} × ${app.settings.height} px`,
   );
+  /** The first page with photos, for "Save this page" when no photo is selected. */
+  const firstFilled = () =>
+    Math.max(
+      0,
+      app.pageCounts.findIndex((n) => n > 0),
+    );
   const quality = $derived(Math.round(app.settings.jpegQuality * 100));
 </script>
 
@@ -84,6 +100,17 @@
     disabled={!app.hasPhotos}
     onclick={() => void app.save()}
   >
-    {tr("Save poster...")}
+    {app.book ? tr("Save book...") : tr("Save poster...")}
   </button>
+  {#if app.book}
+    <button
+      type="button"
+      id="save-page"
+      class="wide"
+      disabled={!app.hasPhotos}
+      onclick={() => void app.save(app.selected === null ? firstFilled() : app.selectedPage)}
+    >
+      {tr("Save this page")}
+    </button>
+  {/if}
 </div>

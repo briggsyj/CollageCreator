@@ -49,6 +49,20 @@
       {tr("Remove selected photo")}
     </button>
   </fieldset>
+  {#if app.book}
+    <label class="field move-page" for="move-page">
+      <span>{tr("Page")}</span>
+      <select
+        id="move-page"
+        value={String(app.selectedPage)}
+        onchange={(e) => app.moveSelectedToPage(Number(e.currentTarget.value))}
+      >
+        {#each Array.from({ length: app.pageCount }, (_, i) => i) as page (page)}
+          <option value={String(page)}>{tr("Page %(n)s", { n: page + 1 })}</option>
+        {/each}
+      </select>
+    </label>
+  {/if}
   {#if app.cropping}
     <div class="crop-tools" id="crop-tools">
       <label for="crop-zoom">{tr("Zoom")}</label>

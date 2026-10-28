@@ -68,6 +68,12 @@
         >{tr("select a photo, press Crop, then drag it and zoom to choose which part shows.")}</span
       >
     </li>
+    <li>
+      <strong>{tr("Book")}</strong>:
+      <span
+        >{tr("in Style, choose Book for several pages in a row, each saved as its own image. Swap works between pages.")}</span
+      >
+    </li>
   </ul>
   <p class="hint help-note">
     {tr("Everything runs in your browser. Your photos are never uploaded.")}
