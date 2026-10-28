@@ -7,6 +7,7 @@
   color-scheme: light dark;
   --text: #1b1b1a;
   --sub: #3b3b37;
+  --faint: #66655e;
   --accent: #1a56b0;
   --danger: #a3221b;
   --focus: #ff9d00;
@@ -63,6 +64,7 @@
   :root {
     --text: #f3f2ee;
     --sub: #cfcdc6;
+    --faint: #a9a79f;
     --accent: #8fb8ff;
     --danger: #f2a09a;
     --stage-bg: #101012;
@@ -1367,9 +1369,9 @@ body.dragging .canvas-box {
 
 .zoom-pct {
   padding: 2px 0 4px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--sub);
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--faint);
 }
 
 dialog {
