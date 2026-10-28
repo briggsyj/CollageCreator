@@ -14,6 +14,7 @@ import {
   near,
   pngSize,
   posterPoint,
+  posterRect,
   previewColor,
   previewIdle,
   readZip,
@@ -130,12 +131,19 @@ test.describe("A collage is a book of one page", () => {
     await expect(page.locator(".page-pill")).toHaveCount(2);
   });
 
-  test("Add page stays where it is, so clicking it again and again adds a page each time", async ({
+  test("Add page sits under the last page and stays under the pointer, so clicking again and again adds a page each time", async ({
     page,
   }) => {
     await setSize(page, 320, 240);
     await addPhotos(page, await makeImages(page, names(3)));
     const at = await page.locator("#add-page-tile").boundingBox();
+    const sheet = await posterRect(page);
+    const canvas = await page.locator("#preview").boundingBox();
+    // Right-aligned with the last page, just below it.
+    expect(
+      Math.abs((at?.x ?? 0) + (at?.width ?? 0) - ((canvas?.x ?? 0) + sheet.x + sheet.w)),
+    ).toBeLessThan(2);
+    expect(at?.y ?? 0).toBeGreaterThan((canvas?.y ?? 0) + sheet.y + sheet.h);
     for (let n = 2; n <= 5; n++) {
       await page.click("#add-page-tile");
       await expect(page.locator("#photo-list .page-group")).toHaveCount(n);

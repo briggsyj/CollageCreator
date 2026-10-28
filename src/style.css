@@ -1212,6 +1212,8 @@ label.inline select {
   position: absolute;
   inset: 0;
   overflow: hidden;
+  /* The lowest the add-page button goes, so it is never cut off by the edge. */
+  --add-page-floor: calc(100% - 64px);
 }
 
 #preview {
@@ -1354,10 +1356,7 @@ body.dragging .canvas-box {
 .add-page {
   position: absolute;
   z-index: 2;
-  /* Fixed to the stage, not to the page: the pages change size as they are added. */
-  left: 50%;
-  bottom: 20px;
-  transform: translateX(-50%);
+  transform: translateX(-100%);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1661,8 +1660,8 @@ dialog .button-row {
     min-height: 52px;
   }
 
-  .add-page {
-    bottom: calc(var(--inset) + 136px);
+  .canvas-box {
+    --add-page-floor: calc(100% - var(--inset) - 184px);
   }
 
   .status-pill {

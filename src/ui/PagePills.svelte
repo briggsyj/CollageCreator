@@ -13,6 +13,16 @@
   const pages = $derived(app.layout?.pages ?? []);
   /** A page made for a post has cut marks above it; the pill sits above those. */
   const lift = $derived(app.isSplit ? SPLIT_MARGIN + 10 : 10);
+  const below = $derived(app.isSplit ? SPLIT_MARGIN + 12 : 12);
+  /** Under the last page, at its right edge. */
+  const addAt = $derived(box ? { left: box.x + box.w, top: box.y + box.h + below } : null);
+  /**
+   * Where the add button was when the pointer came onto it. Adding a page makes every page
+   * smaller, so the button would move away from under the pointer; it stays put until the
+   * pointer leaves, so a second click lands on it too.
+   */
+  let held = $state<{ left: number; top: number } | null>(null);
+  const addPos = $derived(held ?? addAt);
 </script>
 
 {#if box && app.hasPhotos && app.book}
@@ -76,11 +86,15 @@
     {/each}
 {/if}
 
-{#if app.hasPhotos && app.pageCount < app.maxPages}
+{#if box && app.hasPhotos && app.pageCount < app.maxPages}
     <button
       type="button"
       id="add-page-tile"
       class="add-page"
+      style:left={`${addPos?.left ?? 0}px`}
+      style:top={`min(${addPos?.top ?? 0}px, var(--add-page-floor))`}
+      onpointerenter={() => (held = addAt)}
+      onpointerleave={() => (held = null)}
       onclick={() => app.addPage()}
     >
       <svg class="page-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
