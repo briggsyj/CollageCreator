@@ -231,6 +231,8 @@ body:has(.app[data-empty="true"]) {
 .modes,
 .zoomers,
 .pill,
+.page-pill,
+.add-page,
 .help-btn,
 .dock,
 dialog {
@@ -549,16 +551,6 @@ select {
   font-weight: 600;
 }
 
-.trim {
-  margin: 14px 0 0;
-  font-size: 0.9rem;
-  line-height: 1.4;
-}
-
-.trim .hint {
-  display: block;
-}
-
 /* An accordion: a recessed row with a chevron that turns when it opens. */
 .technical {
   padding: 0 16px;
@@ -693,7 +685,9 @@ select {
   content: "";
   position: absolute;
   left: 3px;
-  top: 3px;
+  top: 50%;
+  translate: 0 -50%;
+  box-sizing: border-box;
   width: 26px;
   height: 26px;
   border-radius: 50%;
@@ -714,14 +708,15 @@ select {
 /* Colours. */
 .swatches {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-wrap: nowrap;
+  gap: 6px;
   align-items: center;
 }
 
 .swatches button {
-  width: 44px;
-  min-height: 44px;
+  width: 28px;
+  min-height: 28px;
+  height: 28px;
   padding: 0;
   border-radius: 50%;
   border: 1px solid rgba(0, 0, 0, 0.35);
@@ -736,15 +731,6 @@ select {
     0 0 0 5px var(--on);
 }
 
-.custom-colour {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 10px;
-  font-weight: 600;
-  color: var(--sub);
-}
-
 input[type="color"] {
   width: 56px;
   height: 36px;
@@ -752,6 +738,180 @@ input[type="color"] {
   border: var(--field-border);
   border-radius: var(--r-ctl);
   background: none;
+}
+
+/* ------------------------------------------------------------ the Style step */
+
+/* A group of settings on a card of its own, so a long step reads as a few short ones. */
+.panel-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border-radius: calc(var(--r-ctl) + 2px);
+  background: var(--ctl-bg);
+  border: var(--ctl-border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.card-title {
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* A label on the left, its control on the right. */
+.inline-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 36px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.inline-row .range {
+  flex: 1;
+  min-width: 0;
+}
+
+.inline-row output {
+  min-width: 3.2em;
+  text-align: right;
+  font-weight: 500;
+  color: var(--sub);
+}
+
+.layout-cards .card {
+  gap: 4px;
+  padding: 8px 10px;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.layout-cards .card svg[viewBox="0 0 40 30"] {
+  width: 28px;
+  height: 21px;
+}
+
+.stepper.mini {
+  gap: 4px;
+}
+
+.stepper.mini button.sq {
+  width: 34px;
+  min-height: 34px;
+  border-radius: 10px;
+}
+
+.stepper.mini input {
+  flex: none;
+  width: 88px;
+  min-height: 34px;
+  padding: 0 6px;
+  font-size: 0.9rem;
+}
+
+.ico16 {
+  width: 16px;
+  height: 16px;
+}
+
+button.mini-btn {
+  min-height: 34px;
+  padding: 0 12px;
+  gap: 6px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+#columns-auto[hidden] {
+  display: none;
+}
+
+/* Shuffle the arrangement, and (two or more pages) mix photos between pages. */
+.shuffle-row {
+  display: flex;
+  gap: 8px;
+}
+
+.shuffle-row .mini-btn {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  padding: 4px 10px;
+  white-space: normal;
+  line-height: 1.2;
+}
+
+.trim {
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: var(--sub);
+}
+
+input.custom-swatch {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  border-radius: 50%;
+  background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);
+  cursor: pointer;
+}
+
+.custom-swatch::-webkit-color-swatch-wrapper {
+  padding: 0;
+  opacity: 0;
+}
+
+.custom-swatch::-moz-color-swatch {
+  opacity: 0;
+}
+
+.corners-seg {
+  flex: none;
+  gap: 2px;
+  padding: 3px;
+}
+
+.corners-seg button {
+  flex: none;
+  width: 40px;
+  min-height: 32px;
+  padding: 0;
+}
+
+.corners-seg .shape {
+  display: block;
+  width: 20px;
+  height: 20px;
+  margin: auto;
+  background: #9fb0c4;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+
+.corners-seg .shape.slight {
+  border-radius: 3px;
+}
+
+/* Rounded, not round: a circle would read as a different shape. */
+.corners-seg .shape.rounded {
+  border-radius: 7px;
+}
+
+.panel-card .switch {
+  min-height: 36px;
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 /* ---------------------------------------------------------------- the sidebar */
@@ -874,16 +1034,6 @@ dialog h3 {
   margin-top: 8px;
 }
 
-#regenerate {
-  flex: none;
-  margin-top: 14px;
-}
-
-#shuffle-pages {
-  flex: none;
-  margin-top: 8px;
-}
-
 .drop-tip {
   margin: -8px 0 0;
   text-align: center;
@@ -891,7 +1041,8 @@ dialog h3 {
   color: var(--sub);
 }
 
-.page-group + .page-group {
+.page-group + .page-group,
+.page-group + .new-page {
   margin-top: 14px;
 }
 
@@ -914,9 +1065,56 @@ dialog h3 {
   color: var(--sub);
 }
 
+.pages-hint {
+  margin-top: 8px;
+}
+
+/* An empty page in the Photos step: a roomy dashed target to drag photos onto. */
+.page-empty {
+  display: grid;
+  place-items: center;
+  min-height: 112px;
+  margin: 0;
+  padding: 12px;
+  border: 2px dashed var(--drop-line);
+  border-radius: 12px;
+  background: var(--drop-fill);
+  color: var(--sub);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.new-page .page-head h4 {
+  color: var(--faint);
+}
+
+.page-group.drop-target .page-empty,
+.new-page.drop-target .page-empty {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.page-group.drop-target {
+  outline: 2px dashed var(--accent);
+  outline-offset: 4px;
+  border-radius: 12px;
+}
+
+#undo-remove[hidden] {
+  display: none;
+}
+
 .page-actions {
   display: flex;
   gap: 2px;
+}
+
+.page-actions .icon-btn {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  border-radius: 16px;
+  color: var(--sub);
 }
 
 #book-style {
@@ -924,7 +1122,7 @@ dialog h3 {
 }
 
 .move-page {
-  margin-top: 8px;
+  margin: 0;
 }
 
 .photo-list {
@@ -1022,13 +1220,15 @@ dialog h3 {
 
 .notices {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px;
-  background: var(--inset-bg);
-  box-shadow: var(--inset-shadow);
-  border-radius: calc(var(--r-ctl) - 2px);
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 6px 10px 12px;
+  background: var(--chrome-bg);
+  border: var(--chrome-border);
+  box-shadow: var(--ctl-shadow);
+  border-radius: var(--r-ctl);
   font-size: 0.9rem;
+  animation: fade-in var(--t-sheet) ease both;
 }
 
 .notices[hidden],
@@ -1036,26 +1236,60 @@ dialog h3 {
   display: none;
 }
 
-.notices-summary {
-  margin: 0;
+.notices-icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
 }
 
-.notices[data-kind="error"] .notices-summary {
-  color: var(--danger);
+.notices[data-kind="error"] .notices-icon {
+  stroke: var(--danger);
+}
+
+.notices-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.notices-summary {
+  margin: 0;
   font-weight: 600;
 }
 
-.notices-actions {
-  display: flex;
-  gap: 4px;
+.notices-reasons {
+  margin: 2px 0 0;
+  color: var(--sub);
+  font-size: 0.85rem;
+}
+
+button.notices-toggle {
+  min-height: 32px;
+  margin-left: -8px;
+  font-size: 0.85rem;
 }
 
 .notices-list {
   margin: 0;
   padding-left: 18px;
+  max-height: 160px;
+  overflow: auto;
   font-size: 0.85rem;
   color: var(--sub);
   white-space: pre-line;
+}
+
+.notices .notices-close {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  border-radius: 16px;
+  color: var(--sub);
 }
 
 .dock {
@@ -1093,6 +1327,7 @@ dialog h3 {
 }
 
 .span-group button {
+  gap: 6px;
   padding: 0 6px;
   font-size: 0.9rem;
   font-weight: 600;
@@ -1104,9 +1339,28 @@ dialog h3 {
   color: var(--press-text);
 }
 
-.span-group #crop-toggle,
-.span-group #remove-selected {
-  grid-column: 1 / -1;
+/* Crop: once on, the button and its tools share one recessed panel, so they read as one. */
+.crop-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-radius: calc(var(--r-ctl) + 4px);
+}
+
+.crop-area.open {
+  padding: 6px 6px 10px;
+  background: var(--inset-bg);
+  box-shadow: var(--inset-shadow);
+}
+
+#crop-toggle {
+  gap: 8px;
+}
+
+#crop-toggle[aria-pressed="true"] {
+  background: var(--press-bg);
+  box-shadow: var(--press-shadow);
+  color: var(--press-text);
 }
 
 .crop-tools {
@@ -1114,7 +1368,7 @@ dialog h3 {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
-  margin-top: 8px;
+  padding: 0 6px;
 }
 
 .crop-tools .hint {
@@ -1152,7 +1406,7 @@ dialog h3 {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 0 16px 14px;
+  padding: 12px 16px 14px;
 }
 
 .util-row {
@@ -1162,20 +1416,29 @@ dialog h3 {
   gap: 8px;
 }
 
-label.inline {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.lang-btn {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
   color: var(--sub);
+  cursor: pointer;
 }
 
-label.inline select {
-  width: auto;
-  min-height: 36px;
-  background: none;
-  box-shadow: none;
-  border: 0;
-  font-size: 0.9rem;
+.lang-btn:focus-within {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* The real list, invisible over the button, so a press opens the browser's own picker. */
+.lang-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 
 /* Wide screens: the tab bar floats over the step's content, a little below the top of the scroll
@@ -1218,6 +1481,8 @@ label.inline select {
   position: absolute;
   inset: 0;
   overflow: hidden;
+  /* The lowest the add-page button goes, so it is never cut off by the edge. */
+  --add-page-floor: calc(100% - 64px);
 }
 
 #preview {
@@ -1312,6 +1577,66 @@ body.dragging .canvas-box {
   display: none;
 }
 
+/* The controls of a page: a pill above it (two or more pages), and the add button below. */
+.page-pill {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -100%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 4px;
+  border-radius: 22px;
+  font-size: 0.85rem;
+  color: var(--sub);
+  white-space: nowrap;
+}
+
+.page-label {
+  padding: 0 8px 0 10px;
+  font-weight: 600;
+}
+
+.page-count {
+  font-weight: 400;
+}
+
+.page-pill .icon-btn {
+  width: 32px;
+  min-height: 32px;
+  height: 32px;
+  border-radius: 16px;
+}
+
+.page-icon {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.page-pill .page-remove {
+  color: var(--danger);
+}
+
+.add-page {
+  position: absolute;
+  z-index: 2;
+  transform: translateX(-100%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 16px 0 12px;
+  border-radius: 20px;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
 .hint-pill {
   position: absolute;
   z-index: 3;
@@ -1378,12 +1703,11 @@ dialog {
   max-width: min(520px, calc(100vw - 32px));
   padding: 20px;
   color: var(--text);
-  background: var(--solid-bg);
-  border-radius: 18px;
+  border-radius: 22px;
 }
 
 dialog::backdrop {
-  background: rgb(0 0 0 / 0.5);
+  background: rgb(30 30 40 / 0.3);
 }
 
 progress {
@@ -1408,6 +1732,10 @@ progress {
 
 dialog p.help-note {
   margin-top: 14px;
+}
+
+dialog .button-row .danger {
+  color: var(--danger);
 }
 
 dialog .button-row {
@@ -1602,6 +1930,10 @@ dialog .button-row {
     min-height: 52px;
   }
 
+  .canvas-box {
+    --add-page-floor: calc(100% - var(--inset) - 184px);
+  }
+
   .status-pill {
     position: absolute;
     z-index: 3;
@@ -1641,16 +1973,91 @@ dialog .button-row {
   display: none;
 }
 
-/* Save options: under the Style step on wide screens (they are file settings, not looks), and
-   always inside the Save sheet on phones. */
+/* Save options: in the save panel on wide screens, and inside the Save sheet on phones. */
 .save-opts {
-  display: none;
+  display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.app[data-tab="style"] .save-opts {
-  display: flex;
+/* Wide screens: saving is a small panel at the bottom right of the preview, in a strip of its
+   own below the preview area so it never covers the pages or the Add page button. */
+@media (min-width: 761px) {
+  .canvas-box {
+    bottom: calc(var(--save-room, 64px) + 12px);
+  }
+
+  .stage .save-block {
+    position: absolute;
+    z-index: 3;
+    right: 16px;
+    bottom: 12px;
+    max-width: calc(100% - 84px);
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 6px;
+    border-radius: 20px;
+    border-top: var(--chrome-border);
+    background: var(--chrome-bg);
+    -webkit-backdrop-filter: var(--chrome-filter);
+    backdrop-filter: var(--chrome-filter);
+    border: var(--chrome-border);
+    box-shadow: var(--chrome-shadow);
+  }
+
+  /* One row: the size line moves into the Save button's tooltip. */
+  .stage .save-block .meta {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .stage .save-opts {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .stage .save-opts .seg button {
+    min-height: 34px;
+    padding: 0 12px;
+  }
+
+  .stage #quality-field {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    width: 104px;
+  }
+
+  /* Short of room the slider's tooltip names it; the percentage stays. */
+  .stage .quality-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .stage #quality-field[hidden] {
+    display: none;
+  }
+
+  .stage .save-block button.wide {
+    width: auto;
+    min-height: 44px;
+    padding: 0 18px;
+  }
+
+  /* The main action last, at the right edge. */
+  .stage .save-block #save {
+    order: 2;
+  }
 }
 
 @media (max-width: 760px) {
@@ -1669,6 +2076,11 @@ dialog .button-row {
   .modes,
   .zoomers {
     flex-direction: row;
+  }
+
+  /* In a row, minus comes before plus. */
+  #zoom-out {
+    order: -1;
   }
 
   .modes {
@@ -1711,7 +2123,6 @@ dialog .button-row {
   margin-top: 12px;
 }
 
-#book-style[hidden],
 #shuffle-pages[hidden],
 .split-controls[hidden] {
   display: none;

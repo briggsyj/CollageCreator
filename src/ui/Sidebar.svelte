@@ -83,6 +83,7 @@
       <button
         type="button"
         id="help-open-head"
+        title={tr("Help")}
         class="icon-btn help-btn"
         aria-haspopup="dialog"
         aria-label="Help"
@@ -93,6 +94,7 @@
       <button
         type="button"
         id="menu-open"
+        title={tr("Language and about")}
         class="icon-btn menu-btn"
         aria-expanded={app.menuOpen}
         aria-controls="util"
@@ -121,6 +123,7 @@
       type="button"
       role="tab"
       id="tab-photos"
+      title={tr("Add and arrange photos")}
       aria-controls="panel-photos"
       aria-selected={selected("photos")}
       tabindex={app.tab === "photos" ? 0 : -1}
@@ -137,6 +140,7 @@
       type="button"
       role="tab"
       id="tab-poster"
+      title={tr("Pages, output size and shape")}
       aria-controls="panel-poster"
       aria-selected={selected("poster")}
       tabindex={app.tab === "poster" ? 0 : -1}
@@ -152,6 +156,7 @@
       type="button"
       role="tab"
       id="tab-style"
+      title={tr("Layout, borders and corners")}
       aria-controls="panel-style"
       aria-selected={selected("style")}
       tabindex={app.tab === "style" ? 0 : -1}
@@ -168,6 +173,7 @@
       type="button"
       role="tab"
       id="tab-save"
+      title={tr("Save the collage")}
       class="tab-save"
       aria-controls="save-block"
       aria-selected={selected("save")}
@@ -188,7 +194,7 @@
     <div class="sheet-head" use:pullToClose={() => app.setTab(app.tab, true)}>
       <span class="grab" aria-hidden="true"></span>
       <h2 id="sheet-title">{tr(TAB_TITLES[app.tab])}</h2>
-      <button type="button" id="sheet-close" class="link" onclick={() => app.setTab(app.tab, true)}>
+      <button type="button" id="sheet-close" title={tr("Close this panel")} class="link" onclick={() => app.setTab(app.tab, true)}>
         {tr("Close")}
       </button>
     </div>
@@ -198,11 +204,15 @@
   </div>
 
   <SelectedDock />
-  <SaveBlock bind:block={saveBlock} />
+  {#if app.narrow}<SaveBlock bind:block={saveBlock} />{/if}
 
   <div class="util" id="util">
     <div class="util-row">
-      <label class="inline">
+      <!-- A round globe button; the language list opens when it is pressed. -->
+      <label
+        class="help-btn lang-btn"
+        title={`${tr("Language")}: ${languageName(app.lang)}`}
+      >
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="12" cy="12" r="9" />
           <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
@@ -210,6 +220,7 @@
         <span class="sr-only">{tr("Language")}</span>
         <select
           id="language"
+          class="lang-select"
           value={app.lang}
           onchange={(e) => app.chooseLanguage(e.currentTarget.value)}
         >
@@ -218,7 +229,7 @@
           {/each}
         </select>
       </label>
-      <button type="button" id="about-open" class="link" onclick={() => (app.dialog = "about")}>
+      <button type="button" id="about-open" title={tr("About Collage Creator")} class="link" onclick={() => (app.dialog = "about")}>
         {tr("About")}
       </button>
     </div>

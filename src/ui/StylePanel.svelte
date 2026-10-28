@@ -23,7 +23,12 @@
   ];
 
   const gallery = $derived(app.layoutStyle === "gallery");
-  const percent = $derived(Math.round(app.settings.borderWidth * 1000) / 10);
+  /**
+   * The border slider runs 0 to 100% of its track, for borders of 0 to 10% of the collage's
+   * longer side (wider looks heavy). It shows how full it is, not the share of the side.
+   */
+  const BORDER_MAX = 0.1;
+  const percent = $derived(Math.round((app.settings.borderWidth / BORDER_MAX) * 100));
   const rangeFill = (value: number, min: number, max: number) =>
     `${Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100))}%`;
   /** Bumped when the columns field should show the stored value again (the edit is done). */
@@ -36,7 +41,9 @@
 
   function setBorderWidth(raw: string): void {
     const pct = Number(raw);
-    app.settings.borderWidth = Number.isFinite(pct) ? Math.min(20, Math.max(0, pct)) / 100 : 0;
+    app.settings.borderWidth = Number.isFinite(pct)
+      ? (Math.min(100, Math.max(0, pct)) / 100) * BORDER_MAX
+      : 0;
   }
 </script>
 
@@ -48,219 +55,219 @@
   aria-labelledby="tab-style"
   hidden={app.tab !== "style"}
 >
-  <section aria-labelledby="layout-h">
-    <h3 id="layout-h">{tr("Layout")}</h3>
-    <fieldset class="cards group" id="layout-cards" aria-labelledby="layout-h">
+  <section class="panel-card" aria-labelledby="layout-h">
+    <h3 id="layout-h" class="card-title">{tr("Arrangement")}</h3>
+    <fieldset class="cards layout-cards group" id="layout-cards" aria-labelledby="layout-h">
       <button
         type="button"
         class="card"
         id="layout-mosaic"
-        aria-pressed={!gallery && !app.book}
+        title={tr("Mosaic: photos fill columns of different heights")}
+        aria-pressed={!gallery}
         onclick={() => app.chooseLayout("mosaic")}
       >
-        <svg viewBox="0 0 40 30" aria-hidden="true">
-          <rect x="1" y="1" width="8" height="12" rx="1.5" />
-          <rect x="1" y="15" width="8" height="14" rx="1.5" />
-          <rect x="11" y="1" width="8" height="16" rx="1.5" />
-          <rect x="11" y="19" width="8" height="10" rx="1.5" />
-          <rect x="21" y="1" width="8" height="9" rx="1.5" />
-          <rect x="21" y="12" width="8" height="17" rx="1.5" />
-          <rect x="31" y="1" width="8" height="13" rx="1.5" />
-          <rect x="31" y="16" width="8" height="13" rx="1.5" />
-        </svg>
-        <b>{tr("Mosaic")}</b>
+        <span class="card-head">
+          <svg viewBox="0 0 40 30" aria-hidden="true">
+            <rect x="1" y="1" width="8" height="12" rx="1.5" />
+            <rect x="1" y="15" width="8" height="14" rx="1.5" />
+            <rect x="11" y="1" width="8" height="16" rx="1.5" />
+            <rect x="11" y="19" width="8" height="10" rx="1.5" />
+            <rect x="21" y="1" width="8" height="9" rx="1.5" />
+            <rect x="21" y="12" width="8" height="17" rx="1.5" />
+            <rect x="31" y="1" width="8" height="13" rx="1.5" />
+            <rect x="31" y="16" width="8" height="13" rx="1.5" />
+          </svg>
+          <b>{tr("Mosaic")}</b>
+        </span>
         <small>{tr("Photos fill columns of different heights.")}</small>
       </button>
       <button
         type="button"
         class="card"
         id="layout-gallery"
-        aria-pressed={gallery && !app.book}
+        title={tr("Gallery: one panel per photo")}
+        aria-pressed={gallery}
         onclick={() => app.chooseLayout("gallery")}
       >
-        <svg viewBox="0 0 40 30" aria-hidden="true">
-          <rect x="1" y="1" width="17" height="16" rx="1.5" />
-          <rect x="1" y="19" width="8" height="10" rx="1.5" />
-          <rect x="11" y="19" width="7" height="10" rx="1.5" />
-          <rect x="20" y="1" width="19" height="9" rx="1.5" />
-          <rect x="20" y="12" width="9" height="17" rx="1.5" />
-          <rect x="31" y="12" width="8" height="17" rx="1.5" />
-        </svg>
-        <b>{tr("Gallery")}</b>
-        <small>{tr("The poster is split into panels, one per photo.")}</small>
-      </button>
-      <button
-        type="button"
-        class="card wide-card"
-        id="layout-book"
-        aria-pressed={app.book}
-        onclick={() => app.chooseBook()}
-      >
-        <svg viewBox="0 0 40 30" aria-hidden="true">
-          <rect x="1" y="3" width="11" height="24" rx="1.5" />
-          <rect x="14.5" y="3" width="11" height="24" rx="1.5" />
-          <rect x="28" y="3" width="11" height="24" rx="1.5" />
-        </svg>
-        <b>{tr("Book")}</b>
-        <small>{tr("Several pages in a row, each saved as its own image.")}</small>
-      </button>
-    </fieldset>
-    <fieldset class="seg group" id="book-style" aria-label={tr("Page style")} hidden={!app.book}>
-      <button
-        type="button"
-        id="book-style-mosaic"
-        aria-pressed={!gallery}
-        onclick={() => app.chooseBookStyle("mosaic")}
-      >
-        {tr("Mosaic pages")}
-      </button>
-      <button
-        type="button"
-        id="book-style-gallery"
-        aria-pressed={gallery}
-        onclick={() => app.chooseBookStyle("gallery")}
-      >
-        {tr("Gallery pages")}
+        <span class="card-head">
+          <svg viewBox="0 0 40 30" aria-hidden="true">
+            <rect x="1" y="1" width="17" height="16" rx="1.5" />
+            <rect x="1" y="19" width="8" height="10" rx="1.5" />
+            <rect x="11" y="19" width="7" height="10" rx="1.5" />
+            <rect x="20" y="1" width="19" height="9" rx="1.5" />
+            <rect x="20" y="12" width="9" height="17" rx="1.5" />
+            <rect x="31" y="12" width="8" height="17" rx="1.5" />
+          </svg>
+          <b>{tr("Gallery")}</b>
+        </span>
+        <small>{tr("The collage is split into panels, one per photo.")}</small>
       </button>
     </fieldset>
     <div id="columns-block" class="columns-block" hidden={gallery}>
-      <label class="field" for="columns"><span>{tr("Columns")}</span></label>
-      <div class="stepper">
-        <button
-          type="button"
-          id="columns-less"
-          class="sq"
-          aria-label="Fewer columns"
-          onclick={() => app.stepColumns(-1)}
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" /></svg>
-        </button>
-        <input
-          id="columns"
-          type="number"
-          min="1"
-          max={MAX_COLUMNS}
-          step="1"
-          inputmode="numeric"
-          placeholder={tr("Auto")}
-          use:showValue={{
-            value: app.columns === undefined ? "" : String(app.columns),
-            again: tidy,
-          }}
-          oninput={(e) => applyColumns(e.currentTarget.value)}
-          onchange={(e) => {
-            applyColumns(e.currentTarget.value);
-            tidy++;
-          }}
-        />
-        <button
-          type="button"
-          id="columns-more"
-          class="sq"
-          aria-label="More columns"
-          onclick={() => app.stepColumns(1)}
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-        </button>
-        <button type="button" id="columns-auto" onclick={() => app.setColumns(undefined)}>
-          {tr("Automatic")}
-        </button>
+      <div class="inline-row">
+        <label for="columns">{tr("Columns")}</label>
+        <div class="stepper mini">
+          <button
+            type="button"
+            id="columns-less"
+            title={tr("One column fewer")}
+            class="sq"
+            aria-label="Fewer columns"
+            onclick={() => app.stepColumns(-1)}
+          >
+            <svg class="ico16" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" /></svg>
+          </button>
+          <input
+            id="columns"
+            type="number"
+            min="1"
+            max={MAX_COLUMNS}
+            step="1"
+            inputmode="numeric"
+            placeholder={app.columnsInUse === undefined
+              ? tr("Auto")
+              : tr("Auto · %(n)s", { n: app.columnsInUse })}
+            title={tr("Type a number of columns, or leave empty for automatic")}
+            use:showValue={{
+              value: app.columns === undefined ? "" : String(app.columns),
+              again: tidy,
+            }}
+            oninput={(e) => applyColumns(e.currentTarget.value)}
+            onchange={(e) => {
+              applyColumns(e.currentTarget.value);
+              tidy++;
+            }}
+          />
+          <button
+            type="button"
+            id="columns-more"
+            title={tr("One column more")}
+            class="sq"
+            aria-label="More columns"
+            onclick={() => app.stepColumns(1)}
+          >
+            <svg class="ico16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+          </button>
+          <!-- Only needed once the columns are set by hand. -->
+          <button
+            type="button"
+            id="columns-auto"
+            class="mini-btn"
+            title={tr("Let the layout choose the columns")}
+            hidden={app.columns === undefined}
+            onclick={() => app.setColumns(undefined)}
+          >
+            {tr("Auto")}
+          </button>
+        </div>
       </div>
-      <p id="columns-note" class="hint">
+      <p id="columns-note" class="hint sr-only">
         {app.columnsInUse !== undefined
           ? tr("Columns in use: %(n)s", { n: app.columnsInUse })
           : ""}
       </p>
     </div>
     <p id="gallery-note" class="hint" hidden={!gallery}>{tr("Gallery sizes its panels itself.")}</p>
-    <p class="trim">
-      <strong id="crop-note"
-        >{app.layout ? tr("%(pct)s% of each photo is trimmed to fit.", { pct: app.cropPercent }) : ""}</strong
+    <span
+      id="crop-note"
+      class="trim"
+      title={tr("Lower means more of each photo is visible.")}
+    >{app.layout ? tr("%(pct)s% of each photo is trimmed to fit.", { pct: app.cropPercent }) : ""}</span>
+    <div class="shuffle-row">
+      <button
+        type="button"
+        id="regenerate"
+        class="mini-btn"
+        title={app.book
+          ? tr("A new arrangement on every page; photos stay on their pages")
+          : tr("Try a new arrangement of the same photos")}
+        onclick={() => app.askShuffle(false)}
       >
-      <span class="hint">{tr("Lower means more of each photo is visible.")}</span>
-    </p>
-    <button type="button" id="regenerate" class="wide" onclick={() => app.shuffle()}>
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M20 11a8 8 0 1 0-2.3 5.7" />
-        <path d="M20 4v7h-7" />
-      </svg>
-      <span>{tr("Shuffle layout")}</span>
-    </button>
-    <button
-      type="button"
-      id="shuffle-pages"
-      class="wide"
-      hidden={!app.book}
-      onclick={() => app.shufflePages()}
-    >
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M4 7h11l-3-3M20 17H9l3 3" />
-      </svg>
-      <span>{tr("Shuffle photos between pages")}</span>
-    </button>
+        <svg class="ico16" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M20 11a8 8 0 1 0-2.3 5.7" />
+          <path d="M20 4v7h-7" />
+        </svg>
+        <span>{app.book ? tr("Shuffle layout within pages") : tr("Shuffle layout")}</span>
+      </button>
+      <button
+        type="button"
+        id="shuffle-pages"
+        title={tr("Mix the photos between the pages, keeping how many each has")}
+        class="mini-btn"
+        hidden={!app.book}
+        onclick={() => app.askShuffle(true)}
+      >
+        <svg class="ico16" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 7h11l-3-3M20 17H9l3 3" />
+        </svg>
+        <span>{tr("Shuffle all between pages")}</span>
+      </button>
+    </div>
   </section>
 
-  <section aria-labelledby="bw-h">
-    <div class="rowhead">
-      <h3 id="bw-h">{tr("Border thickness")}</h3>
+  <section class="panel-card" aria-labelledby="border-h">
+    <h3 id="border-h" class="card-title">{tr("Border")}</h3>
+    <div class="inline-row">
+      <span id="bw-h" title={tr("0 removes the border; full is a tenth of the collage's longer side.")}>
+        {tr("Thickness")}
+      </span>
+      <input
+        id="border-width"
+        class="range"
+        type="range"
+        min="0"
+        max="100"
+        step="1"
+        aria-labelledby="bw-h"
+        title={tr("0 removes the border; full is a tenth of the collage's longer side.")}
+        style:--p={rangeFill(percent, 0, 100)}
+        use:showValue={{ value: String(percent), again: app.restoreEpoch, sticky: true }}
+        oninput={(e) => setBorderWidth(e.currentTarget.value)}
+      />
       <output id="border-output" for="border-width">{percent}%</output>
     </div>
-    <input
-      id="border-width"
-      class="range"
-      type="range"
-      min="0"
-      max="20"
-      step="0.1"
-      aria-labelledby="bw-h"
-      style:--p={rangeFill(percent, 0, 20)}
-      use:showValue={{ value: String(percent), again: app.restoreEpoch, sticky: true }}
-      oninput={(e) => setBorderWidth(e.currentTarget.value)}
-    />
-    <p class="hint">{tr("A share of the poster's longer side. 0 removes the border.")}</p>
-  </section>
-
-  <section aria-labelledby="bc-h">
-    <h3 id="bc-h">{tr("Border colour")}</h3>
-    <fieldset class="swatches group" id="swatches" aria-labelledby="bc-h">
-      {#each SWATCHES as { name, color } (color)}
-        <button
-          type="button"
-          data-color={color}
-          aria-label={name}
-          aria-pressed={app.settings.borderColor.toLowerCase() === color}
-          style:background={color}
-          onclick={() => (app.settings.borderColor = color)}
-        ></button>
-      {/each}
-    </fieldset>
-    <label class="custom-colour">
-      <span>{tr("Custom…")}</span>
-      <input
-        id="border-color"
-        type="color"
-        value={app.settings.borderColor}
-        oninput={(e) => (app.settings.borderColor = e.currentTarget.value)}
-      />
-    </label>
-  </section>
-
-  <section aria-labelledby="cs-h">
-    <h3 id="cs-h">{tr("Corner style")}</h3>
-    <fieldset class="cards corners group" id="corner-cards" aria-labelledby="cs-h">
-      {#each CORNERS as { value, label } (value)}
-        <button
-          type="button"
-          class="card"
-          data-corner={value}
-          aria-pressed={app.settings.cornerStyle === value}
-          onclick={() => (app.settings.cornerStyle = value)}
-        >
-          <span class="shape {value}"></span>
-          <span>{tr(label)}</span>
-        </button>
-      {/each}
-    </fieldset>
+    <div class="inline-row">
+      <span id="bc-h">{tr("Colour")}</span>
+      <fieldset class="swatches group" id="swatches" aria-labelledby="bc-h">
+        {#each SWATCHES as { name, color } (color)}
+          <button
+            type="button"
+            data-color={color}
+            aria-label={name}
+            title={name}
+            aria-pressed={app.settings.borderColor.toLowerCase() === color}
+            style:background={color}
+            onclick={() => (app.settings.borderColor = color)}
+          ></button>
+        {/each}
+        <input
+          id="border-color"
+          class="custom-swatch"
+          type="color"
+          aria-label={tr("Custom colour")}
+          title={tr("Custom colour")}
+          value={app.settings.borderColor}
+          oninput={(e) => (app.settings.borderColor = e.currentTarget.value)}
+        />
+      </fieldset>
+    </div>
+    <div class="inline-row">
+      <span id="cs-h">{tr("Corners")}</span>
+      <fieldset class="seg corners-seg group" id="corner-cards" aria-labelledby="cs-h">
+        {#each CORNERS as { value, label } (value)}
+          <button
+            type="button"
+            data-corner={value}
+            title={tr(label)}
+            aria-label={tr(label)}
+            aria-pressed={app.settings.cornerStyle === value}
+            onclick={() => (app.settings.cornerStyle = value)}
+          >
+            <span class="shape {value}"></span>
+          </button>
+        {/each}
+      </fieldset>
+    </div>
     <label class="sr-only">
       <span>{tr("Corner style")}</span>
       <select
@@ -277,11 +284,12 @@
         <option value="rounded">{tr("Rounded")}</option>
       </select>
     </label>
-  </section>
-
-  <section>
-    <label class="switch" for="outer-border">
-      <span>{tr("Border around the whole collage")}</span>
+    <label
+      class="switch"
+      for="outer-border"
+      title={tr("Turn off to keep the border only between photos.")}
+    >
+      <span>{tr("Around the edge")}</span>
       <input
         id="outer-border"
         type="checkbox"
@@ -289,7 +297,6 @@
         onchange={(e) => (app.settings.outerBorder = e.currentTarget.checked)}
       />
     </label>
-    <p class="hint">{tr("Turn off to keep the border only between photos.")}</p>
   </section>
 
   <details id="technical" class="technical">

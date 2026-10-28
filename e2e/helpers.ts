@@ -363,12 +363,7 @@ async function reveal(page: Page, selector: string): Promise<void> {
   const panel = await page
     .locator(selector)
     .first()
-    .evaluate(
-      (el) =>
-        el.closest('[role="tabpanel"]')?.id ?? (el.closest(".save-opts") ? "panel-style" : null),
-      undefined,
-      { timeout: 2000 },
-    )
+    .evaluate((el) => el.closest('[role="tabpanel"]')?.id ?? null, undefined, { timeout: 2000 })
     .catch(() => null);
   if (!panel) return;
   const hidden = await page.locator(`#${panel}`).evaluate((el) => (el as HTMLElement).hidden);
@@ -445,6 +440,7 @@ export async function swapMode(page: Page): Promise<void> {
 export async function removeFromList(page: Page, index: number): Promise<void> {
   await page.locator("#photo-list li button").nth(index).click();
   await page.click("#remove-selected");
+  await page.click("#confirm-ok");
 }
 /** The files in a ZIP archive, in the order they are listed (stored or deflated entries are read as stored). */
 export function readZip(zip: Buffer): { name: string; data: Buffer }[] {
@@ -503,4 +499,9 @@ export async function stitch(page: Page, images: Buffer[]): Promise<Buffer> {
 /** Width and height from a PNG's header. */
 export function pngSize(png: Buffer): { width: number; height: number } {
   return { width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
+}
+
+/** Wait until the latest change has been kept in this browser (it is saved a moment after). */
+export async function savedWork(page: Page): Promise<void> {
+  await page.waitForSelector('html[data-saving="false"]', { state: "attached" });
 }

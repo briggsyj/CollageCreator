@@ -7,14 +7,23 @@
   let progress: HTMLDialogElement;
   let help: HTMLDialogElement;
   let about: HTMLDialogElement;
+  let confirmBox: HTMLDialogElement;
 
   /** Open the dialog that app.dialog names and close the others. */
   $effect(() => {
-    const shown: Record<DialogName, HTMLDialogElement> = { progress, help, about };
+    const shown: Record<DialogName, HTMLDialogElement> = {
+      progress,
+      help,
+      about,
+      confirm: confirmBox,
+    };
     for (const name of Object.keys(shown) as DialogName[]) {
       const dialog = shown[name];
-      if (app.dialog === name && !dialog.open) dialog.showModal();
-      else if (app.dialog !== name && dialog.open) dialog.close();
+      if (app.dialog === name && !dialog.open) {
+        dialog.showModal();
+        // Enter confirms (the main button has the focus); Escape cancels.
+        if (name === "confirm") dialog.querySelector<HTMLElement>("#confirm-ok")?.focus();
+      } else if (app.dialog !== name && dialog.open) dialog.close();
     }
   });
 
@@ -33,7 +42,28 @@
   <p>{tr("Performing image computation...")}</p>
   <progress id="progress" max="100" value={app.progress}></progress>
   <div class="button-row">
-    <button type="button" id="cancel" onclick={() => app.cancelExport()}>{tr("Cancel")}</button>
+    <button type="button" id="cancel" title={tr("Stop saving")} onclick={() => app.cancelExport()}>{tr("Cancel")}</button>
+  </div>
+</dialog>
+
+<dialog
+  id="confirm-dialog"
+  aria-labelledby="confirm-title"
+  aria-describedby="confirm-text"
+  bind:this={confirmBox}
+  onclose={closed("confirm")}
+>
+  <h2 id="confirm-title">{app.confirming?.title ?? ""}</h2>
+  <p id="confirm-text">{app.confirming?.text ?? ""}</p>
+  <div class="button-row">
+    <button type="button" id="confirm-cancel" title={tr("Keep things as they are")} onclick={() => (app.dialog = null)}>
+      {tr("Cancel")}
+    </button>
+    <button type="button" id="confirm-ok"
+      class="danger"
+      title={app.confirming?.action ?? tr("Confirm")} onclick={() => app.confirmed()}>
+      {app.confirming?.action ?? ""}
+    </button>
   </div>
 </dialog>
 
@@ -59,7 +89,7 @@
     <li>
       <strong>{tr("Select")}</strong>:
       <span
-        >{tr("click a photo to select it in the Photos step, then make it wider or taller.")}</span
+        >{tr("click a photo to select it in the Photos step, then make it wider or taller. Shift-click to select several.")}</span
       >
     </li>
     <li>
@@ -71,7 +101,7 @@
     <li>
       <strong>{tr("Book")}</strong>:
       <span
-        >{tr("in Style, choose Book for several pages in a row, each saved as its own image. Swap works between pages.")}</span
+        >{tr("press Add page under the collage for more pages in a row, each saved as its own image. Swap works between pages.")}</span
       >
     </li>
   </ul>
@@ -79,7 +109,7 @@
     {tr("Everything runs in your browser. Your photos are never uploaded.")}
   </p>
   <div class="button-row">
-    <button type="button" id="help-close" class="primary" onclick={() => (app.dialog = null)}>
+    <button type="button" id="help-close" title={tr("Close help")} class="primary" onclick={() => (app.dialog = null)}>
       {tr("Close")}
     </button>
   </div>
@@ -113,7 +143,7 @@
     <a href="./THIRD-PARTY-LICENSES.txt" rel="noopener">Third-party licences</a>
   </p>
   <div class="button-row">
-    <button type="button" id="about-close" class="primary" onclick={() => (app.dialog = null)}>
+    <button type="button" id="about-close" title={tr("Close")} class="primary" onclick={() => (app.dialog = null)}>
       {tr("Close")}
     </button>
   </div>

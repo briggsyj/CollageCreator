@@ -35,6 +35,8 @@
   }
 
   let row: HTMLElement;
+  /** Bumped when the pages field should show the stored value again. */
+  let pagesEdited = $state(0);
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
@@ -45,65 +47,46 @@
   aria-labelledby="tab-poster"
   hidden={app.tab !== "poster"}
 >
-  <section aria-labelledby="pages-h" id="pages-block" hidden={!app.book}>
-    <h3 id="pages-h">{tr("Pages")}</h3>
-    <p class="hint" id="pages-count">
-      {tr("%(pages)s page(s), %(photos)s photo(s)", {
-        pages: app.pageCount,
-        photos: app.photos.length,
-      })}
-    </p>
-    <div class="field">
-      <span>{tr("Photos per page")}</span>
-      <div class="stepper">
-        <button
-          type="button"
-          id="per-page-less"
-          class="sq"
-          aria-label={tr("Fewer photos per page")}
-          disabled={app.perPage <= app.perPageMin}
-          onclick={() => app.setPerPage(app.perPage - 1)}
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" /></svg>
-        </button>
-        <input
-          id="per-page"
-          type="number"
-          min={app.perPageMin}
-          max={app.perPageMax}
-          step="1"
-          inputmode="numeric"
-          use:showValue={{ value: String(app.perPage), again: app.sizeEpoch }}
-          onchange={(e) => {
-            app.setPerPage(Number(e.currentTarget.value));
-            e.currentTarget.value = String(app.perPage);
-          }}
-        />
-        <button
-          type="button"
-          id="per-page-more"
-          class="sq"
-          aria-label={tr("More photos per page")}
-          disabled={app.perPage >= app.perPageMax}
-          onclick={() => app.setPerPage(app.perPage + 1)}
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-        </button>
-      </div>
-    </div>
-    <div class="button-row">
-      <button type="button" id="add-page" disabled={app.pageCount >= app.maxPages} onclick={() => app.addPage()}>
-        {tr("Add page")}
+  <section aria-labelledby="pages-h" id="pages-block">
+    <h3 id="pages-h"><label for="pages">{tr("Pages")}</label></h3>
+    <div class="stepper">
+      <button
+        type="button"
+        id="pages-less"
+        title={tr("One page fewer; photos are shared evenly again")}
+        class="sq"
+        aria-label={tr("Fewer pages")}
+        disabled={app.pageCount <= 1}
+        onclick={() => app.setPageCount(app.pageCount - 1)}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" /></svg>
       </button>
-      <button type="button" id="spread-pages" disabled={!app.hasPhotos} onclick={() => app.spreadPhotos()}>
-        {tr("Spread evenly")}
+      <input
+        id="pages"
+        type="number"
+        min="1"
+        max={app.maxPages}
+        step="1"
+        inputmode="numeric"
+        use:showValue={{ value: String(app.pageCount), again: pagesEdited }}
+        onchange={(e) => {
+          app.setPageCount(Number(e.currentTarget.value));
+          pagesEdited++;
+        }}
+      />
+      <button
+        type="button"
+        id="pages-more"
+        title={tr("One page more; photos are shared evenly again")}
+        class="sq"
+        aria-label={tr("More pages")}
+        disabled={app.pageCount >= app.maxPages}
+        onclick={() => app.setPageCount(app.pageCount + 1)}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
       </button>
     </div>
-    <p class="hint">
-      {tr(
-        "New photos fill the pages in order and a page is added when all are full. Each page is saved as its own image; several are saved as a zip.",
-      )}
-    </p>
+    <p class="hint pages-hint">{tr("Photos are shared evenly across the pages. To place them yourself, add or remove pages and send photos between them.")}</p>
   </section>
 
   <section aria-labelledby="size-h">
@@ -117,6 +100,7 @@
             type="button"
             class="chip"
             data-choice={choice.id}
+            title={`${tr(choice.label)}: ${size.width} × ${size.height} px`}
             aria-pressed={app.activeSize === choice.id}
             onclick={() => app.chooseNamedSize(choice.id)}
           >
@@ -130,6 +114,7 @@
         type="button"
         class="chip"
         data-choice="post"
+        title={tr("A wide collage cut into square images for an Instagram carousel")}
         aria-pressed={app.activeSize === "post"}
         onclick={() => app.chooseInstagramPost()}
       >
@@ -140,6 +125,7 @@
         type="button"
         class="chip wide-chip"
         data-choice="custom"
+        title={tr("Type your own width and height")}
         aria-pressed={app.activeSize === "custom"}
         onclick={() => {
           app.chooseCustomSize();
@@ -153,6 +139,7 @@
       <button
         type="button"
         id="orient-landscape"
+        title={tr("Wider than tall")}
         aria-pressed={orientation === "landscape"}
         disabled={split > 1}
         onclick={() => app.turn(false)}
@@ -163,6 +150,7 @@
       <button
         type="button"
         id="orient-portrait"
+        title={tr("Taller than wide")}
         aria-pressed={orientation === "portrait"}
         disabled={split > 1}
         onclick={() => app.turn(true)}
@@ -209,6 +197,7 @@
           <button
             type="button"
             id="split-less"
+            title={tr("Fewer square images in the post")}
             class="sq"
             aria-label="Fewer images"
             disabled={split <= app.splitMin}
@@ -233,6 +222,7 @@
           <button
             type="button"
             id="split-more"
+            title={tr("More square images in the post")}
             class="sq"
             aria-label="More images"
             disabled={split >= app.splitMax}

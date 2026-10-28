@@ -196,7 +196,7 @@ export function checkSettings(raw: unknown, defaults: PosterSettings): PosterSet
   return {
     width: Math.round(num(r.width, 1, 1e6, defaults.width)),
     height: Math.round(num(r.height, 1, 1e6, defaults.height)),
-    borderWidth: num(r.borderWidth, 0, 0.2, defaults.borderWidth),
+    borderWidth: num(r.borderWidth, 0, 0.1, defaults.borderWidth),
     borderColor:
       typeof r.borderColor === "string" && /^#[0-9a-f]{6}$/i.test(r.borderColor)
         ? r.borderColor

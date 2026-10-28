@@ -52,7 +52,7 @@ general information, not legal advice.
 - A refresh keeps your photos, sizes and settings (saved in this browser only; removing photos deletes them)
 - Choose the **number of columns** for Mosaic, or leave it on automatic (the original's choice)
 - Poster size in pixels: Screen, A4, A3, A2 and B1 (300 DPI) and social presets, each in landscape or portrait, or a custom width and height; sizes your browser cannot produce are reduced to the largest available
-- A **Book** layout: several pages in a row, each arranged on its own and saved as its own image (a zip of them); photos fill the pages in order and can be swapped or moved between pages
+- **Pages**: a collage is one page; **Add page** gives a row of pages, each arranged on its own and saved as its own image (a zip of them), with a pill above each page to move, save or remove it; photos fill the pages in order and can be swapped or moved between pages. An Instagram post is a kind of page, so a book can be a row of posts
 - An **Instagram post** size: one wide collage, previewed whole with dashed cut marks, saved as a zip of square images numbered `_1`, `_2`, … from left to right
 - Border colour (swatches or any colour), thickness (0.5 % white by default), corner style (square, slightly rounded or rounded), and an option to leave out the border around the whole collage
 - Swap two photos by clicking or from the keyboard; remove photos from the collage (Delete), all at once, with undo

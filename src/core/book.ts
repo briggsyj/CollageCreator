@@ -45,26 +45,9 @@ export function countsPerPage(pageOf: readonly number[], pages: number): number[
   return counts;
 }
 
-/**
- * The page the next photo goes to: the first page with room, else a new page after the last
- * (until the limit, then the last page).
- */
-export function fillPage(counts: readonly number[], perPage: number): number {
-  const room = counts.findIndex((n) => n < perPage);
-  if (room >= 0) return room;
-  return Math.min(counts.length, BOOK_MAX_PAGES - 1);
-}
-
-/**
- * Share `count` photos, in order, across the pages as evenly as possible. There are at least
- * `pages` pages, and more when `perPage` photos a page would not be enough.
- */
-export function spreadEvenly(
-  count: number,
-  pages: number,
-  perPage: number,
-): { pageOf: number[]; pages: number } {
-  const total = normalisePageCount(Math.max(pages, Math.ceil(count / Math.max(1, perPage))));
+/** Share `count` photos, in order, across `pages` pages as evenly as possible. */
+export function spreadEvenly(count: number, pages: number): { pageOf: number[]; pages: number } {
+  const total = normalisePageCount(pages);
   const base = Math.floor(count / total);
   const extra = count % total;
   const pageOf: number[] = [];
@@ -112,6 +95,11 @@ export class BookPage implements LayoutPage {
     private maps: number[][],
     private ratio: number,
   ) {}
+
+  /** A one-page collage as page one of a book, so more pages can be added to it as it is. */
+  static wrap(sub: LayoutPage, photoCount: number, ratio: number): BookPage {
+    return new BookPage([sub], [Array.from({ length: photoCount }, (_, i) => i)], ratio);
+  }
 
   get pageCount(): number {
     return this.subs.length;

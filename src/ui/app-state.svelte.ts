@@ -25,18 +25,15 @@
 
 import {
   BOOK_MAX_PAGES,
-  type BookPage,
+  BookPage,
   bookFileNames,
   countsPerPage,
-  fillPage,
   generateBestBook,
   generateBook,
   movedPageOf,
-  normalisePerPage,
+  normalisePageCount,
   PAGE_GAP,
   PER_PAGE_DEFAULT,
-  PER_PAGE_MAX,
-  PER_PAGE_MIN,
   pageLayout,
   pagesWithPhotos,
   removedPageOf,
@@ -60,6 +57,7 @@ import {
   SPLIT_MIN,
   SPLIT_SIDE_DEFAULT,
   SPLIT_SIDE_MIN,
+  splitFileNames,
 } from "../core/split";
 import {
   type Layout,
@@ -80,9 +78,10 @@ import {
   type SkippedFile,
 } from "../io/import";
 import { loadSession, saveSession } from "../io/session";
+import { isZip, unzipImages } from "../io/unzip";
 import { zipBlob } from "../io/zip";
 import { type CanvasLimits, clampSize, detectLimits, FALLBACK_LIMITS } from "../platform/limits";
-import { exportCollage } from "../render/export";
+import { exportCollage, exportPieces } from "../render/export";
 import { WorkerPool } from "../render/pool";
 import { fitSize } from "../render/preview";
 import { SPLIT_MARGIN } from "../render/splitmarks";
@@ -90,10 +89,21 @@ import { FIT_VIEW, isFit, panBy, type Size, type View, zoomAt, zoomPercent } fro
 import { findChoice, orientationOf, SIZE_CHOICES, sizeOf } from "./presets";
 import { parseSeed, withSeed } from "./url";
 
+/** Room (in CSS pixels) kept above a book's pages for their pills, and below for the add button. */
+export const PAGE_PILL_ROOM = 48;
+
 export type Tab = "photos" | "poster" | "style" | "save";
 export type Mode = "pan" | "swap" | "select";
 /** Which dialog is open, if any. */
-export type DialogName = "help" | "about" | "progress";
+export type DialogName = "help" | "about" | "progress" | "confirm";
+
+/** What the confirm dialog asks, and what its main button does. */
+export interface Confirmation {
+  title: string;
+  text: string;
+  action: string;
+  run: () => void;
+}
 
 const LANG_KEY = "collage-creator.language";
 /** What the key was called before the app was renamed, still read so a saved choice is kept. */
@@ -133,6 +143,8 @@ const STATUS_MS = 6000;
 /** What was skipped while adding photos, for the notice in the Photos step. */
 export interface Notice {
   summary: string;
+  /** Why, by reason: "3 already added, 1 not an image". */
+  reasons: string;
   items: string[];
   kind: "info" | "error";
 }
@@ -165,12 +177,12 @@ export class AppState {
   /** Chosen number of columns (Mosaic only); undefined lets the original heuristic decide. */
   columns = $state<number | undefined>(undefined);
   layoutStyle = $state<LayoutStyle>("mosaic");
-  /** Book: several pages in a row, each saved as its own image (`layoutStyle` arranges each page). */
-  book = $state(false);
-  /** How many pages the book has (1 to 20), empty ones included. */
+  /** How many pages there are (1 to 20), empty ones included. A collage is one page. */
   pageCount = $state(1);
-  /** How many photos a page takes before the next photo goes to the next page. */
-  perPage = $state(PER_PAGE_DEFAULT);
+  /** More than one page: the pages are shown in a row, each with its own controls. */
+  book = $derived(this.pageCount > 1);
+  /** Where the poster is in the preview area, in CSS pixels (set by the preview each draw). */
+  posterBox = $state.raw<{ x: number; y: number; w: number; h: number } | null>(null);
   /** The arrangement. It is changed in place by swaps and resizes, which bump `pageRev`. */
   page = $state.raw<LayoutPage | null>(null);
   pageRev = $state(0);
@@ -206,6 +218,16 @@ export class AppState {
   narrow = $state(false);
   mode = $state<Mode>("pan");
   selected = $state<number | null>(null);
+  /**
+   * Photos were swapped or moved between pages by hand since the arrangement was last made.
+   * Shuffling would undo that, so it asks first; a fresh arrangement clears it.
+   */
+  arrangedByHand = $state(false);
+  /**
+   * Photos selected as well as `selected` (by id), from Shift-click in the Photos step or with
+   * the Select tool. Only what works on many photos at once is offered then: size, page, remove.
+   */
+  alsoSelected = $state.raw<ReadonlySet<string>>(new Set());
   /** The photo whose crop is being adjusted; only counts while it is also the selected one. */
   cropFor = $state<number | null>(null);
   /** Counts the times the selected photo should be scrolled into view in the Photos step. */
@@ -222,6 +244,8 @@ export class AppState {
   focusRing = $state(false);
   /** What the last removal took out and where, so it can be undone. */
   removed = $state.raw<{ photo: ImportedPhoto; index: number }[] | null>(null);
+  /** The page count before Remove all, so Undo remove can bring the pages back too. */
+  private removedPageCount: number | null = null;
 
   // -------------------------------------------------------------------- messages
   /** The line in the pill over the preview, and in the live region for screen readers. */
@@ -234,6 +258,8 @@ export class AppState {
   /** The language in use. Reading it makes `tr` re-run when the language changes. */
   lang = $state(getLanguage());
   dialog = $state<DialogName | null>(null);
+  /** What the confirm dialog is asking. */
+  confirming = $state.raw<Confirmation | null>(null);
   progress = $state(0);
   /** Becomes true once saved work has been restored; nothing is saved before. */
   persistReady = $state(false);
@@ -260,6 +286,15 @@ export class AppState {
   isSplit = $derived(this.settings.splitImages > 1);
   /** The page of the selected photo (a book), if there is one. */
   selectedPage = $derived(this.selectedPhoto?.bookPage ?? 0);
+  /** Every selected photo by index, the main one first. */
+  selection = $derived.by(() => {
+    if (this.selected === null) return [];
+    const also = this.alsoSelected;
+    const rest = this.photos.flatMap((p, i) => (i !== this.selected && also.has(p.id) ? [i] : []));
+    return [this.selected, ...rest];
+  });
+  /** More than one photo is selected. */
+  multiSelected = $derived(this.selection.length > 1);
   /** How many photos each page of the book holds. */
   pageCounts = $derived(
     countsPerPage(
@@ -336,7 +371,11 @@ export class AppState {
     if (unreadable) parts.push(t("%(n)s could not be opened", { n: unreadable }));
     const onlyDuplicates = duplicates === skipped.length;
     this.notice = {
-      summary: t("%(n)s skipped: %(what)s", { n: skipped.length, what: parts.join(", ") }),
+      summary:
+        skipped.length === 1
+          ? t("1 file was not added")
+          : t("%(n)s files were not added", { n: skipped.length }),
+      reasons: parts.join(", "),
       items: skipped.map((s) => {
         const why =
           s.reason === "duplicate"
@@ -405,7 +444,8 @@ export class AppState {
    * `keepSelection` leaves the selected photo selected (its place in the list is unchanged).
    */
   relayout(mode: "search" | "single" = "single", keepSelection = false): void {
-    this.selected = keepSelection ? this.selected : null;
+    if (!keepSelection) this.clearSelection();
+    this.arrangedByHand = false;
     this.focused = 0;
     if (this.photos.length === 0) {
       this.page = null;
@@ -463,6 +503,21 @@ export class AppState {
     this.relayout();
   }
 
+  /** Shuffle the layout within the pages, or every photo between them; asks after hand edits. */
+  askShuffle(between: boolean): void {
+    const run = () => (between ? this.shufflePages() : this.shuffle());
+    if (!this.arrangedByHand) {
+      run();
+      return;
+    }
+    this.confirm({
+      title: t("Shuffle and lose your changes?"),
+      text: t("You swapped or moved photos by hand. Shuffling arranges them again."),
+      action: t("Shuffle"),
+      run,
+    });
+  }
+
   setSeed(value: number): boolean {
     const seed = Math.floor(value);
     if (!Number.isFinite(seed) || seed < 0 || seed > 0xffffffff) return false;
@@ -472,10 +527,8 @@ export class AppState {
   }
 
   chooseLayout(style: LayoutStyle): void {
-    if (this.layoutStyle === style && !this.book) return;
+    if (this.layoutStyle === style) return;
     this.layoutStyle = style;
-    this.book = false;
-    this.reshape();
     this.relayout("search");
   }
 
@@ -502,52 +555,14 @@ export class AppState {
         counts[photo.bookPage] = (counts[photo.bookPage] ?? 0) + 1;
         return photo;
       }
-      const page = fillPage(counts, this.perPage);
+      const page = Math.max(0, this.pageCount - 1);
       counts[page] = (counts[page] ?? 0) + 1;
-      this.pageCount = Math.max(this.pageCount, page + 1);
       return { ...photo, bookPage: page };
     });
   }
 
-  /** Turn Book on: the photos fill the pages in order; the arrangement is made again. */
-  chooseBook(): void {
-    if (this.book) return;
-    if (this.settings.splitImages > 1) {
-      // The one wide collage of a post becomes one page of the size of a post's image.
-      const side = this.settings.height;
-      this.settings.splitImages = 0;
-      this.applySize(side, side);
-    }
-    this.book = true;
-    this.customSize = false;
-    this.pageCount = Math.max(1, this.pageCount);
-    this.photos = this.withPages(this.photos, []);
-    this.reshape();
-    this.relayout("search");
-    this.setStatus(t("Book: %(n)s page(s).", { n: this.pageCount }));
-  }
-
-  /** The style of each page of a book (Mosaic or Gallery); the book stays a book. */
-  chooseBookStyle(style: LayoutStyle): void {
-    if (this.layoutStyle === style) return;
-    this.layoutStyle = style;
-    this.relayout("search");
-  }
-
-  get perPageMin(): number {
-    return PER_PAGE_MIN;
-  }
-
-  get perPageMax(): number {
-    return PER_PAGE_MAX;
-  }
-
   get maxPages(): number {
     return BOOK_MAX_PAGES;
-  }
-
-  setPerPage(value: number): void {
-    this.perPage = normalisePerPage(value);
   }
 
   private setPages(pageOf: readonly number[], pageCount = this.pageCount): void {
@@ -555,13 +570,46 @@ export class AppState {
     this.photos = this.photos.map((p, i) => ({ ...p, bookPage: pageOf[i] ?? 0 }));
   }
 
-  /** A new blank page after the last. */
+  /** A new blank page after the last. The first time, the collage becomes page one of a book. */
   addPage(): void {
-    if (!this.book || this.pageCount >= BOOK_MAX_PAGES) return;
+    if (this.pageCount >= BOOK_MAX_PAGES) return;
+    if (this.page && !this.book) {
+      this.page = BookPage.wrap(this.page, this.photos.length, this.ratio);
+      this.photos = this.photos.map((p) => ({ ...p, bookPage: 0 }));
+    }
     this.pageCount++;
     (this.page as BookPage | null)?.addPage();
     this.pageRev++;
+    // Zoomed in, the new page would land out of sight: show every page.
+    if (!this.isFit) this.fitView();
     this.setStatus(t("Added page %(n)s.", { n: this.pageCount }));
+  }
+
+  /** Ask before taking a page out. */
+  askRemovePage(page: number): void {
+    if (!this.book || page < 0 || page >= this.pageCount) return;
+    this.confirm({
+      title: t("Remove page %(n)s?", { n: page + 1 }),
+      text: this.pageCounts[page]
+        ? t("Its photos move to a neighbouring page. The page's own arrangement is lost.")
+        : t("This page is empty."),
+      action: t("Remove page"),
+      run: () => this.removePage(page),
+    });
+  }
+
+  /** Ask before doing something that is hard to take back. */
+  confirm(question: Confirmation): void {
+    this.confirming = question;
+    this.dialog = "confirm";
+  }
+
+  /** The confirm dialog's main button. */
+  confirmed(): void {
+    const run = this.confirming?.run;
+    this.dialog = null;
+    this.confirming = null;
+    run?.();
   }
 
   /** Take a page out: its photos go to the prior page (the next one for the first). */
@@ -594,13 +642,15 @@ export class AppState {
     this.setStatus(t("Moved page %(a)s to place %(b)s.", { a: page + 1, b: to + 1 }));
   }
 
-  /** Share all the photos evenly across the pages, in order. */
-  spreadPhotos(): void {
-    if (!this.book) return;
-    const spread = spreadEvenly(this.photos.length, this.pageCount, this.perPage);
-    this.setPages(spread.pageOf, spread.pages);
+  /** Set the number of pages; the photos are shared evenly across them, in order. */
+  setPageCount(value: number): void {
+    const pages = normalisePageCount(value);
+    if (pages === this.pageCount) return;
+    if (pages > 1 && !this.book) this.addPage();
+    const spread = spreadEvenly(this.photos.length, pages);
+    this.setPages(spread.pageOf, pages);
     this.relayout("search");
-    this.setStatus(t("Photos shared evenly across %(n)s page(s).", { n: spread.pages }));
+    this.setStatus(t("Photos shared evenly across %(n)s page(s).", { n: pages }));
   }
 
   /** Mix the photos between the pages, keeping how many each page has. */
@@ -615,28 +665,47 @@ export class AppState {
     this.setStatus(t("Photos shuffled between pages."));
   }
 
-  /** Move the selected photo to another page (it goes last there). */
+  /** Move the selected photos to another page; they go last there, in their order. */
   moveSelectedToPage(page: number): void {
-    const index = this.selected;
-    const photo = this.selectedPhoto;
-    if (!this.book || index === null || !photo || page < 0 || page >= this.pageCount) return;
-    if ((photo.bookPage ?? 0) === page) return;
-    // Last on the new page: take it out of the list and put it after that page's photos.
-    const moved = { ...photo, bookPage: page };
-    const rest = this.photos.filter((_, i) => i !== index);
-    let at = rest.length;
-    for (let i = rest.length - 1; i >= 0; i--) {
-      if ((rest[i]?.bookPage ?? 0) <= page) {
-        at = i + 1;
-        break;
-      }
-      at = i;
-    }
-    rest.splice(at, 0, moved);
+    const ids = this.selection.flatMap((i) => this.photos[i]?.id ?? []);
+    this.movePhotosToPage(ids, page);
+  }
+
+  /**
+   * Move photos (by id) to another page, last there and in their order; used by Move to page
+   * and by dragging photos onto a page in the Photos step. Selected photos stay selected.
+   */
+  movePhotosToPage(photoIds: readonly string[], page: number): void {
+    if (!this.book || page < 0 || page >= this.pageCount) return;
+    const ids = new Set(photoIds);
+    const selectedIds = this.selection.flatMap((i) => this.photos[i]?.id ?? []);
+    const mainId = this.selectedPhoto?.id;
+    const moving = this.photos
+      .filter((p) => ids.has(p.id) && (p.bookPage ?? 0) !== page)
+      .map((p) => ({ ...p, bookPage: page }));
+    if (moving.length === 0) return;
+    const moved = new Set(moving.map((p) => p.id));
+    const rest = this.photos.filter((p) => !moved.has(p.id));
+    // After the last photo on that page or an earlier one.
+    let at = 0;
+    rest.forEach((p, i) => {
+      if ((p.bookPage ?? 0) <= page) at = i + 1;
+    });
+    rest.splice(at, 0, ...moving);
     this.photos = rest;
     this.relayout("single", false);
-    this.selected = at;
-    this.setStatus(t("Moved %(name)s to page %(n)s.", { name: photo.name, n: page + 1 }));
+    this.arrangedByHand = true;
+    // Keep the same photos selected at their new places.
+    if (mainId !== undefined) {
+      const main = rest.findIndex((p) => p.id === mainId);
+      this.selected = main >= 0 ? main : null;
+      this.alsoSelected = new Set(selectedIds.filter((id) => id !== mainId));
+    }
+    this.setStatus(
+      moving.length === 1
+        ? t("Moved %(name)s to page %(n)s.", { name: moving[0]?.name ?? "", n: page + 1 })
+        : t("Moved %(count)s photos to page %(n)s.", { count: moving.length, n: page + 1 }),
+    );
   }
 
   /** Empty means automatic. Apply while typing; the field is tidied once the edit is done. */
@@ -693,7 +762,9 @@ export class AppState {
           seed: this.seed,
           columns: this.columns,
           layoutStyle: this.layoutStyle,
-          ...(this.book ? { book: { pages: this.pageCount, perPage: this.perPage } } : {}),
+          ...(this.pageCount > 1
+            ? { book: { pages: this.pageCount, perPage: PER_PAGE_DEFAULT } }
+            : {}),
           settings: $state.snapshot(this.settings),
         },
         files,
@@ -720,9 +791,7 @@ export class AppState {
         this.columns = saved.session.columns;
         this.layoutStyle = saved.session.layoutStyle ?? "mosaic";
         const book = saved.session.book;
-        this.book = book !== undefined;
         this.pageCount = book?.pages ?? 1;
-        this.perPage = book?.perPage ?? PER_PAGE_DEFAULT;
         this.restoreEpoch++;
         const files = saved.session.photos
           .map((p) => saved.files.get(p.key))
@@ -781,13 +850,15 @@ export class AppState {
    * The poster's size on screen when the view is "fit", in CSS pixels. Room is left for the
    * tools on the right and the pill on the top (wide screens), or for the bars (phones).
    */
-  fitPoster(viewport: Size = this.viewport): Size {
+  fitPoster(viewport: Size = this.viewport, onePage = false): Size {
     const padX = this.narrow ? 12 : 88;
     const padY = this.narrow ? 104 : 72;
     // A collage for a multi-image post keeps room above and below for the cut marks, and a
     // book room below its pages for their labels.
-    const marks = this.settings.splitImages > 1 || this.book ? 2 * SPLIT_MARGIN : 0;
-    const row = this.rowSize;
+    const marks =
+      (this.settings.splitImages > 1 ? 2 * SPLIT_MARGIN : 0) +
+      (this.book && !onePage ? 2 * PAGE_PILL_ROOM : 0);
+    const row = onePage ? { w: this.settings.width, h: this.settings.height } : this.rowSize;
     const fit = fitSize(
       row.w,
       row.h,
@@ -824,6 +895,8 @@ export class AppState {
   }
 
   setMode(mode: Mode): void {
+    // Changing tool lets go of the selection (holding Space to pan for a moment does not).
+    if (mode !== this.mode) this.deselect();
     this.mode = mode;
     this.status = "";
     clearTimeout(this.statusTimer);
@@ -839,7 +912,12 @@ export class AppState {
   selectPhoto(photoIndex: number): void {
     const photo = this.photos[photoIndex];
     if (!photo) return;
-    if (this.selected === photoIndex) {
+    if (this.multiSelected) {
+      // A plain click on one of several selected photos narrows the selection to it.
+      this.alsoSelected = new Set();
+      this.selected = photoIndex;
+      this.setStatus(t("Selected %(name)s.", { name: photo.name }));
+    } else if (this.selected === photoIndex) {
       this.selected = null;
       this.setStatus("");
     } else {
@@ -848,13 +926,47 @@ export class AppState {
     }
   }
 
+  /** Add a photo to the selection, or take it out (Shift-click). */
+  toggleSelected(photoIndex: number): void {
+    const photo = this.photos[photoIndex];
+    if (!photo) return;
+    if (this.selected === null) {
+      this.selectPhoto(photoIndex);
+      return;
+    }
+    this.cropFor = null;
+    const also = new Set(this.alsoSelected);
+    if (photoIndex === this.selected) {
+      // The main photo leaves; the next selected one takes its place.
+      const next = this.selection[1];
+      this.selected = next ?? null;
+      const nextPhoto = next === undefined ? undefined : this.photos[next];
+      if (nextPhoto) also.delete(nextPhoto.id);
+    } else if (also.has(photo.id)) {
+      also.delete(photo.id);
+    } else {
+      also.add(photo.id);
+    }
+    this.alsoSelected = also;
+    const n = this.selection.length;
+    this.setStatus(n > 1 ? t("%(n)s photos selected.", { n }) : "");
+  }
+
+  /** Nothing selected. */
+  private clearSelection(): void {
+    this.selected = null;
+    this.cropFor = null;
+    if (this.alsoSelected.size > 0) this.alsoSelected = new Set();
+  }
+
   /**
    * The Select tool: choose a photo on the preview and show it in the Photos step (on wide
    * screens), where Wider, Taller and Remove are. On phones the action bar appears instead.
    */
-  selectInPhotos(photoIndex: number): void {
-    this.selectPhoto(photoIndex);
-    if (this.selected !== photoIndex || this.narrow) return;
+  selectInPhotos(photoIndex: number, add = false): void {
+    if (add) this.toggleSelected(photoIndex);
+    else this.selectPhoto(photoIndex);
+    if (!this.selection.includes(photoIndex) || this.narrow) return;
     this.setTab("photos", false);
     this.revealToken++;
   }
@@ -864,6 +976,8 @@ export class AppState {
     const placement = this.layout?.placements[cellIndex];
     if (!this.page || !placement) return;
     const photoIndex = placement.photoIndex;
+    // Swapping is one photo for another: a selection of several starts again.
+    if (this.multiSelected) this.clearSelection();
     if (this.selected === null) {
       this.selected = photoIndex;
       this.setStatus(
@@ -886,6 +1000,7 @@ export class AppState {
         );
       }
       this.pageRev++;
+      this.arrangedByHand = true;
       this.setStatus(
         t("Swapped %(a)s and %(b)s.", {
           a: this.photos[this.selected]?.name ?? "",
@@ -903,7 +1018,7 @@ export class AppState {
 
   /** Turn adjusting the selected photo's crop on or off. */
   toggleCrop(): void {
-    if (this.selected === null) return;
+    if (this.selected === null || this.multiSelected) return;
     this.cropFor = this.cropping ? null : this.selected;
     this.setStatus(this.cropping ? t("Drag the photo to move it, scroll to zoom.") : "");
   }
@@ -949,11 +1064,6 @@ export class AppState {
     );
   }
 
-  zoomSelectedCropBy(factor: number): void {
-    const zoom = this.selectedPhoto?.crop?.zoom ?? 1;
-    this.zoomSelectedCrop(zoom * factor);
-  }
-
   resetCrop(): void {
     if (this.selected === null) return;
     this.writeCrop(this.selected, NO_CROP);
@@ -965,7 +1075,7 @@ export class AppState {
   readonly maxZoom = MAX_ZOOM;
 
   deselect(): void {
-    this.selected = null;
+    this.clearSelection();
     this.setStatus("");
   }
 
@@ -984,7 +1094,7 @@ export class AppState {
     this.setStatus(t("Please wait"));
     const skipped: SkippedFile[] = [];
     const added = await importFiles(
-      files,
+      await this.openZips(files, skipped),
       this.photos,
       this.importPool,
       (m) => this.addMessage(m),
@@ -998,6 +1108,26 @@ export class AppState {
       this.photos = [...this.photos, ...placed];
       this.relayout("search");
     }
+  }
+
+  /** Swap each ZIP (such as a zipped folder of photos) for the images inside it. */
+  private async openZips(files: readonly File[], skipped: SkippedFile[]): Promise<File[]> {
+    const out: File[] = [];
+    for (const file of files) {
+      if (!isZip(file)) {
+        out.push(file);
+        continue;
+      }
+      try {
+        const inside = await unzipImages(file);
+        out.push(...inside.files);
+        for (const name of inside.others) skipped.push({ reason: "not-image", name });
+        for (const name of inside.unreadable) skipped.push({ reason: "unreadable", name });
+      } catch {
+        skipped.push({ reason: "unreadable", name: file.name });
+      }
+    }
+    return out;
   }
 
   /** Close the thumbnails of photos that can no longer be brought back. */
@@ -1014,19 +1144,60 @@ export class AppState {
     if (items.length === 0) return;
     this.discardRemoved();
     this.removed = items;
+    this.removedPageCount = null;
     this.photos = this.photos.filter((p) => !ids.has(p.id));
     this.relayout("search");
     this.setStatus(`${message} ${t("Undo remove brings it back.")}`);
   }
 
   removeSelected(): void {
-    const photo = this.selectedPhoto;
-    if (photo) this.removePhotos(new Set([photo.id]), t("Removed %(name)s.", { name: photo.name }));
+    this.askRemovePhotos(this.selection.flatMap((i) => this.photos[i] ?? []));
+  }
+
+  /** Ask, then take these photos out (Undo remove brings them back). */
+  askRemovePhotos(photos: readonly ImportedPhoto[]): void {
+    const first = photos[0];
+    if (!first) return;
+    const one = photos.length === 1;
+    this.confirm({
+      title: one
+        ? t("Remove %(name)s?", { name: first.name })
+        : t("Remove %(n)s photos?", { n: photos.length }),
+      text: one
+        ? t("The photo is taken out of the collage. Undo remove brings it back.")
+        : t("The photos are taken out of the collage. Undo remove brings them back."),
+      action: t("Remove"),
+      run: () =>
+        this.removePhotos(
+          new Set(photos.map((p) => p.id)),
+          one
+            ? t("Removed %(name)s.", { name: first.name })
+            : t("Removed %(n)s photos.", { n: photos.length }),
+        ),
+    });
+  }
+
+  /** Ask, then take every photo out and go back to one page. Undo remove brings them back. */
+  askRemoveAll(): void {
+    const n = this.photos.length;
+    if (n === 0) return;
+    this.confirm({
+      title: t("Remove all photos?"),
+      text:
+        this.pageCount > 1
+          ? t("All %(n)s photos are taken out and the book goes back to one page.", { n })
+          : t("All %(n)s photos are taken out.", { n }),
+      action: t("Remove all"),
+      run: () => this.removeAll(),
+    });
   }
 
   removeAll(): void {
     const n = this.photos.length;
+    const pages = this.pageCount;
+    this.pageCount = 1;
     this.removePhotos(new Set(this.photos.map((p) => p.id)), t("Removed all %(n)s photos.", { n }));
+    this.removedPageCount = pages;
   }
 
   /** Put the last removed photos back where they were. */
@@ -1044,6 +1215,10 @@ export class AppState {
     for (const entry of restored) {
       photos.splice(Math.min(entry.index, photos.length), 0, entry.photo);
     }
+    if (this.removedPageCount !== null) {
+      this.pageCount = Math.max(this.pageCount, this.removedPageCount);
+      this.removedPageCount = null;
+    }
     this.photos = photos;
     this.removed = null;
     this.relayout("search");
@@ -1056,36 +1231,45 @@ export class AppState {
    * collage is recalculated around it from the same seed.
    */
   setSpan(photoIndex: number, change: Partial<PhotoSpan> | "reset"): void {
-    const photo = this.photos[photoIndex];
-    if (!photo) return;
-    const span = change === "reset" ? { ...NO_SPAN } : { ...(photo.span ?? NO_SPAN), ...change };
-    const updated = { ...photo, span };
-    this.photos = this.photos.map((p, i) => (i === photoIndex ? updated : p));
+    this.setSpans([photoIndex], change);
+  }
+
+  /** The same size request for several photos at once, with one new arrangement. */
+  private setSpans(indices: readonly number[], change: Partial<PhotoSpan> | "reset"): void {
+    const first = this.photos[indices[0] ?? -1];
+    if (!first) return;
+    const wanted = new Set(indices);
+    const spanOf = (photo: ImportedPhoto): PhotoSpan =>
+      change === "reset" ? { ...NO_SPAN } : { ...(photo.span ?? NO_SPAN), ...change };
+    this.photos = this.photos.map((p, i) => (wanted.has(i) ? { ...p, span: spanOf(p) } : p));
     this.relayout("single", true);
-    const description = describeSpan(span);
+    const description = describeSpan(spanOf(first));
+    const name = indices.length === 1 ? first.name : t("%(n)s photos", { n: indices.length });
     this.setStatus(
       description
-        ? t("%(name)s: %(what)s.", { name: photo.name, what: description })
-        : t("%(name)s is back to its normal size.", { name: photo.name }),
+        ? t("%(name)s: %(what)s.", { name, what: description })
+        : t("%(name)s is back to its normal size.", { name }),
     );
   }
 
+  /** Wider for every selected photo, or back to one column when the main one is already wide. */
   toggleWider(): void {
     const index = this.selected;
     if (index === null) return;
     const wide = this.photos[index]?.span?.columns === 2;
-    this.setSpan(index, { columns: wide ? 1 : 2 });
+    this.setSpans(this.selection, { columns: wide ? 1 : 2 });
   }
 
+  /** Taller in steps (2 rows, 3 rows, back to 1), following the main selected photo. */
   cycleTaller(): void {
     const index = this.selected;
     if (index === null) return;
     const rows = this.photos[index]?.span?.rows ?? 1;
-    this.setSpan(index, { rows: rows === 1 ? 2 : rows === 2 ? 3 : 1 });
+    this.setSpans(this.selection, { rows: rows === 1 ? 2 : rows === 2 ? 3 : 1 });
   }
 
   resetSpan(): void {
-    if (this.selected !== null) this.setSpan(this.selected, "reset");
+    if (this.selected !== null) this.setSpans(this.selection, "reset");
   }
 
   // ---------------------------------------------------------------------- size
@@ -1111,7 +1295,6 @@ export class AppState {
 
   chooseInstagramPost(): void {
     this.customSize = false;
-    this.book = false;
     this.setSplit(SPLIT_DEFAULT, SPLIT_SIDE_DEFAULT, true);
   }
 
@@ -1291,32 +1474,44 @@ export class AppState {
       });
     }
     const stem = `book-${this.seed}`;
-    const pageSettings = { ...settings, splitImages: 0 };
-    const images: Blob[] = [];
+    const carousel = settings.splitImages > 1;
+    const total = layout.pages?.length ?? 1;
+    const pad = (n: number) => String(n).padStart(String(total).length, "0");
+    // Each page makes one image, or for a page made for a post one image per square.
+    const files: { name: string; blob: Blob }[] = [];
     for (const [i, page] of pages.entries()) {
-      images.push(
-        await exportCollage({
-          layout: pageLayout(layout, page),
-          photos: this.photos,
-          settings: pageSettings,
-          pool: this.exportPool,
-          signal,
-          onProgress: (done, total) => {
-            this.progress = ((i + (total ? done / total : 1)) / pages.length) * 100;
-          },
-        }),
-      );
+      const pieces = await exportPieces({
+        layout: pageLayout(layout, page),
+        photos: this.photos,
+        settings,
+        pool: this.exportPool,
+        signal,
+        onProgress: (done, count) => {
+          this.progress = ((i + (count ? done / count : 1)) / pages.length) * 100;
+        },
+      });
+      if (carousel) {
+        const names = splitFileNames(`${stem}_p${pad(page + 1)}`, pieces.length, ext);
+        for (const [j, blob] of pieces.entries()) files.push({ name: names[j] as string, blob });
+      } else {
+        files.push({ name: "", blob: pieces[0] as Blob });
+      }
     }
-    if (images.length === 1) {
+    if (!carousel) {
+      const names = bookFileNames(stem, files.length, ext);
+      files.forEach((f, i) => {
+        f.name = names[i] as string;
+      });
+    }
+    if (files.length === 1) {
       const name = onlyPage === undefined ? stem : `${stem}_page-${(pages[0] ?? 0) + 1}`;
-      download(images[0] as Blob, `${name}.${ext}`);
+      download((files[0] as { blob: Blob }).blob, `${name}.${ext}`);
       return;
     }
-    const names = bookFileNames(stem, images.length, ext);
     const entries = await Promise.all(
-      images.map(async (blob, i) => ({
-        name: names[i] as string,
-        data: new Uint8Array(await blob.arrayBuffer()),
+      files.map(async (f) => ({
+        name: f.name,
+        data: new Uint8Array(await f.blob.arrayBuffer()),
       })),
     );
     download(zipBlob(entries), `${stem}.zip`);

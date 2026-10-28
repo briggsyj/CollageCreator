@@ -26,6 +26,58 @@
     }));
   });
 
+  /** Photos being dragged between pages carry their ids under this type. */
+  const DRAG_TYPE = "application/x-collage-photos";
+  /** The page a dragged photo is over, to highlight it. */
+  let dropPage = $state(-1);
+  /** A photo from the list is being dragged (the "new page" target shows then on one page). */
+  let dragging = $state(false);
+  /** The "new page" target appears after the last page while there is room for one more. */
+  const canAddPage = $derived(app.hasPhotos && app.pageCount < app.maxPages);
+
+  function dragStart(e: DragEvent, index: number): void {
+    const photo = app.photos[index];
+    if (!photo || !e.dataTransfer) return;
+    // Dragging one of the selected photos takes all of them along.
+    const ids = app.selection.includes(index)
+      ? app.selection.flatMap((i) => app.photos[i]?.id ?? [])
+      : [photo.id];
+    e.dataTransfer.setData(DRAG_TYPE, JSON.stringify(ids));
+    e.dataTransfer.effectAllowed = "move";
+    dragging = true;
+  }
+
+  /** Photos dropped on the "new page" target: add the page, then move them onto it. */
+  function dropOnNewPage(e: DragEvent): void {
+    const data = e.dataTransfer?.getData(DRAG_TYPE);
+    dropPage = -1;
+    dragging = false;
+    if (!data) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const ids: unknown = JSON.parse(data);
+    if (!Array.isArray(ids)) return;
+    app.addPage();
+    app.movePhotosToPage(ids.map(String), app.pageCount - 1);
+  }
+
+  function dragOver(e: DragEvent, page: number): void {
+    if (!e.dataTransfer?.types.includes(DRAG_TYPE)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    dropPage = page;
+  }
+
+  function drop(e: DragEvent, page: number): void {
+    const data = e.dataTransfer?.getData(DRAG_TYPE);
+    dropPage = -1;
+    if (!data) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const ids: unknown = JSON.parse(data);
+    if (Array.isArray(ids)) app.movePhotosToPage(ids.map(String), page);
+  }
+
   const count = $derived(
     app.photos.length === 1 ? tr("1 photo") : tr("%(n)s photos", { n: app.photos.length }),
   );
@@ -42,6 +94,7 @@
   <button
     type="button"
     id="add"
+    title={tr("Choose photos, or a .zip of them, from this device")}
     class="primary wide"
     aria-describedby="privacy-note"
     disabled={app.restoring !== null}
@@ -49,7 +102,7 @@
   >
     {tr("Add images...")}
   </button>
-  <p class="drop-tip">{tr("or drop photos anywhere on this page")}</p>
+  <p class="drop-tip">{tr("or drop photos or a .zip of them anywhere here")}</p>
   <p id="privacy-note" class="sr-only">
     {tr("Everything runs in your browser. Your photos are never uploaded.")}
   </p>
@@ -74,28 +127,47 @@
     </div>
   {/if}
 
-  <div id="notices" class="notices" hidden={app.notice === null} data-kind={app.notice?.kind}>
-    <p id="notices-summary" class="notices-summary">{app.notice?.summary ?? ""}</p>
-    <div class="notices-actions">
+  <div
+    id="notices"
+    class="notices"
+    role="status"
+    hidden={app.notice === null}
+    data-kind={app.notice?.kind}
+  >
+    <svg class="notices-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <path d={app.notice?.kind === "error" ? "M12 7.5v5.5M12 16.5v.01" : "M12 11v5.5M12 7.5v.01"} />
+    </svg>
+    <div class="notices-body">
+      <p id="notices-summary" class="notices-summary">{app.notice?.summary ?? ""}</p>
+      <p id="notices-reasons" class="notices-reasons">{app.notice?.reasons ?? ""}</p>
       <button
         type="button"
         id="notices-details"
-        class="link"
+        title={tr("Show or hide the names of the files that were not added")}
+        class="link notices-toggle"
         aria-expanded={app.noticeDetailsOpen}
         aria-controls="notices-list"
         onclick={() => (app.noticeDetailsOpen = !app.noticeDetailsOpen)}
       >
-        {tr("Details")}
+        {app.noticeDetailsOpen ? tr("Hide files") : tr("Show files")}
       </button>
-      <button type="button" id="notices-dismiss" class="link" onclick={() => app.hideNotice()}>
-        {tr("Dismiss")}
-      </button>
+      <ul id="notices-list" class="notices-list" hidden={!app.noticeDetailsOpen}>
+        {#each app.notice?.items ?? [] as item (item)}
+          <li>{item}</li>
+        {/each}
+      </ul>
     </div>
-    <ul id="notices-list" class="notices-list" hidden={!app.noticeDetailsOpen}>
-      {#each app.notice?.items ?? [] as item (item)}
-        <li>{item}</li>
-      {/each}
-    </ul>
+    <button
+      type="button"
+      id="notices-dismiss"
+      title={tr("Dismiss this notice")}
+      class="icon-btn notices-close"
+      aria-label={tr("Dismiss")}
+      onclick={() => app.hideNotice()}
+    >
+      <svg class="page-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+    </button>
   </div>
 
   <div class="rowhead">
@@ -104,8 +176,9 @@
       <button
         type="button"
         id="undo-remove"
+        title={tr("Put back the photos removed last")}
         class="link"
-        disabled={app.removed === null}
+        hidden={app.removed === null}
         onclick={() => app.undoRemove()}
       >
         {tr("Undo remove")}
@@ -113,9 +186,10 @@
       <button
         type="button"
         id="remove-all"
+        title={tr("Take every photo out (asks first)")}
         class="link"
         disabled={!app.hasPhotos}
-        onclick={() => app.removeAll()}
+        onclick={() => app.askRemoveAll()}
       >
         {tr("Remove all")}
       </button>
@@ -124,9 +198,26 @@
   <p id="empty-hint" class="hint" hidden={app.hasPhotos}>
     {tr("No photos yet. Add a few and the collage builds itself.")}
   </p>
-  <div id="photo-list" bind:this={list}>
+  <!-- A click between the photos (not on one) lets go of the selection. -->
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+  <div
+    id="photo-list"
+    bind:this={list}
+    onclick={(e) => {
+      if (!(e.target as HTMLElement).closest("button, select, input, a")) app.deselect();
+    }}
+  >
     {#each groups as group (group.page)}
-      <section class="page-group" aria-label={group.page >= 0 ? tr("Page %(n)s", { n: group.page + 1 }) : undefined}>
+      <section
+        class="page-group"
+        class:drop-target={dropPage === group.page && group.page >= 0}
+        aria-label={group.page >= 0 ? tr("Page %(n)s", { n: group.page + 1 }) : undefined}
+        ondragover={(e) => group.page >= 0 && dragOver(e, group.page)}
+        ondragleave={(e) => {
+          if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) dropPage = -1;
+        }}
+        ondrop={(e) => group.page >= 0 && drop(e, group.page)}
+      >
         {#if group.page >= 0}
           <div class="page-head">
             <h4>
@@ -136,36 +227,39 @@
             <div class="page-actions">
               <button
                 type="button"
-                class="link move-page-left"
-                aria-label={tr("Move page %(n)s left", { n: group.page + 1 })}
+                class="icon-btn move-page-left"
+                title={tr("Move page %(n)s up", { n: group.page + 1 })}
+                aria-label={tr("Move page %(n)s up", { n: group.page + 1 })}
                 disabled={group.page === 0}
                 onclick={() => app.movePage(group.page, -1)}
               >
-                ◀
+                <svg class="page-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 15 6-6 6 6" /></svg>
               </button>
               <button
                 type="button"
-                class="link move-page-right"
-                aria-label={tr("Move page %(n)s right", { n: group.page + 1 })}
+                class="icon-btn move-page-right"
+                title={tr("Move page %(n)s down", { n: group.page + 1 })}
+                aria-label={tr("Move page %(n)s down", { n: group.page + 1 })}
                 disabled={group.page === app.pageCount - 1}
                 onclick={() => app.movePage(group.page, 1)}
               >
-                ▶
+                <svg class="page-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
               </button>
               <button
                 type="button"
-                class="link remove-page"
+                class="icon-btn remove-page"
+                title={tr("Remove page %(n)s", { n: group.page + 1 })}
                 aria-label={tr("Remove page %(n)s", { n: group.page + 1 })}
                 disabled={app.pageCount <= 1}
-                onclick={() => app.removePage(group.page)}
+                onclick={() => app.askRemovePage(group.page)}
               >
-                {tr("Remove page")}
+                <svg class="page-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
               </button>
             </div>
           </div>
         {/if}
         {#if group.page >= 0 && group.items.length === 0}
-          <p class="hint">{tr("Drop or move photos here")}</p>
+          <p class="page-empty">{tr("Drop or move photos here")}</p>
         {/if}
         <ul class="photo-list">
           {#each group.items as { photo, index } (photo.id)}
@@ -175,11 +269,21 @@
               <button
                 type="button"
                 class="tile"
-                aria-pressed={index === app.selected}
+                draggable={app.book || canAddPage}
+                ondragstart={(e) => dragStart(e, index)}
+                ondragend={() => {
+                  dropPage = -1;
+                  dragging = false;
+                }}
+                title={tr("Select %(name)s (Shift-click to select several)", { name: photo.name })}
+                aria-pressed={app.selection.includes(index)}
                 aria-label={app.book
                   ? `${label}, ${tr("Page %(n)s", { n: (photo.bookPage ?? 0) + 1 })}`
                   : label}
-                onclick={() => app.selectPhoto(index)}
+                onclick={(e) =>
+                  e.shiftKey || e.metaKey || e.ctrlKey
+                    ? app.toggleSelected(index)
+                    : app.selectPhoto(index)}
               >
                 <Thumb bitmap={photo.thumb} />
                 {#if wanted}<span class="tag">{wanted}</span>{/if}
@@ -190,5 +294,26 @@
         </ul>
       </section>
     {/each}
+    <!-- Always there with two or more pages; with one, only while a photo is dragged. -->
+    {#if canAddPage && (app.book || dragging)}
+      <section
+        class="new-page"
+        class:drop-target={dropPage === app.pageCount}
+        aria-label={tr("New page")}
+        ondragover={(e) => dragOver(e, app.pageCount)}
+        ondragleave={(e) => {
+          if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) dropPage = -1;
+        }}
+        ondrop={dropOnNewPage}
+      >
+        <div class="page-head">
+          <h4>
+            {tr("Page %(n)s", { n: app.pageCount + 1 })}
+            <span class="count">· {tr("new")}</span>
+          </h4>
+        </div>
+        <p class="page-empty">{tr("Drop photos here for a new page")}</p>
+      </section>
+    {/if}
   </div>
 </section>

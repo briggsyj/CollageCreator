@@ -3,6 +3,7 @@
 <script lang="ts">
   import { app } from "./app-state.svelte";
   import Preview from "./Preview.svelte";
+  import SaveBlock from "./SaveBlock.svelte";
   import { tr } from "./tr.svelte";
 
   const summary = $derived.by(() => {
@@ -17,15 +18,27 @@
     ].join(" · ");
   });
   const none = $derived(!app.hasPhotos);
+
+  /** The save panel's height, so the preview area stops above it and it never covers a page. */
+  let saveBlock: HTMLElement | undefined = $state();
+  let saveRoom = $state(0);
+  $effect(() => {
+    const el = saveBlock;
+    if (!el) return;
+    const watch = new ResizeObserver(() => (saveRoom = el.offsetHeight));
+    watch.observe(el);
+    return () => watch.disconnect();
+  });
 </script>
 
-<main class="stage" aria-label="Preview">
+<main class="stage" aria-label="Preview" style:--save-room={`${saveRoom}px`}>
   <p id="hint" class="pill hint-pill">{app.status}</p>
   <div class="tools" id="tools">
     <fieldset class="modes group" id="modes" aria-label="Mode">
       <button
         type="button"
         id="mode-pan"
+        title={tr("Pan: drag to move around (hold Space from any tool)")}
         aria-pressed={app.activeMode === "pan"}
         aria-keyshortcuts="Space"
         disabled={none}
@@ -41,6 +54,7 @@
       <button
         type="button"
         id="mode-swap"
+        title={tr("Swap: click two photos to trade places")}
         aria-pressed={app.activeMode === "swap"}
         disabled={none}
         onclick={() => app.setMode("swap")}
@@ -53,6 +67,7 @@
       <button
         type="button"
         id="mode-select"
+        title={tr("Select: click a photo to change its size, crop or remove it")}
         aria-pressed={app.activeMode === "select"}
         disabled={none}
         onclick={() => app.setMode("select")}
@@ -67,6 +82,7 @@
       <button
         type="button"
         id="zoom-in"
+        title={tr("Zoom in")}
         class="sq"
         aria-label="Zoom in"
         disabled={none}
@@ -77,6 +93,7 @@
       <button
         type="button"
         id="zoom-out"
+        title={tr("Zoom out")}
         class="sq"
         aria-label="Zoom out"
         disabled={none}
@@ -87,6 +104,7 @@
       <button
         type="button"
         id="reset-view"
+        title={tr("Fit the whole collage in the window")}
         class="sq"
         aria-label="Fit to window"
         disabled={app.isFit || none}
@@ -101,10 +119,13 @@
   </div>
 
   <Preview />
+  <!-- On wide screens saving is a panel at the bottom right; on phones it is the Save sheet. -->
+  {#if !app.narrow}<SaveBlock bind:block={saveBlock} />{/if}
 
   <button
     type="button"
     id="help-open"
+    title={tr("Help")}
     class="help-btn help-fab"
     aria-haspopup="dialog"
     aria-label="Help"

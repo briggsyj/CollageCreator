@@ -9,16 +9,17 @@
 
   const kind = $derived(app.settings.format === "jpeg" ? "JPEG" : "PNG");
   const filledPages = $derived(app.pageCounts.filter((n) => n > 0).length);
+  const post = $derived(app.settings.splitImages > 1);
+  /** Images in a book: one per page, or one per square of every page made for a post. */
+  const bookImages = $derived(filledPages * (post ? app.settings.splitImages : 1));
   const summary = $derived(
-    app.book
-      ? filledPages > 1
-        ? tr("ZIP of %(n)s %(kind)s images, %(w)s × %(h)s px each", {
-            n: filledPages,
-            kind,
-            w: app.settings.width,
-            h: app.settings.height,
-          })
-        : `${kind}, ${app.settings.width} × ${app.settings.height} px`
+    app.book && bookImages > 1
+      ? tr("ZIP of %(n)s %(kind)s images, %(w)s × %(h)s px each", {
+          n: bookImages,
+          kind,
+          w: post ? app.settings.height : app.settings.width,
+          h: app.settings.height,
+        })
       : app.settings.splitImages > 1
         ? tr("ZIP of %(n)s %(kind)s images, %(px)s × %(px)s px each", {
             n: app.settings.splitImages,
@@ -40,7 +41,7 @@
   <div class="sheet-head only-narrow" use:pullToClose={() => app.setTab("save", true)}>
     <span class="grab" aria-hidden="true"></span>
     <h2>{tr("Save image")}</h2>
-    <button type="button" id="save-close" class="link" onclick={() => app.setTab("save", true)}>
+    <button type="button" id="save-close" title={tr("Close the save options")} class="link" onclick={() => app.setTab("save", true)}>
       {tr("Close")}
     </button>
   </div>
@@ -50,6 +51,7 @@
       <button
         type="button"
         id="format-png"
+        title={tr("Save as PNG: exact colours, larger files")}
         aria-pressed={app.settings.format === "png"}
         onclick={() => (app.settings.format = "png")}
       >
@@ -58,6 +60,7 @@
       <button
         type="button"
         id="format-jpeg"
+        title={tr("Save as JPEG: smaller files")}
         aria-pressed={app.settings.format === "jpeg"}
         onclick={() => (app.settings.format = "jpeg")}
       >
@@ -77,11 +80,12 @@
     </select>
     <label class="field" id="quality-field" hidden={app.settings.format !== "jpeg"}>
       <span class="rowhead"
-        ><span>{tr("JPEG quality")}</span>
+        ><span class="quality-label">{tr("Quality")}</span>
         <output id="quality-output" for="quality">{quality}%</output></span
       >
       <input
         id="quality"
+        title={tr("JPEG quality")}
         class="range"
         type="range"
         min="10"
@@ -96,6 +100,7 @@
   <button
     type="button"
     id="save"
+    title={summary}
     class="primary wide"
     disabled={!app.hasPhotos}
     onclick={() => void app.save()}
@@ -106,6 +111,7 @@
     <button
       type="button"
       id="save-page"
+      title={tr("Save only one page")}
       class="wide"
       disabled={!app.hasPhotos}
       onclick={() => void app.save(app.selected === null ? firstFilled() : app.selectedPage)}

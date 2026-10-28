@@ -5,9 +5,9 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   BOOK_MAX_PAGES,
+  BookPage,
   bookFileNames,
   countsPerPage,
-  fillPage,
   generateBestBook,
   generateBook,
   movedPageOf,
@@ -33,36 +33,18 @@ describe("book pages", () => {
     expect(pageSeed(0xffffffff, 3)).toBeGreaterThanOrEqual(0);
   });
 
-  it("fills the first page with room, then adds a page, up to the limit", () => {
-    expect(fillPage([], 6)).toBe(0);
-    expect(fillPage([6], 6)).toBe(1);
-    expect(fillPage([6, 2], 6)).toBe(1);
-    expect(fillPage([6, 6], 6)).toBe(2);
-    // A blank page added by hand takes the next photos.
-    expect(fillPage([6, 0, 6], 6)).toBe(1);
-    // At the limit the last page takes the rest.
-    expect(fillPage(new Array(BOOK_MAX_PAGES).fill(6), 6)).toBe(BOOK_MAX_PAGES - 1);
-  });
-
-  it("spreads photos in order, as evenly as possible, onto at least the pages there are", () => {
-    expect(spreadEvenly(7, 3, 6)).toEqual({ pageOf: [0, 0, 0, 1, 1, 2, 2], pages: 3 });
-    expect(spreadEvenly(0, 2, 6)).toEqual({ pageOf: [], pages: 2 });
-    // More photos than the pages hold at the setting: pages are added.
-    expect(spreadEvenly(13, 1, 6).pages).toBe(3);
+  it("spreads photos in order, as evenly as possible", () => {
+    expect(spreadEvenly(7, 3)).toEqual({ pageOf: [0, 0, 0, 1, 1, 2, 2], pages: 3 });
+    expect(spreadEvenly(0, 2)).toEqual({ pageOf: [], pages: 2 });
     fc.assert(
-      fc.property(
-        fc.integer({ min: 0, max: 120 }),
-        fc.integer({ min: 1, max: 20 }),
-        fc.integer({ min: 1, max: 20 }),
-        (n, pages, per) => {
-          const out = spreadEvenly(n, pages, per);
-          expect(out.pageOf).toHaveLength(n);
-          expect(out.pageOf).toEqual([...out.pageOf].sort((a, b) => a - b));
-          const counts = countsPerPage(out.pageOf, out.pages);
-          expect(Math.max(...counts) - Math.min(...counts)).toBeLessThanOrEqual(1);
-          expect(out.pages).toBeGreaterThanOrEqual(Math.min(pages, BOOK_MAX_PAGES));
-        },
-      ),
+      fc.property(fc.integer({ min: 0, max: 120 }), fc.integer({ min: 1, max: 20 }), (n, pages) => {
+        const out = spreadEvenly(n, pages);
+        expect(out.pageOf).toHaveLength(n);
+        expect(out.pageOf).toEqual([...out.pageOf].sort((a, b) => a - b));
+        const counts = countsPerPage(out.pageOf, out.pages);
+        expect(Math.max(...counts) - Math.min(...counts)).toBeLessThanOrEqual(1);
+        expect(out.pages).toBeGreaterThanOrEqual(Math.min(pages, BOOK_MAX_PAGES));
+      }),
     );
   });
 
@@ -169,6 +151,23 @@ describe("a book's layout", () => {
     expect(cellOf(after, 8)).toEqual(a);
     expect(after.placements.find((p) => p.photoIndex === 0)?.page).toBe(2);
     expect(book.pageOfPhoto(8)).toBe(0);
+  });
+
+  it("a one-page collage can be wrapped into a book and given more pages as it is", () => {
+    const sub = generateBook("mosaic", photos(5), [0, 0, 0, 0, 0], 1, ratio, 3);
+    const plain = sub.toLayout();
+    const book = BookPage.wrap(sub, 5, ratio);
+    expect(book.pageCount).toBe(1);
+    book.addPage();
+    const layout = book.toLayout();
+    expect(layout.pages).toHaveLength(2);
+    expect(pagesWithPhotos(layout)).toEqual([0]);
+    // Page one is the same collage as before (page widths changed, so compare shapes).
+    const first = pageLayout(layout, 0);
+    expect(first.placements.map((p) => p.photoIndex)).toEqual(
+      plain.placements.map((p) => p.photoIndex),
+    );
+    expect(first.placements[0]?.cell.w).toBeCloseTo(plain.placements[0]?.cell.w ?? -1, 9);
   });
 
   it("pages can be added and moved without re-arranging the others", () => {

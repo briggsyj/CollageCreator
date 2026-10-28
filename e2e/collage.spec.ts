@@ -23,6 +23,7 @@ import {
   removeFromList,
   SIX,
   saveAndRead,
+  savedWork,
   setSeed,
   setSize,
   settle,
@@ -302,9 +303,9 @@ test.describe("Cropping the selected photo", () => {
     await page.locator("#crop-zoom").fill("3");
     await settle(page);
     const before = await previewColor(page, 0.5, 0.5);
-    await page.waitForTimeout(700);
+    await savedWork(page);
     await page.reload();
-    await expect(page.locator("#photo-list li")).toHaveCount(1);
+    await expect(page.locator("#photo-list li")).toHaveCount(1, { timeout: 20_000 });
     await expect(page.locator("#preview")).toHaveAttribute("data-poster", /.+/);
     await settle(page);
     expect(near(await previewColor(page, 0.5, 0.5), before, 20)).toBe(true);
@@ -399,7 +400,7 @@ test.describe("Photos are shown the right way up", () => {
 test.describe("Collage editing: borders and swapping", () => {
   test("the border colour and thickness show in the saved image", async ({ page }) => {
     await setSize(page, 400, 300);
-    await page.fill("#border-width", "5");
+    await page.fill("#border-width", "50");
     await page.locator("#border-color").fill("#00ff00");
     await addPhotos(
       page,
@@ -416,7 +417,7 @@ test.describe("Collage editing: borders and swapping", () => {
 
   test("preview and saved image match, with a border", async ({ page }) => {
     await setSize(page, 640, 480);
-    await page.fill("#border-width", "2");
+    await page.fill("#border-width", "20");
     await page.locator("#border-color").fill("#202020");
     await addPhotos(page, await makeImages(page, SIX));
     const png = await saveAndRead(page);
@@ -457,6 +458,9 @@ test.describe("Collage editing: borders and swapping", () => {
     await click(a);
     await click(b);
     await expect(page.locator("#messages")).toContainText("Swapped");
+    // Away from the photos, so the hover shade is not read as their colour.
+    await page.mouse.move(1, 1);
+    await settle(page);
 
     const afterA = await previewColor(page, candidates[a]![0], candidates[a]![1]);
     const afterB = await previewColor(page, candidates[b]![0], candidates[b]![1]);
@@ -902,7 +906,7 @@ test.describe("Border default and corner style", () => {
   const RED = [{ name: "a.png", w: 400, h: 300, color: "red" as const }];
 
   test("defaults to a 0.5 % white border and square corners", async ({ page }) => {
-    await expect(page.locator("#border-width")).toHaveValue("0.5");
+    await expect(page.locator("#border-width")).toHaveValue("5");
     await expect(page.locator("#border-color")).toHaveValue("#ffffff");
     await expect(page.locator("#corner-style")).toHaveValue("none");
   });
@@ -916,7 +920,7 @@ test.describe("Border default and corner style", () => {
     page,
   }) => {
     await setSize(page, 400, 300);
-    await page.fill("#border-width", "5");
+    await page.fill("#border-width", "50");
     await page.locator("#border-color").fill("#00ff00");
     await addPhotos(page, await makeImages(page, RED));
 
@@ -942,7 +946,7 @@ test.describe("Border default and corner style", () => {
 
   test("the saved image matches the preview for every corner style", async ({ page }) => {
     await setSize(page, 480, 360);
-    await page.fill("#border-width", "2");
+    await page.fill("#border-width", "20");
     await page.locator("#border-color").fill("#202020");
     await addPhotos(page, await makeImages(page, SIX));
     for (const style of ["none", "slight", "rounded"]) {
@@ -962,7 +966,7 @@ test.describe("Removing photos", () => {
   }) => {
     await addPhotos(page, await makeImages(page, SIX));
     const all = await names(page);
-    await expect(page.locator("#undo-remove")).toBeDisabled();
+    await expect(page.locator("#undo-remove")).toBeHidden();
 
     await removeFromList(page, 2);
     await expect(page.locator("#photo-list li")).toHaveCount(5);
@@ -972,7 +976,7 @@ test.describe("Removing photos", () => {
     await page.click("#undo-remove");
     await expect(page.locator("#photo-list li")).toHaveCount(6);
     expect(await names(page)).toEqual(all);
-    await expect(page.locator("#undo-remove")).toBeDisabled();
+    await expect(page.locator("#undo-remove")).toBeHidden();
   });
 
   test("the orange keyboard ring shows only once the keyboard is used", async ({ page }) => {
@@ -1018,10 +1022,14 @@ test.describe("Removing photos", () => {
     await addPhotos(page, await makeImages(page, SIX));
     await page.locator("#preview").focus();
     await page.keyboard.press("Delete");
+    // It asks first; Enter confirms.
+    await expect(page.locator("#confirm-dialog")).toBeVisible();
+    await page.keyboard.press("Enter");
     await expect(page.locator("#photo-list li")).toHaveCount(5);
     await expect(page.locator("#messages")).toContainText("Removed");
-    // The focus stays on the preview, so the next Delete works too.
+    // The focus goes back to the preview, so the next Delete works too.
     await page.keyboard.press("Backspace");
+    await page.keyboard.press("Enter");
     await expect(page.locator("#photo-list li")).toHaveCount(4);
   });
 
@@ -1038,6 +1046,7 @@ test.describe("Removing photos", () => {
     expect(picked).toBeTruthy();
 
     await page.click("#remove-selected");
+    await page.click("#confirm-ok");
     await expect(page.locator("#photo-list li")).toHaveCount(5);
     expect(await names(page)).not.toContain(picked);
     await expect(page.locator("#remove-selected")).toBeHidden();
@@ -1050,6 +1059,7 @@ test.describe("Removing photos", () => {
       (await page.locator("#messages").textContent()) ?? "",
     )?.[1];
     await page.keyboard.press("Delete");
+    await page.keyboard.press("Enter");
     await expect(page.locator("#photo-list li")).toHaveCount(5);
     expect(await names(page)).not.toContain(picked);
   });
@@ -1060,6 +1070,7 @@ test.describe("Removing photos", () => {
     await addPhotos(page, await makeImages(page, SIX));
     const all = await names(page);
     await page.click("#remove-all");
+    await page.click("#confirm-ok");
     await expect(page.locator("#photo-list li")).toHaveCount(0);
     await expect(page.locator("#save")).toBeDisabled();
     await expect(page.locator("#remove-all")).toBeDisabled();
@@ -1074,6 +1085,7 @@ test.describe("Removing photos", () => {
     await addPhotos(page, await makeImages(page, SIX));
     await page.locator("#preview").focus();
     await page.keyboard.press("Delete");
+    await page.keyboard.press("Enter");
     await expect(page.locator("#photo-list li")).toHaveCount(5);
     await page.keyboard.press("Control+z");
     await expect(page.locator("#photo-list li")).toHaveCount(6);
@@ -1108,7 +1120,7 @@ test.describe("Removing photos", () => {
 test.describe("The poster's edge", () => {
   test("border seams stay inside the poster", async ({ page }) => {
     await setSize(page, 480, 360);
-    await page.fill("#border-width", "5");
+    await page.fill("#border-width", "50");
     await page.locator("#border-color").fill("#000000");
     await addPhotos(page, await makeImages(page, SIX));
 
@@ -1286,7 +1298,7 @@ test.describe("Border around the whole collage", () => {
 
   test("off: the border stays between photos but not around the collage", async ({ page }) => {
     await setSize(page, 400, 800);
-    await page.fill("#border-width", "5");
+    await page.fill("#border-width", "50");
     await page.locator("#border-color").fill("#00ff00");
     await page.fill("#columns", "1");
     await addPhotos(page, await makeImages(page, TWO));
@@ -1322,7 +1334,7 @@ test.describe("Border around the whole collage", () => {
     page,
   }) => {
     await setSize(page, 400, 800);
-    await page.fill("#border-width", "5");
+    await page.fill("#border-width", "50");
     await page.locator("#border-color").fill("#00ff00");
     await addPhotos(page, await makeImages(page, TWO));
     await page.fill("#columns", "1");
@@ -1372,7 +1384,7 @@ test.describe("Border around the whole collage", () => {
     page,
   }) => {
     await setSize(page, 480, 360);
-    await page.fill("#border-width", "2");
+    await page.fill("#border-width", "20");
     await page.locator("#border-color").fill("#202020");
     await addPhotos(page, await makeImages(page, SIX));
     await page.uncheck("#outer-border");
@@ -1423,14 +1435,14 @@ test.describe("Asking for a photo to be bigger", () => {
     await selectPhoto(page, COLORS.red);
     await expect(page.getByRole("button", { name: "Wider" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Taller" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Normal size" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Default size" })).toBeDisabled();
     await page.keyboard.press("Escape");
     await page.locator("#preview").focus();
     await page.keyboard.press("Escape");
     await expect(page.locator("#span-group")).toBeHidden();
   });
 
-  test("Taller gives a photo more of the height, in steps, and Normal size takes it back", async ({
+  test("Taller gives a photo more of the height, in steps, and Default size takes it back", async ({
     page,
   }) => {
     await setSize(page, 400, 400);
@@ -1458,7 +1470,7 @@ test.describe("Asking for a photo to be bigger", () => {
     expect(await shareDown(page, COLORS.red)).toBeCloseTo(normal, 1);
 
     await page.locator("#span-taller").click();
-    await page.getByRole("button", { name: "Normal size" }).click();
+    await page.getByRole("button", { name: "Default size" }).click();
     await expect(page.locator("#span-taller")).toHaveText("Taller");
     await expect(page.locator("#photo-list li").first()).not.toContainText("taller");
     expect(await shareDown(page, COLORS.red)).toBeCloseTo(normal, 1);
@@ -1797,7 +1809,8 @@ test.describe("Collage Creator: layout, modes, sizes and notices", () => {
     await expect(page.locator("#notices")).toBeHidden();
     await page.setInputFiles("#file-input", [path]);
     await expect(page.locator("#notices")).toBeVisible();
-    await expect(page.locator("#notices-summary")).toContainText("1 skipped: 1 already added");
+    await expect(page.locator("#notices-summary")).toContainText("1 file was not added");
+    await expect(page.locator("#notices-reasons")).toContainText("1 already added");
     await expect(page.locator("#notices-list")).toBeHidden();
     await page.click("#notices-details");
     await expect(page.locator("#notices-list")).toContainText("dup.png");
@@ -1945,19 +1958,20 @@ test.describe("Address, saved work and language", () => {
     await addPhotos(page, await makeImages(page, SIX));
     await removeFromList(page, 0);
     await page.click("#tab-style");
-    await page.fill("#border-width", "3");
+    await page.fill("#border-width", "30");
     await page.click('[data-corner="rounded"]');
     await page.click("#tab-poster");
     await page.fill("#columns", "3");
     await setSeed(page, 4242);
     // Saving waits a moment after the last change.
-    await page.waitForTimeout(700);
+    await savedWork(page);
     await page.reload();
-    await expect(page.locator("#photo-list li")).toHaveCount(5);
+    // Bringing photos back decodes them again, which is slow when the machine is busy.
+    await expect(page.locator("#photo-list li")).toHaveCount(5, { timeout: 20_000 });
     await openTechnical(page);
     await expect(page.locator("#seed")).toHaveValue("4242");
     await expect(page.locator("#width")).toHaveValue("480");
-    await expect(page.locator("#border-width")).toHaveValue("3");
+    await expect(page.locator("#border-width")).toHaveValue("30");
     await expect(page.locator('[data-corner="rounded"]')).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator("#columns")).toHaveValue("3");
     await expect(page.locator("#save")).toBeEnabled();
@@ -1968,7 +1982,7 @@ test.describe("Address, saved work and language", () => {
   }) => {
     test.setTimeout(60_000);
     await addPhotos(page, await makeImages(page, SIX.slice(0, 3)));
-    await page.waitForTimeout(700);
+    await savedWork(page);
     // Make reading each photo slow, as it can be with many large photos.
     await page.addInitScript(() => {
       const post = Worker.prototype.postMessage;
@@ -2003,7 +2017,7 @@ test.describe("Address, saved work and language", () => {
       page.evaluate(() => (document.getElementById("preview") as HTMLCanvasElement).toDataURL());
     await settle(page);
     const before = await grid();
-    await page.waitForTimeout(700);
+    await savedWork(page);
     await page.reload();
     await expect(page.locator("#photo-list li")).toHaveCount(6, { timeout: 20_000 });
     await expect(page.locator("#preview")).toHaveAttribute("data-poster", /.+/);
@@ -2015,7 +2029,8 @@ test.describe("Address, saved work and language", () => {
     await addPhotos(page, await makeImages(page, SIX.slice(0, 3)));
     await page.click("#tab-photos");
     await page.click("#remove-all");
-    await page.waitForTimeout(700);
+    await page.click("#confirm-ok");
+    await savedWork(page);
     await page.reload();
     await expect(page.locator("#photo-list li")).toHaveCount(0);
     await expect(page.locator("#save")).toBeDisabled();
@@ -2092,8 +2107,13 @@ test.describe("Instagram post: one collage cut into square images", () => {
       "ZIP of 3 PNG images, 1080 × 1080 px each",
     );
     await expect(page.locator("#split-note")).toContainText("numbered _1 to _3");
-    const poster = await posterRect(page);
-    expect(poster.w / poster.h).toBeCloseTo(3, 1);
+    // The preview is redrawn on the next frame, which WebKit on CI can be slow to reach.
+    await expect
+      .poll(async () => {
+        const poster = await posterRect(page);
+        return poster.w / poster.h;
+      })
+      .toBeCloseTo(3, 1);
   });
 
   test("the number of images and their size set the collage's size", async ({ page }) => {
@@ -2191,7 +2211,7 @@ test.describe("Instagram post: one collage cut into square images", () => {
   test("it is kept over a refresh, and any other size leaves it", async ({ page }) => {
     await chooseInstagram(page);
     await page.click("#split-more");
-    await page.waitForTimeout(700);
+    await savedWork(page);
     await page.reload();
     await page.click("#tab-poster");
     await expect(page.locator("#split-count")).toHaveValue("4");
