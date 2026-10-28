@@ -94,7 +94,7 @@ export const PAGE_PILL_ROOM = 48;
 export type Tab = "photos" | "poster" | "style" | "save";
 export type Mode = "pan" | "swap" | "select";
 /** Which dialog is open, if any. */
-export type DialogName = "help" | "about" | "progress";
+export type DialogName = "help" | "about" | "progress" | "remove-page";
 
 const LANG_KEY = "collage-creator.language";
 /** What the key was called before the app was renamed, still read so a saved choice is kept. */
@@ -235,6 +235,8 @@ export class AppState {
   /** The language in use. Reading it makes `tr` re-run when the language changes. */
   lang = $state(getLanguage());
   dialog = $state<DialogName | null>(null);
+  /** The page the remove-page dialog is asking about. */
+  removingPage = $state(0);
   progress = $state(0);
   /** Becomes true once saved work has been restored; nothing is saved before. */
   persistReady = $state(false);
@@ -527,6 +529,13 @@ export class AppState {
     (this.page as BookPage | null)?.addPage();
     this.pageRev++;
     this.setStatus(t("Added page %(n)s.", { n: this.pageCount }));
+  }
+
+  /** Ask before taking a page out. */
+  askRemovePage(page: number): void {
+    if (!this.book || page < 0 || page >= this.pageCount) return;
+    this.removingPage = page;
+    this.dialog = "remove-page";
   }
 
   /** Take a page out: its photos go to the prior page (the next one for the first). */

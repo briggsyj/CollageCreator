@@ -115,10 +115,33 @@ test.describe("A collage is a book of one page", () => {
     await addPhotos(page, await makeImages(page, names(4)));
     await addPages(page, 2);
     await page.locator(".page-remove").nth(1).click();
+    await page.click("#remove-page-confirm");
     await expect(page.locator(".page-pill")).toHaveCount(0);
-    await page.click("#tab-poster");
-    await expect(page.locator("#pages-block")).toBeHidden();
     expect(await posterRatio(page)).toBeCloseTo(320 / 240, 1);
+  });
+
+  test("removing a page asks first, and Cancel keeps it", async ({ page }) => {
+    await setSize(page, 320, 240);
+    await addPhotos(page, await makeImages(page, names(4)));
+    await addPages(page, 2);
+    await page.locator(".page-remove").nth(1).click();
+    await expect(page.locator("#remove-page-dialog")).toBeVisible();
+    await page.click("#remove-page-cancel");
+    await expect(page.locator(".page-pill")).toHaveCount(2);
+  });
+
+  test("Add page stays where it is, so clicking it again and again adds a page each time", async ({
+    page,
+  }) => {
+    await setSize(page, 320, 240);
+    await addPhotos(page, await makeImages(page, names(3)));
+    const at = await page.locator("#add-page-tile").boundingBox();
+    for (let n = 2; n <= 5; n++) {
+      await page.click("#add-page-tile");
+      await expect(page.locator("#photo-list .page-group")).toHaveCount(n);
+      await previewIdle(page);
+      expect(await page.locator("#add-page-tile").boundingBox()).toEqual(at);
+    }
   });
 });
 
@@ -178,6 +201,7 @@ test.describe("Book: pages", () => {
     await setPages(page, 3);
     expect((await pagesOfNames(page)).map((p) => p.length)).toEqual([2, 2, 2]);
     await page.locator(".page-remove").nth(1).click();
+    await page.click("#remove-page-confirm");
     // Page 2's photos went to page 1.
     const after = await pagesOfNames(page);
     expect(after).toHaveLength(2);

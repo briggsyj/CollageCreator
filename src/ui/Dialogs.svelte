@@ -7,10 +7,16 @@
   let progress: HTMLDialogElement;
   let help: HTMLDialogElement;
   let about: HTMLDialogElement;
+  let removePage: HTMLDialogElement;
 
   /** Open the dialog that app.dialog names and close the others. */
   $effect(() => {
-    const shown: Record<DialogName, HTMLDialogElement> = { progress, help, about };
+    const shown: Record<DialogName, HTMLDialogElement> = {
+      progress,
+      help,
+      about,
+      "remove-page": removePage,
+    };
     for (const name of Object.keys(shown) as DialogName[]) {
       const dialog = shown[name];
       if (app.dialog === name && !dialog.open) dialog.showModal();
@@ -34,6 +40,36 @@
   <progress id="progress" max="100" value={app.progress}></progress>
   <div class="button-row">
     <button type="button" id="cancel" onclick={() => app.cancelExport()}>{tr("Cancel")}</button>
+  </div>
+</dialog>
+
+<dialog
+  id="remove-page-dialog"
+  aria-labelledby="remove-page-title"
+  bind:this={removePage}
+  onclose={closed("remove-page")}
+>
+  <h2 id="remove-page-title">{tr("Remove page %(n)s?", { n: app.removingPage + 1 })}</h2>
+  <p>
+    {app.pageCounts[app.removingPage]
+      ? tr("Its photos move to a neighbouring page. The page's own arrangement is lost.")
+      : tr("This page is empty.")}
+  </p>
+  <div class="button-row">
+    <button type="button" id="remove-page-cancel" onclick={() => (app.dialog = null)}>
+      {tr("Cancel")}
+    </button>
+    <button
+      type="button"
+      id="remove-page-confirm"
+      class="danger"
+      onclick={() => {
+        app.dialog = null;
+        app.removePage(app.removingPage);
+      }}
+    >
+      {tr("Remove page")}
+    </button>
   </div>
 </dialog>
 

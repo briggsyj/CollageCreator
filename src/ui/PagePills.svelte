@@ -13,11 +13,9 @@
   const pages = $derived(app.layout?.pages ?? []);
   /** A page made for a post has cut marks above it; the pill sits above those. */
   const lift = $derived(app.isSplit ? SPLIT_MARGIN + 10 : 10);
-  const below = $derived(app.isSplit ? SPLIT_MARGIN + 12 : 12);
 </script>
 
-{#if box && app.hasPhotos}
-  {#if app.book}
+{#if box && app.hasPhotos && app.book}
     {#each pages as page, k (k)}
       {@const width = page.w * box.w}
       {@const count = app.pageCounts[k] ?? 0}
@@ -69,25 +67,23 @@
             type="button"
             class="icon-btn page-remove"
             aria-label={tr("Remove page %(n)s", { n: k + 1 })}
-            onclick={() => app.removePage(k)}
+            onclick={() => app.askRemovePage(k)}
           >
             <svg class="page-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
           </button>
         </div>
       {/if}
     {/each}
-  {/if}
-  {#if app.pageCount < app.maxPages}
+{/if}
+
+{#if app.hasPhotos && app.pageCount < app.maxPages}
     <button
       type="button"
       id="add-page-tile"
       class="add-page"
-      style:left={`${box.x + box.w}px`}
-      style:top={`${box.y + box.h + below}px`}
       onclick={() => app.addPage()}
     >
       <svg class="page-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
       <span>{tr("Add page")}</span>
     </button>
-  {/if}
 {/if}

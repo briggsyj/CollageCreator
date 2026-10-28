@@ -157,7 +157,7 @@
                 class="link remove-page"
                 aria-label={tr("Remove page %(n)s", { n: group.page + 1 })}
                 disabled={app.pageCount <= 1}
-                onclick={() => app.removePage(group.page)}
+                onclick={() => app.askRemovePage(group.page)}
               >
                 {tr("Remove page")}
               </button>
