@@ -172,7 +172,6 @@ export class AppState {
   book = $derived(this.pageCount > 1);
   /** Where the poster is in the preview area, in CSS pixels (set by the preview each draw). */
   posterBox = $state.raw<{ x: number; y: number; w: number; h: number } | null>(null);
-  /** How many photos a page takes before the next photo goes to the next page. */
   /** The arrangement. It is changed in place by swaps and resizes, which bump `pageRev`. */
   page = $state.raw<LayoutPage | null>(null);
   pageRev = $state(0);

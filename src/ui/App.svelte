@@ -34,10 +34,22 @@
     void app.photos;
     void app.seed;
     void app.columns;
+    void app.pageCount;
     void app.layoutStyle;
     void $state.snapshot(app.settings);
-    const timer = setTimeout(() => void app.persist(), 250);
-    return () => clearTimeout(timer);
+    // `data-saving` lets tests (and anyone curious) see when the latest change has been kept.
+    const root = document.documentElement;
+    let current = true;
+    root.dataset.saving = "true";
+    const timer = setTimeout(() => {
+      void app.persist().finally(() => {
+        if (current) root.dataset.saving = "false";
+      });
+    }, 250);
+    return () => {
+      current = false;
+      clearTimeout(timer);
+    };
   });
 
   function addFromInput(): void {

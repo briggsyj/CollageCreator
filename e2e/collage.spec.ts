@@ -23,6 +23,7 @@ import {
   removeFromList,
   SIX,
   saveAndRead,
+  savedWork,
   setSeed,
   setSize,
   settle,
@@ -302,7 +303,7 @@ test.describe("Cropping the selected photo", () => {
     await page.locator("#crop-zoom").fill("3");
     await settle(page);
     const before = await previewColor(page, 0.5, 0.5);
-    await page.waitForTimeout(700);
+    await savedWork(page);
     await page.reload();
     await expect(page.locator("#photo-list li")).toHaveCount(1);
     await expect(page.locator("#preview")).toHaveAttribute("data-poster", /.+/);
@@ -1951,7 +1952,7 @@ test.describe("Address, saved work and language", () => {
     await page.fill("#columns", "3");
     await setSeed(page, 4242);
     // Saving waits a moment after the last change.
-    await page.waitForTimeout(700);
+    await savedWork(page);
     await page.reload();
     await expect(page.locator("#photo-list li")).toHaveCount(5);
     await openTechnical(page);
@@ -1968,7 +1969,7 @@ test.describe("Address, saved work and language", () => {
   }) => {
     test.setTimeout(60_000);
     await addPhotos(page, await makeImages(page, SIX.slice(0, 3)));
-    await page.waitForTimeout(700);
+    await savedWork(page);
     // Make reading each photo slow, as it can be with many large photos.
     await page.addInitScript(() => {
       const post = Worker.prototype.postMessage;
@@ -2003,7 +2004,7 @@ test.describe("Address, saved work and language", () => {
       page.evaluate(() => (document.getElementById("preview") as HTMLCanvasElement).toDataURL());
     await settle(page);
     const before = await grid();
-    await page.waitForTimeout(700);
+    await savedWork(page);
     await page.reload();
     await expect(page.locator("#photo-list li")).toHaveCount(6, { timeout: 20_000 });
     await expect(page.locator("#preview")).toHaveAttribute("data-poster", /.+/);
@@ -2015,7 +2016,7 @@ test.describe("Address, saved work and language", () => {
     await addPhotos(page, await makeImages(page, SIX.slice(0, 3)));
     await page.click("#tab-photos");
     await page.click("#remove-all");
-    await page.waitForTimeout(700);
+    await savedWork(page);
     await page.reload();
     await expect(page.locator("#photo-list li")).toHaveCount(0);
     await expect(page.locator("#save")).toBeDisabled();
@@ -2191,7 +2192,7 @@ test.describe("Instagram post: one collage cut into square images", () => {
   test("it is kept over a refresh, and any other size leaves it", async ({ page }) => {
     await chooseInstagram(page);
     await page.click("#split-more");
-    await page.waitForTimeout(700);
+    await savedWork(page);
     await page.reload();
     await page.click("#tab-poster");
     await expect(page.locator("#split-count")).toHaveValue("4");

@@ -18,6 +18,7 @@ import {
   previewIdle,
   readZip,
   saveAndRead,
+  savedWork,
   setSize,
   settle,
 } from "./helpers";
@@ -260,10 +261,21 @@ test.describe("Book: pages", () => {
     await addPhotos(page, await makeImages(page, names(5)));
     await setPages(page, 2);
     const before = await pagesOfNames(page);
-    await page.waitForTimeout(700);
+    await savedWork(page);
     await page.reload();
     await expect(page.locator("#photo-list li")).toHaveCount(5, { timeout: 20_000 });
     expect(await pagesOfNames(page)).toEqual(before);
+    await expect(page.locator(".page-pill")).toHaveCount(2);
+  });
+
+  test("a blank page is kept over a refresh", async ({ page }) => {
+    await setSize(page, 320, 240);
+    await addPhotos(page, await makeImages(page, names(2)));
+    await page.click("#add-page-tile");
+    await expect(page.locator(".page-pill")).toHaveCount(2);
+    await savedWork(page);
+    await page.reload();
+    await expect(page.locator("#photo-list li")).toHaveCount(2, { timeout: 20_000 });
     await expect(page.locator(".page-pill")).toHaveCount(2);
   });
 });

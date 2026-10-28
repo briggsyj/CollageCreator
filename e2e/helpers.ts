@@ -504,3 +504,8 @@ export async function stitch(page: Page, images: Buffer[]): Promise<Buffer> {
 export function pngSize(png: Buffer): { width: number; height: number } {
   return { width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
 }
+
+/** Wait until the latest change has been kept in this browser (it is saved a moment after). */
+export async function savedWork(page: Page): Promise<void> {
+  await page.waitForSelector('html[data-saving="false"]', { state: "attached" });
+}
