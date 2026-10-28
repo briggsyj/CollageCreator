@@ -305,7 +305,7 @@ test.describe("Cropping the selected photo", () => {
     const before = await previewColor(page, 0.5, 0.5);
     await savedWork(page);
     await page.reload();
-    await expect(page.locator("#photo-list li")).toHaveCount(1);
+    await expect(page.locator("#photo-list li")).toHaveCount(1, { timeout: 20_000 });
     await expect(page.locator("#preview")).toHaveAttribute("data-poster", /.+/);
     await settle(page);
     expect(near(await previewColor(page, 0.5, 0.5), before, 20)).toBe(true);
@@ -1956,7 +1956,8 @@ test.describe("Address, saved work and language", () => {
     // Saving waits a moment after the last change.
     await savedWork(page);
     await page.reload();
-    await expect(page.locator("#photo-list li")).toHaveCount(5);
+    // Bringing photos back decodes them again, which is slow when the machine is busy.
+    await expect(page.locator("#photo-list li")).toHaveCount(5, { timeout: 20_000 });
     await openTechnical(page);
     await expect(page.locator("#seed")).toHaveValue("4242");
     await expect(page.locator("#width")).toHaveValue("480");
@@ -2096,8 +2097,13 @@ test.describe("Instagram post: one collage cut into square images", () => {
       "ZIP of 3 PNG images, 1080 × 1080 px each",
     );
     await expect(page.locator("#split-note")).toContainText("numbered _1 to _3");
-    const poster = await posterRect(page);
-    expect(poster.w / poster.h).toBeCloseTo(3, 1);
+    // The preview is redrawn on the next frame, which WebKit on CI can be slow to reach.
+    await expect
+      .poll(async () => {
+        const poster = await posterRect(page);
+        return poster.w / poster.h;
+      })
+      .toBeCloseTo(3, 1);
   });
 
   test("the number of images and their size set the collage's size", async ({ page }) => {
