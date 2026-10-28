@@ -8,8 +8,14 @@
 export function pullToClose(head: HTMLElement, close: () => void): { destroy(): void } {
   const sheet = head.parentElement;
   let from: number | null = null;
+  /** The latest pull, applied once a frame: setting it on every move restyles the glass sheet. */
+  let pull = 0;
+  let frame = 0;
   const reset = () => {
     from = null;
+    cancelAnimationFrame(frame);
+    frame = 0;
+    sheet?.classList.remove("pulling");
     sheet?.style.removeProperty("--drag");
   };
   const down = (e: PointerEvent) => {
@@ -17,10 +23,15 @@ export function pullToClose(head: HTMLElement, close: () => void): { destroy(): 
     from = e.clientY;
     head.setPointerCapture(e.pointerId);
     sheet?.classList.remove("rise");
+    sheet?.classList.add("pulling");
   };
   const move = (e: PointerEvent) => {
     if (from === null) return;
-    sheet?.style.setProperty("--drag", `${Math.max(0, e.clientY - from)}px`);
+    pull = Math.max(0, e.clientY - from);
+    frame ||= requestAnimationFrame(() => {
+      frame = 0;
+      if (from !== null) sheet?.style.setProperty("--drag", `${pull}px`);
+    });
   };
   const up = (e: PointerEvent) => {
     if (from === null) return;

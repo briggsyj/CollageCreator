@@ -96,10 +96,24 @@
     const fitted = app.fitPoster(viewport);
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     // The canvas fills the preview area; the poster is drawn on it at the current zoom and pan.
-    canvas.width = Math.max(1, Math.round(viewport.w * dpr));
-    canvas.height = Math.max(1, Math.round(viewport.h * dpr));
+    // Resizing a canvas reallocates it, so that happens only when the area's size changes;
+    // otherwise the same canvas is cleared, which keeps panning and zooming smooth on phones.
+    const cw = Math.max(1, Math.round(viewport.w * dpr));
+    const ch = Math.max(1, Math.round(viewport.h * dpr));
+    const resized = canvas.width !== cw || canvas.height !== ch;
+    if (resized) {
+      canvas.width = cw;
+      canvas.height = ch;
+    }
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    if (!resized) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, cw, ch);
+    }
+    // The muted text colour of the theme, for page notes and cut marks (read once a frame).
+    const sub =
+      getComputedStyle(document.documentElement).getPropertyValue("--sub").trim() || "#3b3b37";
 
     const size = posterSize(fitted, app.view);
     const origin = posterOrigin(viewport, fitted, app.view);
@@ -175,10 +189,9 @@
       else markSelected(ctx, rect, dpr, cornerRadius(settings.cornerStyle, rect.w, rect.h));
     }
     ctx.restore();
-    if (layout.pages) drawPageMarks(ctx, layout, { x: ox, y: oy, w: pw, h: ph }, dpr);
+    if (layout.pages) drawPageMarks(ctx, layout, { x: ox, y: oy, w: pw, h: ph }, dpr, sub);
     if (settings.splitImages > 1) {
-      const colour =
-        getComputedStyle(document.documentElement).getPropertyValue("--sub").trim() || "#3b3b37";
+      const colour = sub;
       // Every page of a book made for a post has its own cuts; one note is enough.
       (layout.pages ?? [{ x: 0, w: 1 }]).forEach((page, k) => {
         const x = Math.round(page.x * pw);
@@ -252,9 +265,8 @@
     layout: Layout,
     poster: { x: number; y: number; w: number; h: number },
     dpr: number,
+    colour: string,
   ): void {
-    const colour =
-      getComputedStyle(document.documentElement).getPropertyValue("--sub").trim() || "#3b3b37";
     const pages = layout.pages ?? [];
     ctx.save();
     ctx.fillStyle = colour;
@@ -392,7 +404,10 @@
       return;
     }
     if (!panning) {
-      hoverCell = app.activeMode === "pan" ? -1 : cellAt(e.clientX, e.clientY);
+      // Hovering is for a mouse or pen; a finger moving over the preview changes nothing.
+      if (e.pointerType !== "touch") {
+        hoverCell = app.activeMode === "pan" ? -1 : cellAt(e.clientX, e.clientY);
+      }
       return;
     }
     const dx = e.clientX - panning.x;
