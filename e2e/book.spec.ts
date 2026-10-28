@@ -548,3 +548,31 @@ test.describe("Hand edits and shuffling", () => {
     await expect(page.locator("#confirm-dialog")).toBeHidden();
   });
 });
+
+test.describe("Letting go of the selection", () => {
+  test("a click beside the photos, a click between tiles, or another tool deselects", async ({
+    page,
+  }) => {
+    await setSize(page, 320, 240);
+    await addPhotos(page, await makeImages(page, colourful(3)));
+    await page.click("#mode-select");
+    const on = await posterPoint(page, 0.2, 0.5);
+    await page.mouse.click(on.x, on.y);
+    await expect(page.locator("#selected-dock")).toBeVisible();
+    // Beside the collage.
+    const off = await posterPoint(page, -0.04, 0.5);
+    await page.mouse.click(off.x, off.y);
+    await expect(page.locator("#selected-dock")).toBeHidden();
+    // Another tool.
+    await page.mouse.click(on.x, on.y);
+    await expect(page.locator("#selected-dock")).toBeVisible();
+    await page.click("#mode-swap");
+    await expect(page.locator("#selected-dock")).toBeHidden();
+    // Between the tiles in the Photos step.
+    await page.click("#tab-photos");
+    await page.locator("#photo-list .tile").first().click();
+    await expect(page.locator("#selected-dock")).toBeVisible();
+    await page.locator("#photo-list").click({ position: { x: 2, y: 2 } });
+    await expect(page.locator("#selected-dock")).toBeHidden();
+  });
+});

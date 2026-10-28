@@ -895,6 +895,8 @@ export class AppState {
   }
 
   setMode(mode: Mode): void {
+    // Changing tool lets go of the selection (holding Space to pan for a moment does not).
+    if (mode !== this.mode) this.deselect();
     this.mode = mode;
     this.status = "";
     clearTimeout(this.statusTimer);
@@ -953,6 +955,7 @@ export class AppState {
   /** Nothing selected. */
   private clearSelection(): void {
     this.selected = null;
+    this.cropFor = null;
     if (this.alsoSelected.size > 0) this.alsoSelected = new Set();
   }
 

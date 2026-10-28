@@ -28,6 +28,8 @@
   /** The cell under the mouse, darkened a little while the Swap or Select tool is in use. */
   let hoverCell = $state(-1);
   let panning: { x: number; y: number } | null = null;
+  /** Where a pan began, to tell a click (which deselects) from a drag. */
+  let panStart = { x: 0, y: 0 };
   let pointerOver = false;
   /** While adjusting a crop: the last pointer position of the drag moving the photo. */
   let cropDrag: { x: number; y: number } | null = null;
@@ -291,12 +293,17 @@
         // Choosing another photo accepts this crop (it is already applied) and selects that one.
         switchedWhileCropping = true;
         app.selectPhoto(photoIndex);
+      } else if (!app.spaceHeld) {
+        // A click beside the photos ends the crop and lets go of the photo.
+        switchedWhileCropping = true;
+        app.deselect();
       }
       return;
     }
     // In Pan mode a drag moves the view; in the other tools it does so only while Space is held.
     if (app.spaceHeld || app.mode === "pan") {
       panning = { x: e.clientX, y: e.clientY };
+      panStart = { x: e.clientX, y: e.clientY };
       canvas.setPointerCapture(e.pointerId);
       panningNow = true;
       e.preventDefault();
@@ -335,11 +342,20 @@
     }
     if (panning) {
       // Panning never picks a photo: only the Select tool does (and Swap, to choose two to swap).
+      // A click with the Pan tool (not a drag, nor Space held to pan for a moment) lets go of
+      // the selection.
+      const moved = Math.hypot(e.clientX - panStart.x, e.clientY - panStart.y);
+      if (moved < 4 && !app.spaceHeld) app.deselect();
       endPan();
       return;
     }
     const to = cellAt(e.clientX, e.clientY);
-    if (to < 0) return;
+    if (to < 0) {
+      // A click beside the photos lets go of the selection.
+      app.deselect();
+      dragFrom = -1;
+      return;
+    }
     if (app.mode === "select") {
       const photoIndex = photoAt(to);
       // Shift-click adds the photo to the selection (or takes it out).

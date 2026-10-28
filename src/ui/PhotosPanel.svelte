@@ -179,7 +179,15 @@
   <p id="empty-hint" class="hint" hidden={app.hasPhotos}>
     {tr("No photos yet. Add a few and the collage builds itself.")}
   </p>
-  <div id="photo-list" bind:this={list}>
+  <!-- A click between the photos (not on one) lets go of the selection. -->
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+  <div
+    id="photo-list"
+    bind:this={list}
+    onclick={(e) => {
+      if (!(e.target as HTMLElement).closest("button, select, input, a")) app.deselect();
+    }}
+  >
     {#each groups as group (group.page)}
       <section
         class="page-group"
