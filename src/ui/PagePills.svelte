@@ -47,6 +47,7 @@
           <button
             type="button"
             class="icon-btn page-left"
+            title={tr("Move page %(n)s left", { n: k + 1 })}
             aria-label={tr("Move page %(n)s left", { n: k + 1 })}
             disabled={k === 0}
             onclick={() => app.movePage(k, -1)}
@@ -56,6 +57,7 @@
           <button
             type="button"
             class="icon-btn page-right"
+            title={tr("Move page %(n)s right", { n: k + 1 })}
             aria-label={tr("Move page %(n)s right", { n: k + 1 })}
             disabled={k === pages.length - 1}
             onclick={() => app.movePage(k, 1)}
@@ -65,6 +67,7 @@
           <button
             type="button"
             class="icon-btn page-save"
+            title={tr("Save page %(n)s", { n: k + 1 })}
             aria-label={tr("Save page %(n)s", { n: k + 1 })}
             disabled={count === 0}
             onclick={() => void app.save(k)}
@@ -76,6 +79,7 @@
           <button
             type="button"
             class="icon-btn page-remove"
+            title={tr("Remove page %(n)s", { n: k + 1 })}
             aria-label={tr("Remove page %(n)s", { n: k + 1 })}
             onclick={() => app.askRemovePage(k)}
           >
@@ -90,6 +94,7 @@
     <button
       type="button"
       id="add-page-tile"
+      title={tr("Add a blank page after the last one")}
       class="add-page"
       style:left={`${addPos?.left ?? 0}px`}
       style:top={`min(${addPos?.top ?? 0}px, var(--add-page-floor))`}

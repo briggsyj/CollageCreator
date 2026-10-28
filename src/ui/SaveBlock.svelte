@@ -41,7 +41,7 @@
   <div class="sheet-head only-narrow" use:pullToClose={() => app.setTab("save", true)}>
     <span class="grab" aria-hidden="true"></span>
     <h2>{tr("Save image")}</h2>
-    <button type="button" id="save-close" class="link" onclick={() => app.setTab("save", true)}>
+    <button type="button" id="save-close" title={tr("Close the save options")} class="link" onclick={() => app.setTab("save", true)}>
       {tr("Close")}
     </button>
   </div>
@@ -51,6 +51,7 @@
       <button
         type="button"
         id="format-png"
+        title={tr("Save as PNG: exact colours, larger files")}
         aria-pressed={app.settings.format === "png"}
         onclick={() => (app.settings.format = "png")}
       >
@@ -59,6 +60,7 @@
       <button
         type="button"
         id="format-jpeg"
+        title={tr("Save as JPEG: smaller files")}
         aria-pressed={app.settings.format === "jpeg"}
         onclick={() => (app.settings.format = "jpeg")}
       >
@@ -97,6 +99,7 @@
   <button
     type="button"
     id="save"
+    title={tr("Save the collage as image files")}
     class="primary wide"
     disabled={!app.hasPhotos}
     onclick={() => void app.save()}
@@ -107,6 +110,7 @@
     <button
       type="button"
       id="save-page"
+      title={tr("Save only one page")}
       class="wide"
       disabled={!app.hasPhotos}
       onclick={() => void app.save(app.selected === null ? firstFilled() : app.selectedPage)}

@@ -55,6 +55,7 @@
         type="button"
         class="card"
         id="layout-mosaic"
+        title={tr("Mosaic: photos fill columns of different heights")}
         aria-pressed={!gallery}
         onclick={() => app.chooseLayout("mosaic")}
       >
@@ -75,6 +76,7 @@
         type="button"
         class="card"
         id="layout-gallery"
+        title={tr("Gallery: one panel per photo")}
         aria-pressed={gallery}
         onclick={() => app.chooseLayout("gallery")}
       >
@@ -96,6 +98,7 @@
         <button
           type="button"
           id="columns-less"
+          title={tr("One column fewer")}
           class="sq"
           aria-label="Fewer columns"
           onclick={() => app.stepColumns(-1)}
@@ -123,13 +126,14 @@
         <button
           type="button"
           id="columns-more"
+          title={tr("One column more")}
           class="sq"
           aria-label="More columns"
           onclick={() => app.stepColumns(1)}
         >
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
         </button>
-        <button type="button" id="columns-auto" onclick={() => app.setColumns(undefined)}>
+        <button type="button" id="columns-auto" title={tr("Let the layout choose the columns")} onclick={() => app.setColumns(undefined)}>
           {tr("Automatic")}
         </button>
       </div>
@@ -146,7 +150,7 @@
       >
       <span class="hint">{tr("Lower means more of each photo is visible.")}</span>
     </p>
-    <button type="button" id="regenerate" class="wide" onclick={() => app.shuffle()}>
+    <button type="button" id="regenerate" title={tr("Try a new arrangement of the same photos")} class="wide" onclick={() => app.shuffle()}>
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M20 11a8 8 0 1 0-2.3 5.7" />
         <path d="M20 4v7h-7" />
@@ -156,6 +160,7 @@
     <button
       type="button"
       id="shuffle-pages"
+      title={tr("Mix the photos between the pages, keeping how many each has")}
       class="wide"
       hidden={!app.book}
       onclick={() => app.shufflePages()}
@@ -195,6 +200,7 @@
           type="button"
           data-color={color}
           aria-label={name}
+          title={name}
           aria-pressed={app.settings.borderColor.toLowerCase() === color}
           style:background={color}
           onclick={() => (app.settings.borderColor = color)}
@@ -220,6 +226,7 @@
           type="button"
           class="card"
           data-corner={value}
+          title={tr(label)}
           aria-pressed={app.settings.cornerStyle === value}
           onclick={() => (app.settings.cornerStyle = value)}
         >

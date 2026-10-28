@@ -39,7 +39,7 @@
   <p>{tr("Performing image computation...")}</p>
   <progress id="progress" max="100" value={app.progress}></progress>
   <div class="button-row">
-    <button type="button" id="cancel" onclick={() => app.cancelExport()}>{tr("Cancel")}</button>
+    <button type="button" id="cancel" title={tr("Stop saving")} onclick={() => app.cancelExport()}>{tr("Cancel")}</button>
   </div>
 </dialog>
 
@@ -53,10 +53,12 @@
   <h2 id="confirm-title">{app.confirming?.title ?? ""}</h2>
   <p id="confirm-text">{app.confirming?.text ?? ""}</p>
   <div class="button-row">
-    <button type="button" id="confirm-cancel" onclick={() => (app.dialog = null)}>
+    <button type="button" id="confirm-cancel" title={tr("Keep things as they are")} onclick={() => (app.dialog = null)}>
       {tr("Cancel")}
     </button>
-    <button type="button" id="confirm-ok" class="danger" onclick={() => app.confirmed()}>
+    <button type="button" id="confirm-ok"
+      class="danger"
+      title={app.confirming?.action ?? tr("Confirm")} onclick={() => app.confirmed()}>
       {app.confirming?.action ?? ""}
     </button>
   </div>
@@ -104,7 +106,7 @@
     {tr("Everything runs in your browser. Your photos are never uploaded.")}
   </p>
   <div class="button-row">
-    <button type="button" id="help-close" class="primary" onclick={() => (app.dialog = null)}>
+    <button type="button" id="help-close" title={tr("Close help")} class="primary" onclick={() => (app.dialog = null)}>
       {tr("Close")}
     </button>
   </div>
@@ -138,7 +140,7 @@
     <a href="./THIRD-PARTY-LICENSES.txt" rel="noopener">Third-party licences</a>
   </p>
   <div class="button-row">
-    <button type="button" id="about-close" class="primary" onclick={() => (app.dialog = null)}>
+    <button type="button" id="about-close" title={tr("Close")} class="primary" onclick={() => (app.dialog = null)}>
       {tr("Close")}
     </button>
   </div>

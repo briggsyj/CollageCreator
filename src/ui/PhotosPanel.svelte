@@ -42,6 +42,7 @@
   <button
     type="button"
     id="add"
+    title={tr("Choose photos, or a .zip of them, from this device")}
     class="primary wide"
     aria-describedby="privacy-note"
     disabled={app.restoring !== null}
@@ -91,6 +92,7 @@
       <button
         type="button"
         id="notices-details"
+        title={tr("Show or hide the names of the files that were not added")}
         class="link notices-toggle"
         aria-expanded={app.noticeDetailsOpen}
         aria-controls="notices-list"
@@ -107,6 +109,7 @@
     <button
       type="button"
       id="notices-dismiss"
+      title={tr("Dismiss this notice")}
       class="icon-btn notices-close"
       aria-label={tr("Dismiss")}
       onclick={() => app.hideNotice()}
@@ -121,6 +124,7 @@
       <button
         type="button"
         id="undo-remove"
+        title={tr("Put back the photos removed last")}
         class="link"
         disabled={app.removed === null}
         onclick={() => app.undoRemove()}
@@ -130,6 +134,7 @@
       <button
         type="button"
         id="remove-all"
+        title={tr("Take every photo out (asks first)")}
         class="link"
         disabled={!app.hasPhotos}
         onclick={() => app.askRemoveAll()}
@@ -154,6 +159,7 @@
               <button
                 type="button"
                 class="icon-btn move-page-left"
+                title={tr("Move page %(n)s up", { n: group.page + 1 })}
                 aria-label={tr("Move page %(n)s up", { n: group.page + 1 })}
                 disabled={group.page === 0}
                 onclick={() => app.movePage(group.page, -1)}
@@ -163,6 +169,7 @@
               <button
                 type="button"
                 class="icon-btn move-page-right"
+                title={tr("Move page %(n)s down", { n: group.page + 1 })}
                 aria-label={tr("Move page %(n)s down", { n: group.page + 1 })}
                 disabled={group.page === app.pageCount - 1}
                 onclick={() => app.movePage(group.page, 1)}
@@ -172,6 +179,7 @@
               <button
                 type="button"
                 class="icon-btn remove-page"
+                title={tr("Remove page %(n)s", { n: group.page + 1 })}
                 aria-label={tr("Remove page %(n)s", { n: group.page + 1 })}
                 disabled={app.pageCount <= 1}
                 onclick={() => app.askRemovePage(group.page)}
@@ -192,6 +200,7 @@
               <button
                 type="button"
                 class="tile"
+                title={tr("Select %(name)s", { name: photo.name })}
                 aria-pressed={index === app.selected}
                 aria-label={app.book
                   ? `${label}, ${tr("Page %(n)s", { n: (photo.bookPage ?? 0) + 1 })}`

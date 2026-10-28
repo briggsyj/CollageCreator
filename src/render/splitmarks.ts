@@ -81,11 +81,12 @@ export function drawSplitMarks(
   const first = cuts[0] as number;
   const textX = Math.round(poster.x + first) + 8 * scale;
   const room = poster.x + poster.w - textX;
-  if (room > 40 * scale) {
-    ctx.font = `${12 * scale}px system-ui, sans-serif`;
+  ctx.font = `${12 * scale}px system-ui, sans-serif`;
+  // Only when it fits as it is: squeezed into less room it is hard to read.
+  if (ctx.measureText(note).width <= room) {
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
-    ctx.fillText(note, textX, poster.y - (GAP + MARK + 5) * scale, room);
+    ctx.fillText(note, textX, poster.y - (GAP + MARK + 5) * scale);
   }
   ctx.restore();
 }

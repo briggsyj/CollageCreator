@@ -433,3 +433,15 @@ test.describe("Book of Instagram posts", () => {
     for (const file of files) expect(pngSize(file.data)).toEqual({ width: 120, height: 120 });
   });
 });
+
+test.describe("Tooltips", () => {
+  test("every button has a title, shown as a tooltip on hover", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, names(3)));
+    await page.click("#add-page-tile");
+    await clickPhoto(page, 0.2, 0.5);
+    const untitled = await page
+      .locator("button:not([title]), button[title='']")
+      .evaluateAll((all) => all.map((b) => b.id || b.className || b.textContent?.trim()));
+    expect(untitled).toEqual([]);
+  });
+});

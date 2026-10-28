@@ -14,7 +14,7 @@
 <section class="dock" id="selected-dock" aria-label="Selected photo" hidden={!app.selectedPhoto}>
   <div class="rowhead">
     <h3 id="dock-name">{app.selectedPhoto?.name ?? ""}</h3>
-    <button type="button" id="dock-done" class="link" onclick={() => app.deselect()}>
+    <button type="button" id="dock-done" title={tr("Deselect the photo")} class="link" onclick={() => app.deselect()}>
       {tr("Done")}
     </button>
   </div>
@@ -23,15 +23,17 @@
     <button
       type="button"
       id="span-wider"
+      title={tr("Give this photo two columns")}
       aria-pressed={span.columns === 2}
       onclick={() => app.toggleWider()}
     >
       {tr("Wider")}
     </button>
-    <button type="button" id="span-taller" onclick={() => app.cycleTaller()}>{taller}</button>
+    <button type="button" id="span-taller" title={tr("Give this photo more rows")} onclick={() => app.cycleTaller()}>{taller}</button>
     <button
       type="button"
       id="span-reset"
+      title={tr("Back to its normal size")}
       disabled={span.columns === 1 && span.rows === 1}
       onclick={() => app.resetSpan()}
     >
@@ -40,12 +42,13 @@
     <button
       type="button"
       id="crop-toggle"
+      title={tr("Choose which part of the photo shows")}
       aria-pressed={app.cropping}
       onclick={() => app.toggleCrop()}
     >
       {tr("Crop")}
     </button>
-    <button type="button" id="remove-selected" class="danger" onclick={() => app.removeSelected()}>
+    <button type="button" id="remove-selected" title={tr("Take this photo out of the collage")} class="danger" onclick={() => app.removeSelected()}>
       {tr("Remove selected photo")}
     </button>
   </fieldset>
@@ -75,7 +78,7 @@
         value={zoom}
         oninput={(e) => app.zoomSelectedCrop(Number(e.currentTarget.value))}
       />
-      <button type="button" id="crop-reset" disabled={!crop} onclick={() => app.resetCrop()}>
+      <button type="button" id="crop-reset" title={tr("Show the middle of the photo again")} disabled={!crop} onclick={() => app.resetCrop()}>
         {tr("Reset crop")}
       </button>
       <p class="hint">{tr("Drag the photo to move it, scroll or use the slider to zoom.")}</p>

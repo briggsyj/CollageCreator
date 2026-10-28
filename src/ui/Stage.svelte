@@ -26,6 +26,7 @@
       <button
         type="button"
         id="mode-pan"
+        title={tr("Pan: drag to move around (hold Space from any tool)")}
         aria-pressed={app.activeMode === "pan"}
         aria-keyshortcuts="Space"
         disabled={none}
@@ -41,6 +42,7 @@
       <button
         type="button"
         id="mode-swap"
+        title={tr("Swap: click two photos to trade places")}
         aria-pressed={app.activeMode === "swap"}
         disabled={none}
         onclick={() => app.setMode("swap")}
@@ -53,6 +55,7 @@
       <button
         type="button"
         id="mode-select"
+        title={tr("Select: click a photo to change its size, crop or remove it")}
         aria-pressed={app.activeMode === "select"}
         disabled={none}
         onclick={() => app.setMode("select")}
@@ -67,6 +70,7 @@
       <button
         type="button"
         id="zoom-in"
+        title={tr("Zoom in")}
         class="sq"
         aria-label="Zoom in"
         disabled={none}
@@ -77,6 +81,7 @@
       <button
         type="button"
         id="zoom-out"
+        title={tr("Zoom out")}
         class="sq"
         aria-label="Zoom out"
         disabled={none}
@@ -87,6 +92,7 @@
       <button
         type="button"
         id="reset-view"
+        title={tr("Fit the whole collage in the window")}
         class="sq"
         aria-label="Fit to window"
         disabled={app.isFit || none}
@@ -105,6 +111,7 @@
   <button
     type="button"
     id="help-open"
+    title={tr("Help")}
     class="help-btn help-fab"
     aria-haspopup="dialog"
     aria-label="Help"

@@ -53,6 +53,7 @@
       <button
         type="button"
         id="pages-less"
+        title={tr("One page fewer; photos are shared evenly again")}
         class="sq"
         aria-label={tr("Fewer pages")}
         disabled={app.pageCount <= 1}
@@ -76,6 +77,7 @@
       <button
         type="button"
         id="pages-more"
+        title={tr("One page more; photos are shared evenly again")}
         class="sq"
         aria-label={tr("More pages")}
         disabled={app.pageCount >= app.maxPages}
@@ -98,6 +100,7 @@
             type="button"
             class="chip"
             data-choice={choice.id}
+            title={`${tr(choice.label)}: ${size.width} × ${size.height} px`}
             aria-pressed={app.activeSize === choice.id}
             onclick={() => app.chooseNamedSize(choice.id)}
           >
@@ -111,6 +114,7 @@
         type="button"
         class="chip"
         data-choice="post"
+        title={tr("A wide collage cut into square images for an Instagram carousel")}
         aria-pressed={app.activeSize === "post"}
         onclick={() => app.chooseInstagramPost()}
       >
@@ -121,6 +125,7 @@
         type="button"
         class="chip wide-chip"
         data-choice="custom"
+        title={tr("Type your own width and height")}
         aria-pressed={app.activeSize === "custom"}
         onclick={() => {
           app.chooseCustomSize();
@@ -134,6 +139,7 @@
       <button
         type="button"
         id="orient-landscape"
+        title={tr("Wider than tall")}
         aria-pressed={orientation === "landscape"}
         disabled={split > 1}
         onclick={() => app.turn(false)}
@@ -144,6 +150,7 @@
       <button
         type="button"
         id="orient-portrait"
+        title={tr("Taller than wide")}
         aria-pressed={orientation === "portrait"}
         disabled={split > 1}
         onclick={() => app.turn(true)}
@@ -190,6 +197,7 @@
           <button
             type="button"
             id="split-less"
+            title={tr("Fewer square images in the post")}
             class="sq"
             aria-label="Fewer images"
             disabled={split <= app.splitMin}
@@ -214,6 +222,7 @@
           <button
             type="button"
             id="split-more"
+            title={tr("More square images in the post")}
             class="sq"
             aria-label="More images"
             disabled={split >= app.splitMax}

@@ -526,7 +526,7 @@
       </svg>
       <h2>{tr("Drop photos here")}</h2>
       <p>{tr("Everything runs in your browser. Your photos are never uploaded.")}</p>
-      <button type="button" id="add-empty" onclick={() => app.chooseFiles()}>
+      <button type="button" id="add-empty" title={tr("Choose photos from this device")} onclick={() => app.chooseFiles()}>
         {tr("Choose photos…")}
       </button>
     {/if}
