@@ -1321,14 +1321,6 @@ body.dragging .canvas-box {
   white-space: nowrap;
 }
 
-#pages-count {
-  margin-bottom: 10px;
-}
-
-#spread-pages {
-  margin-top: 10px;
-}
-
 .page-label {
   padding: 0 8px 0 10px;
   font-weight: 600;

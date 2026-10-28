@@ -28,15 +28,12 @@ import {
   BookPage,
   bookFileNames,
   countsPerPage,
-  fillPage,
   generateBestBook,
   generateBook,
   movedPageOf,
-  normalisePerPage,
+  normalisePageCount,
   PAGE_GAP,
   PER_PAGE_DEFAULT,
-  PER_PAGE_MAX,
-  PER_PAGE_MIN,
   pageLayout,
   pagesWithPhotos,
   removedPageOf,
@@ -176,7 +173,6 @@ export class AppState {
   /** Where the poster is in the preview area, in CSS pixels (set by the preview each draw). */
   posterBox = $state.raw<{ x: number; y: number; w: number; h: number } | null>(null);
   /** How many photos a page takes before the next photo goes to the next page. */
-  perPage = $state(PER_PAGE_DEFAULT);
   /** The arrangement. It is changed in place by swaps and resizes, which bump `pageRev`. */
   page = $state.raw<LayoutPage | null>(null);
   pageRev = $state(0);
@@ -506,27 +502,14 @@ export class AppState {
         counts[photo.bookPage] = (counts[photo.bookPage] ?? 0) + 1;
         return photo;
       }
-      const page = fillPage(counts, this.perPage);
+      const page = Math.max(0, this.pageCount - 1);
       counts[page] = (counts[page] ?? 0) + 1;
-      this.pageCount = Math.max(this.pageCount, page + 1);
       return { ...photo, bookPage: page };
     });
   }
 
-  get perPageMin(): number {
-    return PER_PAGE_MIN;
-  }
-
-  get perPageMax(): number {
-    return PER_PAGE_MAX;
-  }
-
   get maxPages(): number {
     return BOOK_MAX_PAGES;
-  }
-
-  setPerPage(value: number): void {
-    this.perPage = normalisePerPage(value);
   }
 
   private setPages(pageOf: readonly number[], pageCount = this.pageCount): void {
@@ -577,13 +560,15 @@ export class AppState {
     this.setStatus(t("Moved page %(a)s to place %(b)s.", { a: page + 1, b: to + 1 }));
   }
 
-  /** Share all the photos evenly across the pages, in order. */
-  spreadPhotos(): void {
-    if (!this.book) return;
-    const spread = spreadEvenly(this.photos.length, this.pageCount, this.perPage);
-    this.setPages(spread.pageOf, spread.pages);
+  /** Set the number of pages; the photos are shared evenly across them, in order. */
+  setPageCount(value: number): void {
+    const pages = normalisePageCount(value);
+    if (pages === this.pageCount) return;
+    if (pages > 1 && !this.book) this.addPage();
+    const spread = spreadEvenly(this.photos.length, pages);
+    this.setPages(spread.pageOf, pages);
     this.relayout("search");
-    this.setStatus(t("Photos shared evenly across %(n)s page(s).", { n: spread.pages }));
+    this.setStatus(t("Photos shared evenly across %(n)s page(s).", { n: pages }));
   }
 
   /** Mix the photos between the pages, keeping how many each page has. */
@@ -676,8 +661,8 @@ export class AppState {
           seed: this.seed,
           columns: this.columns,
           layoutStyle: this.layoutStyle,
-          ...(this.pageCount > 1 || this.perPage !== PER_PAGE_DEFAULT
-            ? { book: { pages: this.pageCount, perPage: this.perPage } }
+          ...(this.pageCount > 1
+            ? { book: { pages: this.pageCount, perPage: PER_PAGE_DEFAULT } }
             : {}),
           settings: $state.snapshot(this.settings),
         },
@@ -706,7 +691,6 @@ export class AppState {
         this.layoutStyle = saved.session.layoutStyle ?? "mosaic";
         const book = saved.session.book;
         this.pageCount = book?.pages ?? 1;
-        this.perPage = book?.perPage ?? PER_PAGE_DEFAULT;
         this.restoreEpoch++;
         const files = saved.session.photos
           .map((p) => saved.files.get(p.key))

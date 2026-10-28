@@ -65,14 +65,12 @@ async function addPages(page: Page, count: number) {
   }
 }
 
-/** Set photos per page and share the photos evenly. */
-async function spread(page: Page, perPage?: number) {
-  await page.click("#tab-poster");
-  if (perPage !== undefined) {
-    await page.fill("#per-page", String(perPage));
-    await page.locator("#per-page").press("Tab");
-  }
-  await page.click("#spread-pages");
+/** Set the page count in the Style step; the photos are shared evenly across the pages. */
+async function setPages(page: Page, count: number) {
+  await page.click("#tab-style");
+  await page.fill("#pages", String(count));
+  await page.locator("#pages").press("Tab");
+  await expect(page.locator("#photo-list .page-group")).toHaveCount(count);
 }
 
 async function posterRatio(page: Page): Promise<number> {
@@ -105,9 +103,8 @@ test.describe("A collage is a book of one page", () => {
     await page.click("#add-page-tile");
     expect(await pagesOfNames(page)).toEqual([["p01.png", "p02.png", "p03.png", "p04.png"], []]);
     await expect(page.locator(".page-pill")).toHaveCount(2);
-    await page.click("#tab-poster");
-    await expect(page.locator("#pages-block")).toBeVisible();
     await page.click("#tab-style");
+    await expect(page.locator("#pages")).toHaveValue("2");
     await expect(page.locator("#shuffle-pages")).toBeVisible();
     expect(await posterRatio(page)).toBeCloseTo((2 + 0.04) * (320 / 240), 1);
   });
@@ -125,13 +122,12 @@ test.describe("A collage is a book of one page", () => {
 });
 
 test.describe("Book: pages", () => {
-  test("photos fill pages in order up to the setting, and a page is added when all are full", async ({
+  test("the page count shares the photos evenly; new photos go on the last page", async ({
     page,
   }) => {
     await setSize(page, 320, 240);
     await addPhotos(page, await makeImages(page, names(6)));
-    await addPages(page, 2);
-    await spread(page, 3);
+    await setPages(page, 2);
     expect(await pagesOfNames(page)).toEqual([
       ["p01.png", "p02.png", "p03.png"],
       ["p04.png", "p05.png", "p06.png"],
@@ -139,17 +135,18 @@ test.describe("Book: pages", () => {
     await addPhotos(page, await makeImages(page, names(7).slice(6)));
     expect(await pagesOfNames(page)).toEqual([
       ["p01.png", "p02.png", "p03.png"],
-      ["p04.png", "p05.png", "p06.png"],
-      ["p07.png"],
+      ["p04.png", "p05.png", "p06.png", "p07.png"],
     ]);
-    await expect(page.locator("#pages-count")).toContainText("3 page(s), 7 photo(s)");
+    await setPages(page, 3);
+    expect((await pagesOfNames(page)).map((p) => p.length)).toEqual([3, 2, 2]);
+    await setPages(page, 1);
+    await expect(page.locator(".page-pill")).toHaveCount(0);
   });
 
-  test("a blank page takes the next photos once the pages before it are full", async ({ page }) => {
+  test("photos added later go on the last page, even a blank one", async ({ page }) => {
     await setSize(page, 320, 240);
     await addPhotos(page, await makeImages(page, names(6)));
-    await addPages(page, 2);
-    await spread(page, 3);
+    await setPages(page, 2);
     await page.click("#add-page-tile");
     expect((await pagesOfNames(page)).map((p) => p.length)).toEqual([3, 3, 0]);
     await addPhotos(page, await makeImages(page, names(8).slice(6)));
@@ -159,8 +156,7 @@ test.describe("Book: pages", () => {
   test("a page's pill moves it left and right, with its photos", async ({ page }) => {
     await setSize(page, 320, 240);
     await addPhotos(page, await makeImages(page, names(4)));
-    await addPages(page, 2);
-    await spread(page, 2);
+    await setPages(page, 2);
     await expect(page.locator(".page-left").first()).toBeDisabled();
     await expect(page.locator(".page-right").nth(1)).toBeDisabled();
     await page.locator(".page-right").first().click();
@@ -178,8 +174,7 @@ test.describe("Book: pages", () => {
   test("a page's pill removes it, sending its photos to the prior page", async ({ page }) => {
     await setSize(page, 320, 240);
     await addPhotos(page, await makeImages(page, names(6)));
-    await addPages(page, 3);
-    await spread(page, 2);
+    await setPages(page, 3);
     expect((await pagesOfNames(page)).map((p) => p.length)).toEqual([2, 2, 2]);
     await page.locator(".page-remove").nth(1).click();
     // Page 2's photos went to page 1.
@@ -192,8 +187,7 @@ test.describe("Book: pages", () => {
   test("Swap trades two photos between pages; Move to page moves one", async ({ page }) => {
     await setSize(page, 320, 240);
     await addPhotos(page, await makeImages(page, colourful(4)));
-    await addPages(page, 2);
-    await spread(page, 2);
+    await setPages(page, 2);
     await settle(page);
     const before = await pagesOfNames(page);
     expect(before.map((p) => p.length)).toEqual([2, 2]);
@@ -219,8 +213,7 @@ test.describe("Book: pages", () => {
   }) => {
     await setSize(page, 320, 240);
     await addPhotos(page, await makeImages(page, names(6)));
-    await addPages(page, 3);
-    await spread(page, 6);
+    await setPages(page, 3);
     expect((await pagesOfNames(page)).map((p) => p.length)).toEqual([2, 2, 2]);
     await page.click("#tab-style");
     await page.click("#shuffle-pages");
@@ -232,8 +225,7 @@ test.describe("Book: pages", () => {
   }) => {
     await setSize(page, 320, 240);
     await addPhotos(page, await makeImages(page, colourful(6)));
-    await addPages(page, 3);
-    await spread(page, 2);
+    await setPages(page, 3);
     await settle(page);
     const rest = async () => {
       const grid: number[][] = [];
@@ -255,8 +247,7 @@ test.describe("Book: pages", () => {
   }) => {
     await setSize(page, 320, 240);
     await addPhotos(page, await makeImages(page, names(4)));
-    await addPages(page, 2);
-    await spread(page, 2);
+    await setPages(page, 2);
     const before = await pagesOfNames(page);
     await setSize(page, 200, 300);
     await settle(page);
@@ -267,8 +258,7 @@ test.describe("Book: pages", () => {
   test("the pages are kept over a refresh", async ({ page }) => {
     await setSize(page, 320, 240);
     await addPhotos(page, await makeImages(page, names(5)));
-    await addPages(page, 2);
-    await spread(page, 3);
+    await setPages(page, 2);
     const before = await pagesOfNames(page);
     await page.waitForTimeout(700);
     await page.reload();
@@ -284,8 +274,7 @@ test.describe("Book: saving", () => {
   }) => {
     await setSize(page, 320, 240);
     await addPhotos(page, await makeImages(page, colourful(3)));
-    await addPages(page, 3);
-    await spread(page, 1);
+    await setPages(page, 3);
     await expect(page.locator("#save-summary")).toContainText(
       "ZIP of 3 PNG images, 320 × 240 px each",
     );
@@ -306,8 +295,7 @@ test.describe("Book: saving", () => {
   test("empty pages are skipped and the numbers follow the pages saved", async ({ page }) => {
     await setSize(page, 160, 120);
     await addPhotos(page, await makeImages(page, colourful(2)));
-    await addPages(page, 2);
-    await spread(page, 1);
+    await setPages(page, 2);
     await page.click("#add-page-tile");
     const files = readZip(await saveAndRead(page));
     expect(files.map((f) => f.name.replace(/^book-\d+/, ""))).toEqual(["_1.png", "_2.png"]);
@@ -317,8 +305,7 @@ test.describe("Book: saving", () => {
   test("a page's pill saves just that page", async ({ page }) => {
     await setSize(page, 160, 120);
     await addPhotos(page, await makeImages(page, colourful(2)));
-    await addPages(page, 2);
-    await spread(page, 1);
+    await setPages(page, 2);
     const downloadPromise = page.waitForEvent("download");
     await page.locator(".page-save").nth(1).click();
     expect((await downloadPromise).suggestedFilename()).toMatch(/^book-\d+_page-2\.png$/);
@@ -344,8 +331,7 @@ test.describe("Book of Instagram posts", () => {
     await page.fill("#split-size", "120");
     await page.locator("#split-size").press("Tab");
     await addPhotos(page, await makeImages(page, colourful(4)));
-    await addPages(page, 2);
-    await spread(page, 2);
+    await setPages(page, 2);
     await expect(page.locator(".page-pill")).toHaveCount(2);
     await expect(page.locator("#save-summary")).toContainText(
       "ZIP of 4 PNG images, 120 × 120 px each",

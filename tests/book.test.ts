@@ -8,7 +8,6 @@ import {
   BookPage,
   bookFileNames,
   countsPerPage,
-  fillPage,
   generateBestBook,
   generateBook,
   movedPageOf,
@@ -34,39 +33,18 @@ describe("book pages", () => {
     expect(pageSeed(0xffffffff, 3)).toBeGreaterThanOrEqual(0);
   });
 
-  it("fills the first page with room, then adds a page, up to the limit", () => {
-    expect(fillPage([], 6)).toBe(0);
-    // One page takes every photo, however many.
-    expect(fillPage([6], 6)).toBe(0);
-    expect(fillPage([40], 6)).toBe(0);
-    expect(fillPage([6, 6], 6)).toBe(2);
-    expect(fillPage([6, 2], 6)).toBe(1);
-    expect(fillPage([6, 6], 6)).toBe(2);
-    // A blank page added by hand takes the next photos.
-    expect(fillPage([6, 0, 6], 6)).toBe(1);
-    // At the limit the last page takes the rest.
-    expect(fillPage(new Array(BOOK_MAX_PAGES).fill(6), 6)).toBe(BOOK_MAX_PAGES - 1);
-  });
-
-  it("spreads photos in order, as evenly as possible, onto at least the pages there are", () => {
-    expect(spreadEvenly(7, 3, 6)).toEqual({ pageOf: [0, 0, 0, 1, 1, 2, 2], pages: 3 });
-    expect(spreadEvenly(0, 2, 6)).toEqual({ pageOf: [], pages: 2 });
-    // More photos than the pages hold at the setting: pages are added.
-    expect(spreadEvenly(13, 1, 6).pages).toBe(3);
+  it("spreads photos in order, as evenly as possible", () => {
+    expect(spreadEvenly(7, 3)).toEqual({ pageOf: [0, 0, 0, 1, 1, 2, 2], pages: 3 });
+    expect(spreadEvenly(0, 2)).toEqual({ pageOf: [], pages: 2 });
     fc.assert(
-      fc.property(
-        fc.integer({ min: 0, max: 120 }),
-        fc.integer({ min: 1, max: 20 }),
-        fc.integer({ min: 1, max: 20 }),
-        (n, pages, per) => {
-          const out = spreadEvenly(n, pages, per);
-          expect(out.pageOf).toHaveLength(n);
-          expect(out.pageOf).toEqual([...out.pageOf].sort((a, b) => a - b));
-          const counts = countsPerPage(out.pageOf, out.pages);
-          expect(Math.max(...counts) - Math.min(...counts)).toBeLessThanOrEqual(1);
-          expect(out.pages).toBeGreaterThanOrEqual(Math.min(pages, BOOK_MAX_PAGES));
-        },
-      ),
+      fc.property(fc.integer({ min: 0, max: 120 }), fc.integer({ min: 1, max: 20 }), (n, pages) => {
+        const out = spreadEvenly(n, pages);
+        expect(out.pageOf).toHaveLength(n);
+        expect(out.pageOf).toEqual([...out.pageOf].sort((a, b) => a - b));
+        const counts = countsPerPage(out.pageOf, out.pages);
+        expect(Math.max(...counts) - Math.min(...counts)).toBeLessThanOrEqual(1);
+        expect(out.pages).toBeGreaterThanOrEqual(Math.min(pages, BOOK_MAX_PAGES));
+      }),
     );
   });
 

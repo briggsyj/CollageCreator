@@ -139,6 +139,45 @@
           : ""}
       </p>
     </div>
+    <div id="pages-block" class="columns-block">
+      <label class="field" for="pages"><span>{tr("Pages")}</span></label>
+      <div class="stepper">
+        <button
+          type="button"
+          id="pages-less"
+          class="sq"
+          aria-label={tr("Fewer pages")}
+          disabled={app.pageCount <= 1}
+          onclick={() => app.setPageCount(app.pageCount - 1)}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" /></svg>
+        </button>
+        <input
+          id="pages"
+          type="number"
+          min="1"
+          max={app.maxPages}
+          step="1"
+          inputmode="numeric"
+          use:showValue={{ value: String(app.pageCount), again: tidy }}
+          onchange={(e) => {
+            app.setPageCount(Number(e.currentTarget.value));
+            tidy++;
+          }}
+        />
+        <button
+          type="button"
+          id="pages-more"
+          class="sq"
+          aria-label={tr("More pages")}
+          disabled={app.pageCount >= app.maxPages}
+          onclick={() => app.setPageCount(app.pageCount + 1)}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+        </button>
+      </div>
+      <p class="hint">{tr("Photos are shared evenly across the pages. To place them yourself, add or remove pages and send photos between them.")}</p>
+    </div>
     <p id="gallery-note" class="hint" hidden={!gallery}>{tr("Gallery sizes its panels itself.")}</p>
     <p class="trim">
       <strong id="crop-note"

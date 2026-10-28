@@ -45,28 +45,9 @@ export function countsPerPage(pageOf: readonly number[], pages: number): number[
   return counts;
 }
 
-/**
- * The page the next photo goes to: the first page with room, else a new page after the last
- * (until the limit, then the last page). With one page, always that page.
- */
-export function fillPage(counts: readonly number[], perPage: number): number {
-  // A single page takes every photo: pages are only added by hand until there are two.
-  if (counts.length <= 1) return 0;
-  const room = counts.findIndex((n) => n < perPage);
-  if (room >= 0) return room;
-  return Math.min(counts.length, BOOK_MAX_PAGES - 1);
-}
-
-/**
- * Share `count` photos, in order, across the pages as evenly as possible. There are at least
- * `pages` pages, and more when `perPage` photos a page would not be enough.
- */
-export function spreadEvenly(
-  count: number,
-  pages: number,
-  perPage: number,
-): { pageOf: number[]; pages: number } {
-  const total = normalisePageCount(Math.max(pages, Math.ceil(count / Math.max(1, perPage))));
+/** Share `count` photos, in order, across `pages` pages as evenly as possible. */
+export function spreadEvenly(count: number, pages: number): { pageOf: number[]; pages: number } {
+  const total = normalisePageCount(pages);
   const base = Math.floor(count / total);
   const extra = count % total;
   const pageOf: number[] = [];
