@@ -1066,6 +1066,26 @@ dialog h3 {
   margin-top: 8px;
 }
 
+/* An empty page in the Photos step: a roomy dashed target to drag photos onto. */
+.page-empty {
+  display: grid;
+  place-items: center;
+  min-height: 112px;
+  margin: 0;
+  padding: 12px;
+  border: 2px dashed var(--drop-line);
+  border-radius: 12px;
+  background: var(--drop-fill);
+  color: var(--sub);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.page-group.drop-target .page-empty {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .page-group.drop-target {
   outline: 2px dashed var(--accent);
   outline-offset: 4px;

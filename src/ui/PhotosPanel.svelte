@@ -232,7 +232,7 @@
           </div>
         {/if}
         {#if group.page >= 0 && group.items.length === 0}
-          <p class="hint">{tr("Drop or move photos here")}</p>
+          <p class="page-empty">{tr("Drop or move photos here")}</p>
         {/if}
         <ul class="photo-list">
           {#each group.items as { photo, index } (photo.id)}
