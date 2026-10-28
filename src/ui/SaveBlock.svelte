@@ -80,11 +80,12 @@
     </select>
     <label class="field" id="quality-field" hidden={app.settings.format !== "jpeg"}>
       <span class="rowhead"
-        ><span>{tr("Quality")}</span>
+        ><span class="quality-label">{tr("Quality")}</span>
         <output id="quality-output" for="quality">{quality}%</output></span
       >
       <input
         id="quality"
+        title={tr("JPEG quality")}
         class="range"
         type="range"
         min="10"
@@ -99,7 +100,7 @@
   <button
     type="button"
     id="save"
-    title={tr("Save the collage as image files")}
+    title={summary}
     class="primary wide"
     disabled={!app.hasPhotos}
     onclick={() => void app.save()}

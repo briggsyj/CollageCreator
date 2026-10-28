@@ -392,10 +392,7 @@
     e.preventDefault();
     const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1;
     const factor = Math.exp(-e.deltaY * unit * (e.ctrlKey ? 0.01 : 0.0015));
-    if (app.cropping) {
-      app.zoomSelectedCropBy(factor);
-      return;
-    }
+    // Scrolling always zooms the view, also while cropping (the photo's zoom is the slider).
     const rect = canvas.getBoundingClientRect();
     app.zoomAtPoint(factor, { x: e.clientX - rect.left, y: e.clientY - rect.top });
   }
@@ -443,14 +440,12 @@
     }
     if (e.key === "+" || e.key === "=") {
       e.preventDefault();
-      if (app.cropping) app.zoomSelectedCropBy(1.25);
-      else app.zoomAtCentre(1.25);
+      app.zoomAtCentre(1.25);
       return;
     }
     if (e.key === "-" || e.key === "_") {
       e.preventDefault();
-      if (app.cropping) app.zoomSelectedCropBy(0.8);
-      else app.zoomAtCentre(0.8);
+      app.zoomAtCentre(0.8);
       return;
     }
     if (e.key === "0") {

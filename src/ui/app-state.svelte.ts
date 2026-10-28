@@ -1064,11 +1064,6 @@ export class AppState {
     );
   }
 
-  zoomSelectedCropBy(factor: number): void {
-    const zoom = this.selectedPhoto?.crop?.zoom ?? 1;
-    this.zoomSelectedCrop(zoom * factor);
-  }
-
   resetCrop(): void {
     if (this.selected === null) return;
     this.writeCrop(this.selected, NO_CROP);

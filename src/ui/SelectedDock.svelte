@@ -118,7 +118,7 @@
         >
           {tr("Reset crop")}
         </button>
-        <p class="hint">{tr("Drag the photo to move it, scroll or use the slider to zoom.")}</p>
+        <p class="hint">{tr("Drag the photo to move it; use the slider to zoom into it.")}</p>
       </div>
     {/if}
   </div>
