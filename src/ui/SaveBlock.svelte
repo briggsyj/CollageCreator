@@ -28,12 +28,6 @@
           })
         : `${kind}, ${app.settings.width} × ${app.settings.height} px`,
   );
-  /** The first page with photos, for "Save this page" when no photo is selected. */
-  const firstFilled = () =>
-    Math.max(
-      0,
-      app.pageCounts.findIndex((n) => n > 0),
-    );
   const quality = $derived(Math.round(app.settings.jpegQuality * 100));
 </script>
 
@@ -107,16 +101,4 @@
   >
     {app.book ? tr("Save book...") : tr("Save poster...")}
   </button>
-  {#if app.book}
-    <button
-      type="button"
-      id="save-page"
-      title={tr("Save only one page")}
-      class="wide"
-      disabled={!app.hasPhotos}
-      onclick={() => void app.save(app.selected === null ? firstFilled() : app.selectedPage)}
-    >
-      {tr("Save this page")}
-    </button>
-  {/if}
 </div>

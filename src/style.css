@@ -985,6 +985,15 @@ dialog h3 {
   border-radius: 24px;
 }
 
+/* The round help button in the phone header: as wide as it is tall. */
+.icon-btn.help-btn {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+}
+
 .tabs {
   flex: none;
   display: flex;
