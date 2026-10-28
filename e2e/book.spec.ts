@@ -593,3 +593,36 @@ test.describe("Letting go of the selection", () => {
     await expect(page.locator("#selected-dock")).toBeHidden();
   });
 });
+
+test.describe("Touch", () => {
+  test("two fingers pinch to zoom the preview, also with the Pan tool", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, names(3)));
+    await page.click("#mode-pan");
+    const before = (await posterRect(page)).w;
+    await page.locator("#preview").evaluate((canvas) => {
+      const r = canvas.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      const send = (type: string, id: number, x: number) =>
+        canvas.dispatchEvent(
+          new PointerEvent(type, {
+            pointerId: id,
+            pointerType: "touch",
+            clientX: x,
+            clientY: cy,
+            bubbles: true,
+            isPrimary: id === 1,
+          }),
+        );
+      send("pointerdown", 1, cx - 40);
+      send("pointerdown", 2, cx + 40);
+      for (let d = 40; d <= 120; d += 10) {
+        send("pointermove", 1, cx - d);
+        send("pointermove", 2, cx + d);
+      }
+      send("pointerup", 2, cx + 120);
+      send("pointerup", 1, cx - 120);
+    });
+    await expect.poll(async () => (await posterRect(page)).w).toBeGreaterThan(before * 2);
+  });
+});

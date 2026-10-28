@@ -2078,6 +2078,11 @@ dialog .button-row {
     flex-direction: row;
   }
 
+  /* In a row, minus comes before plus. */
+  #zoom-out {
+    order: -1;
+  }
+
   .modes {
     height: 68px;
   }

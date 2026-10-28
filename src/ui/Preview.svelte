@@ -36,6 +36,29 @@
   let cropDrag: { x: number; y: number } | null = null;
   /** Set when a press switched the selection while cropping, so its release does not act as a click. */
   let switchedWhileCropping = false;
+  /** Fingers on the preview, by pointer id; two make a pinch that zooms and pans together. */
+  const touches = new Map<number, { x: number; y: number }>();
+  let pinch: { dist: number; mid: { x: number; y: number } } | null = null;
+  /** A pinch just ended: the finger still down must not pick a photo or deselect when lifted. */
+  let afterPinch = false;
+
+  function pinchState(): { dist: number; mid: { x: number; y: number } } | null {
+    const [a, b] = [...touches.values()];
+    if (!a || !b) return null;
+    return {
+      dist: Math.hypot(a.x - b.x, a.y - b.y),
+      mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
+    };
+  }
+
+  /** Forget a lifted finger; a pinch ends when fewer than two remain. */
+  function liftTouch(e: PointerEvent): void {
+    touches.delete(e.pointerId);
+    if (pinch && touches.size < 2) {
+      pinch = null;
+      afterPinch = touches.size > 0;
+    }
+  }
 
   // The drop area before any photos is one page, however many pages are set.
   const fit = $derived(app.fitPoster({ w: boxWidth, h: boxHeight }, true));
@@ -296,6 +319,23 @@
   }
 
   function onPointerDown(e: PointerEvent): void {
+    if (e.pointerType === "touch") {
+      touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (touches.size === 2) {
+        // A second finger: stop whatever the first one started, and pinch instead.
+        try {
+          canvas.setPointerCapture(e.pointerId);
+        } catch {
+          // Not an active pointer (synthetic events in tests): moves still reach the canvas.
+        }
+        cropDrag = null;
+        endPan();
+        dragFrom = -1;
+        pinch = pinchState();
+        return;
+      }
+      if (touches.size > 2) return;
+    }
     canvas.focus();
     // The mouse is in use: no keyboard ring, and the arrow keys start from the photo pressed.
     app.focusRing = false;
@@ -333,6 +373,16 @@
   }
 
   function onPointerMove(e: PointerEvent): void {
+    if (touches.has(e.pointerId)) touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch) {
+      const now = pinchState();
+      if (!now || pinch.dist <= 0) return;
+      const rect = canvas.getBoundingClientRect();
+      app.zoomAtPoint(now.dist / pinch.dist, { x: now.mid.x - rect.left, y: now.mid.y - rect.top });
+      app.panBy(now.mid.x - pinch.mid.x, now.mid.y - pinch.mid.y);
+      pinch = now;
+      return;
+    }
     if (cropDrag) {
       // Canvas pixels per screen pixel, then a share of the poster's width (the page is 1 wide).
       const rect = canvas.getBoundingClientRect();
@@ -352,6 +402,16 @@
   }
 
   function onPointerUp(e: PointerEvent): void {
+    const wasPinching = pinch !== null || afterPinch;
+    liftTouch(e);
+    if (wasPinching) {
+      // The end of a pinch: nothing is picked, swapped or deselected.
+      if (touches.size === 0) afterPinch = false;
+      endPan();
+      cropDrag = null;
+      dragFrom = -1;
+      return;
+    }
     if (switchedWhileCropping) {
       switchedWhileCropping = false;
       return;
@@ -550,7 +610,9 @@
     onpointerdown={onPointerDown}
     onpointermove={onPointerMove}
     onpointerup={onPointerUp}
-    onpointercancel={() => {
+    onpointercancel={(e) => {
+      liftTouch(e);
+      if (touches.size === 0) afterPinch = false;
       cropDrag = null;
       endPan();
     }}
