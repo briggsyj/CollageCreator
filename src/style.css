@@ -26,6 +26,11 @@
   --ctl-bg: rgba(255, 255, 255, 0.55);
   --ctl-border: 1px solid rgba(255, 255, 255, 0.8);
   --ctl-shadow: 0 1px 3px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  /* Hovering: a light wash over a control, and a slightly deeper shadow under a raised one. */
+  --hover-bg: rgba(255, 255, 255, 0.62);
+  --hover-shadow: 0 6px 16px rgba(30, 30, 40, 0.18);
+  /* A flat control on hover is tinted darker (light on light glass would not show). */
+  --hover-flat-bg: rgba(110, 110, 125, 0.14);
   --inset-bg: rgba(110, 110, 125, 0.16);
   --inset-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12);
   --down-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(0, 0, 0, 0.08);
@@ -80,6 +85,9 @@
     --ctl-bg: rgba(255, 255, 255, 0.1);
     --ctl-border: 1px solid rgba(255, 255, 255, 0.18);
     --ctl-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    --hover-bg: rgba(255, 255, 255, 0.1);
+    --hover-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+    --hover-flat-bg: rgba(255, 255, 255, 0.1);
     --inset-bg: rgba(0, 0, 0, 0.35);
     --inset-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
     --down-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(0, 0, 0, 0.2);
@@ -2176,6 +2184,100 @@ dialog .button-row {
     opacity: 1;
     transform: translateY(var(--drag, 0px)) scaleY(1);
     transform-origin: bottom;
+  }
+}
+
+/* ------------------------------------------------------------------- hover */
+
+/*
+ * Feedback under a mouse or trackpad, so it is clear what can be clicked: a light wash over the
+ * control in the theme's glass, and a little more shadow under raised ones. Touch screens have
+ * no hover (it would stick after a tap), so this is for fine pointers only. Selected and
+ * disabled controls keep their look.
+ */
+@media (hover: hover) and (pointer: fine) {
+  /* Raised buttons: brighter glass and a touch more lift. */
+  button:hover:not(:disabled):not(
+    [aria-pressed="true"],
+    [aria-selected="true"],
+    .primary,
+    .link,
+    .icon-btn,
+    .tile,
+    .seg button,
+    .tabs button,
+    .modes button,
+    .zoomers .sq,
+    .swatches button
+  ) {
+    box-shadow:
+      var(--ctl-shadow),
+      var(--hover-shadow),
+      inset 0 0 0 100vmax var(--hover-bg);
+  }
+
+  /* The main action glows a little brighter. */
+  button.primary:hover:not(:disabled) {
+    filter: brightness(1.08);
+    box-shadow: var(--prim-shadow), var(--hover-shadow);
+  }
+
+  /* Flat controls (tabs, switches between options, tool and zoom buttons, icon buttons). */
+  .seg button:hover:not(:disabled, [aria-pressed="true"]),
+  .tabs button:hover:not(:disabled, [aria-selected="true"], .tab-save),
+  .modes button:hover:not(:disabled, [aria-pressed="true"]),
+  .zoomers .sq:hover:not(:disabled),
+  .icon-btn:hover:not(:disabled) {
+    background-color: var(--hover-flat-bg);
+  }
+
+  .tabs .tab-save:hover:not(:disabled) {
+    filter: brightness(1.08);
+  }
+
+  /* Text buttons read as links. */
+  button.link:hover:not(:disabled) {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  /* Photos in the list: the thumbnail brightens and its shadow deepens. */
+  .tile canvas {
+    transition:
+      filter var(--t) ease,
+      box-shadow var(--t) ease;
+  }
+
+  .tile:hover canvas {
+    filter: brightness(1.06);
+    box-shadow: var(--tile-shadow), var(--hover-shadow);
+  }
+
+  /* Colour swatches grow a little. */
+  .swatches button:hover {
+    transform: scale(1.1);
+  }
+
+  .swatches button,
+  .custom-swatch {
+    transition: transform var(--t) ease;
+  }
+
+  input.custom-swatch:hover {
+    transform: scale(1.1);
+  }
+
+  /* Other things that respond to a click. */
+  .lang-btn:hover {
+    box-shadow: var(--chrome-shadow), var(--hover-shadow);
+  }
+
+  .technical summary:hover {
+    background-color: var(--hover-flat-bg);
+  }
+
+  .switch:hover input:not(:checked) {
+    background: color-mix(in srgb, var(--track), var(--text) 12%);
   }
 }
 
