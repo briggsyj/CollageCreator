@@ -1,163 +1,104 @@
 # Collage Creator
 
 [![CI](https://github.com/briggsyj/CollageCreator/actions/workflows/ci.yaml/badge.svg)](https://github.com/briggsyj/CollageCreator/actions/workflows/ci.yaml)
-[![Docker build](https://github.com/briggsyj/CollageCreator/actions/workflows/docker.yaml/badge.svg)](https://github.com/briggsyj/CollageCreator/actions/workflows/docker.yaml)
-[![GitHub Pages](https://github.com/briggsyj/CollageCreator/actions/workflows/pages.yaml/badge.svg)](https://github.com/briggsyj/CollageCreator/actions/workflows/pages.yaml)
 [![License: GPL v2 or later](https://img.shields.io/badge/license-GPL--2.0--or--later-blue.svg)](LICENSE)
 [![Derived from PhotoCollage](https://img.shields.io/badge/derived%20from-adrienverge%2FPhotoCollage-informational.svg)](https://github.com/adrienverge/PhotoCollage)
 
-**Collage Creator is an easy, free way to turn your photos into a collage poster, right in your browser.**
+**Turn your photos into a tidy collage, right in your browser. Free, private, nothing to install.**
 
-Drop in your photos, pick a size, and get a tidy collage you can save as a PNG or JPEG. There is
-nothing to install and no account to make.
+### 👉 [Open Collage Creator](https://briggsyj.github.io/CollageCreator/)
 
-- **Try it now:** <https://briggsyj.github.io/CollageCreator/> (hosted on GitHub Pages)
-- **Host it yourself:** it is a static site, so any web server will do, or run it with Docker (see [Run with Docker](#run-with-docker)).
-- **Private by design:** everything happens in your browser. Your photos are never uploaded.
-  Once the page has loaded it even works offline.
+- **Easy:** drop in your photos and a collage appears. Pick a size, tweak the look, save.
+- **Private:** everything happens on your device. Your photos are never uploaded, and once the
+  page has loaded it even works offline.
+- **Free and open source:** no account, no watermark, no ads.
 
-Collage Creator is based on [PhotoCollage](https://github.com/adrienverge/PhotoCollage) by Adrien
-Vergé and contributors, rebuilt as a web app. It is an independent, modified version and is not
-endorsed by the original authors. See [Credit and licence](#credit-and-licence).
+## How it works
 
-## Credit and licence
+1. **Add photos.** Choose them, drag them onto the page, or drop a zipped folder of them.
+2. **Make it yours.** Pick an output size, a layout, borders and corners. Swap photos, make one
+   wider or taller, or crop it.
+3. **Save.** Download a PNG or JPEG. A collage with several pages, or an Instagram carousel, comes
+   as a zip of images.
 
-Collage Creator is a derivative work of **PhotoCollage** by Adrien Vergé and
-contributors (their copyright notices are kept; see [NOTICE.md](NOTICE.md)), and
-is released under the same terms: the
-**GNU General Public License, version 2 or (at your option) any later version**
-(SPDX: `GPL-2.0-or-later`). It comes with **no warranty**.
-
-- The layout algorithm in [`src/core/layout.ts`](src/core/layout.ts) is a TypeScript port of the original's `collage.py`, and its tests are ported from `test_collage.py`.
-- The drawing rules (crop to fill, borders) come from the original's `render.py`.
-- The interface translations in [`src/i18n/po`](src/i18n/po) are the original project's, unchanged, with the translators' credits intact.
-- The icon is the original's.
-
-[**NOTICE.md**](NOTICE.md) lists the original authors and translators, what was
-ported and what changed. Every file derived from the original keeps its
-original copyright and licence notice and carries a dated change notice. The
-full licence text is in [LICENSE](LICENSE); bundled libraries are listed in the
-app's About dialog (`THIRD-PARTY-LICENSES.txt`, generated at build time).
-
-The complete source is this repository, and the About dialog and the Docker
-image's `org.opencontainers.image.source` label both link to it. This section is
-general information, not legal advice.
+Your work is kept in your browser, so a refresh doesn't lose it.
 
 ## Features
 
-- Add photos by file picker or drag and drop; works with 100+ photos
-- Two layout styles, chosen in the Style step. **Mosaic** (the default) uses the original's layout algorithm: photos fill columns of different heights, and the first layout shown is the best of 30 tries (the one that crops the photos least). **Gallery** cuts the poster into panels with a slicing tree, one panel per photo, and also keeps the best of several tries
-- Ask for a photo to be **wider** or **taller** from the Photos step; the rest of the collage is worked out around it
-- Every layout has a **seed** (under Technical configuration), also in the address (`?seed=…`): the same seed and photos give the same layout, and the browser's back and forward buttons step through earlier arrangements
-- A refresh keeps your photos, sizes and settings (saved in this browser only; removing photos deletes them)
-- Choose the **number of columns** for Mosaic, or leave it on automatic (the original's choice)
-- Poster size in pixels: Screen, A4, A3, A2 and B1 (300 DPI) and social presets, each in landscape or portrait, or a custom width and height; sizes your browser cannot produce are reduced to the largest available
-- **Pages**: a collage is one page; **Add page** gives a row of pages, each arranged on its own and saved as its own image (a zip of them), with a pill above each page to move, save or remove it; photos fill the pages in order and can be swapped or moved between pages. An Instagram post is a kind of page, so a book can be a row of posts
-- An **Instagram post** size: one wide collage, previewed whole with dashed cut marks, saved as a zip of square images numbered `_1`, `_2`, … from left to right
-- Border colour (swatches or any colour), thickness (0.5 % white by default), corner style (square, slightly rounded or rounded), and an option to leave out the border around the whole collage
-- Swap two photos by clicking or from the keyboard; remove photos from the collage (Delete), all at once, with undo
-- Pan and Swap modes: drag to move the preview (the default) or choose Swap to click two photos and swap them; hold Space to pan while swapping; scroll or use the buttons to zoom
-- A frosted glass look that follows your light or dark setting, with a backdrop made from your photos' colours; on phones the controls open as sheets from a bottom bar
-- Photos are shown the right way up (EXIF orientation)
-- Save as PNG or JPEG, with progress and cancel; decoding runs in web workers
-- Starts in your browser's language when it is one of the translations, otherwise English. Translations from the original: Bulgarian, Czech, German, Spanish, French, Italian, Dutch, Polish, Brazilian Portuguese, Russian, Ukrainian (strings added since then are in English)
+**Layouts**
+- **Mosaic** (photos in columns of different heights) or **Gallery** (one panel per photo); the
+  first arrangement shown is the best of many tries
+- Shuffle for a new arrangement, or set the number of columns yourself
+- Every arrangement has a seed in the address, so you can share or return to it
 
-## What is different from the original
+**Sizes and pages**
+- Screen, print (A4 to B1 at 300 DPI), social and custom sizes, landscape or portrait
+- **Pages:** add as many pages as you need, each saved as its own image; drag photos between them
+- **Instagram carousel:** one wide collage cut into square images, with cut marks in the preview
 
-|              | PhotoCollage                | Collage Creator                                                 |
-| ------------ | --------------------------- | --------------------------------------------------------------- |
-| Platform     | Python + GTK desktop app    | Static web app, no backend                                      |
-| Rendering    | Pillow / cairo              | Canvas 2D, `OffscreenCanvas` in a worker pool                   |
-| Layouts      | New random layout each time | Same algorithm (Mosaic) plus Gallery, reproducible from a seed  |
-| Maximum size | Limited by memory           | Limited by what the browser can allocate (detected at run time) |
-| Packaging    | pip / distro packages       | Docker (nginx) or any static host                               |
+**Editing**
+- Swap two photos, select several at once, make a photo wider or taller, or crop it
+- Border colour and thickness, square or rounded corners, with or without an outer border
+- Undo removals; confirmations before anything you can't easily take back
 
-## Use it online
+**Everywhere**
+- Works on phones and tablets (pinch to zoom, press and hold to drag photos) as well as desktop
+- Light and dark themes with a frosted glass look
+- Keyboard friendly, with a tooltip on every button
+- Handles 100+ photos, HEIC photos from iPhones, and photos taken sideways
 
-The `master` branch is published to GitHub Pages by the
-[GitHub Pages workflow](.github/workflows/pages.yaml):
-**<https://briggsyj.github.io/CollageCreator/>**. It is the same static build as the Docker
-image, and your photos still never leave your browser: the page carries a Content Security Policy
-that only allows its own files.
+## Host your own copy
 
-To publish your own copy of the fork, enable it once under **Settings → Pages → Build and
-deployment → Source: GitHub Actions**; later pushes to `master` deploy automatically. The build
-uses relative paths, so it works under any `/<repo>/` sub-path.
+It is a static site, so any web server will do.
 
-### Pull request previews
+- **Docker:** `docker compose up --build -d`, then open <http://localhost:8080>
+  (`HOST_PORT=9000 docker compose up -d` for another port). nginx runs as a non-root user with a
+  strict Content Security Policy and needs no configuration.
+- **GitHub Pages:** fork the repository and set **Settings → Pages → Source** to GitHub Actions;
+  pushes to `master` then publish automatically. To also get a preview site for each pull
+  request, use **Deploy from a branch → `gh-pages`** instead (the workflows keep it up to date).
 
-Each pull request is also built and published to
-`https://<user>.github.io/<repo>/pr-preview/pr-<number>/` by the
-[PR preview workflow](.github/workflows/preview.yaml), with a comment on the pull request that
-links to it; the preview is removed when the pull request is closed. It needs **Settings → Pages →
-Source: Deploy from a branch → `gh-pages`**, which the Pages workflow keeps up to date with the
-main site, so the main site keeps working. Previews share the main site's browser storage (same
-origin), so saved work appears in both. Pull requests from forks get no preview.
+## Contribute
 
-## Run with Docker
-
-```sh
-docker compose up --build -d          # then open http://localhost:8080
-docker compose down                   # stop
-HOST_PORT=9000 docker compose up -d   # use another port
-```
-
-The container serves static files with nginx as a non-root user, sends a
-Content Security Policy that allows no external origins, and needs no
-configuration or secrets.
-
-## Develop
-
-Requires Node.js 20 or newer.
+Bug reports and pull requests are welcome. You need Node.js 20 or newer:
 
 ```sh
 npm ci
-npm run dev            # dev server
-npm test               # unit and property tests (Vitest)
-npm run test:e2e       # end-to-end tests (Playwright; first run: npx playwright install)
-npm run lint && npm run typecheck && npm run check:headers
-npm run check:i18n     # which interface strings each language still lacks
-npm run build          # production build in dist/
-npm run bench          # layout benchmark
+npm run dev        # start the app locally
+npm test           # unit tests
+npm run test:e2e   # browser tests (first run: npx playwright install)
 ```
 
-Every source file starts with the line `SPDX-License-Identifier: GPL-2.0-or-later` and the
-line `Copyright (C) 2026 John Briggs` for the changes and additions in this project. A file
-derived from the original must also keep
-the original author's copyright line and carry a dated "CHANGED on" notice (see a ported file
-such as `src/core/layout.ts`). `npm run check:headers`, also run in CI, enforces both.
+- [CONTRIBUTING.md](CONTRIBUTING.md): checks to run, code style, licence headers, translations
+- [ARCHITECTURE.md](ARCHITECTURE.md): how the code fits together
+- [specs/](specs/): how each feature was planned
 
-## How the project is organised
+**Translations** come from the original project. Many newer strings are still English only;
+`npm run check:i18n -- --list` shows what each language needs, and help is very welcome.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for how the code fits together and
-[CONTRIBUTING.md](CONTRIBUTING.md) for how to contribute.
+## Credit and licence
 
-The project follows spec-driven development (Spec Kit layout). The principles
-are in [.specify/memory/constitution.md](.specify/memory/constitution.md); each
-feature has a `spec.md`, `plan.md` and `tasks.md` under [specs/](specs/); [specs/README.md](specs/README.md) tracks the status of each slice.
+Collage Creator is based on [PhotoCollage](https://github.com/adrienverge/PhotoCollage) by
+Adrien Vergé and contributors, rebuilt as a web app. It is an independent, modified version and
+is not endorsed by the original authors.
 
-| Module          | Responsibility                               |
-| --------------- | -------------------------------------------- |
-| `src/core/`     | Pure layout generation and types; no DOM     |
-| `src/io/`       | File import, validation, orientation         |
-| `src/render/`   | Preview and export drawing, worker pool      |
-| `src/platform/` | Canvas size limits                           |
-| `src/ui/`       | Svelte components and the state they show    |
-| `src/i18n/`     | Message catalogue (the original `.po` files) |
+- The Mosaic layout is a TypeScript port of the original's `collage.py` (with its tests), and the
+  drawing rules come from its `render.py`.
+- The translations in [`src/i18n/po`](src/i18n/po) and the icon are the original project's, with
+  the translators' credits intact.
+- [NOTICE.md](NOTICE.md) lists the original authors and translators, what was ported and what
+  changed. Every file derived from the original keeps its copyright notice and a dated change
+  notice. Bundled libraries are listed in the app's About dialog.
+- The complete source is this repository; the About dialog and the Docker image link to it.
 
-## Licence
+Copyright © 2013–2014 Adrien Vergé (original PhotoCollage), and the translators credited in
+[NOTICE.md](NOTICE.md) for their translation files.
+Copyright © 2026 John Briggs, for the changes and additions in Collage Creator.
 
-Copyright © 2013–2014 Adrien Vergé (original PhotoCollage), and the translators
-credited in [NOTICE.md](NOTICE.md) for their translation files.
+This program is free software; you can redistribute it and/or modify it under the terms of the
+[GNU General Public License](LICENSE) as published by the Free Software Foundation; either
+version 2 of the License, or (at your option) any later version (SPDX: `GPL-2.0-or-later`).
 
-Copyright © 2026 John Briggs, for the changes and additions in Collage Creator, offered
-under the same licence.
-
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; either version 2 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
