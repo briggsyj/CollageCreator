@@ -13,7 +13,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain (3 open: FR-009, FR-010, FR-015)
+- [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
@@ -31,4 +31,4 @@
 
 ## Notes
 
-- Three questions need an answer before `/speckit-clarify` or `/speckit-plan`.
+- Q1 to Q3 answered on 2026-10-29: no add-photos tool; previews allowed; the assistant decides whether to ask before saving.

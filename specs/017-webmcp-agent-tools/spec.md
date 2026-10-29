@@ -6,13 +6,13 @@
 
 **Status**: Draft
 
-**Input**: User description: "WebMCP support for every action facilitating the usage of this web app: the page registers tools with the browser (navigator.modelContext) so an in-browser AI agent can do anything a user can: add photos, choose layout, size, pages, borders, corners, columns, shuffle, swap, resize, crop, remove, undo, select, language, theme, and save/export."
+**Input**: User description: "WebMCP support for every action facilitating the usage of this web app: the page registers tools with the browser (navigator.modelContext) so an in-browser AI agent can do anything a user can: choose layout, size, pages, borders, corners, columns, shuffle, swap, resize, crop, remove, undo, select, language, theme, and save/export."
 
 ## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - Ask an assistant to make a collage (Priority: P1)
 
-A person has an AI assistant built into their browser open beside Collage Creator. They tell it what they want ("a 3-column collage of these photos with thin white borders and rounded corners, A4 portrait") and the assistant makes the changes in the page, which the person watches happen in the live preview.
+A person has an AI assistant built into their browser open beside Collage Creator. The photos are already in the page. They tell it what they want ("a 3-column collage of these photos with thin white borders and rounded corners, A4 portrait") and the assistant makes the changes in the page, which the person watches happen in the live preview.
 
 **Why this priority**: this is the whole point; without it nothing else matters. It also needs the assistant to see the app's current state, or it cannot act sensibly.
 
@@ -109,13 +109,13 @@ Whatever the assistant does, the person sees it, can undo it, and the app never 
 - **FR-006**: Actions the app confirms first (removing photos, removing a page, Remove all, shuffling after a hand edit) MUST still ask the person, and MUST complete only when the person confirms.
 - **FR-007**: Saving MUST produce the same files as a person's save, MUST report the file names and count to the assistant, and MUST allow progress to be read and a save to be cancelled.
 - **FR-008**: The assistant MUST be able to undo a removal, as the person can.
-- **FR-009**: Photos MUST stay on the person's device: no tool sends photo contents, or the collage, to any outside service, and no tool fetches photos from the network. [NEEDS CLARIFICATION: how does an assistant get photos into the app? Options: A) it cannot, the person adds photos and the assistant arranges them; B) the assistant asks and the person picks files in the usual chooser; C) the assistant may supply photos from addresses it can reach, which would break the no-network rule.]
-- **FR-010**: What the assistant can see of the photos MUST be limited to what is needed to arrange them (names, sizes, orientation, page, position, and a small preview only if the person allows it). [NEEDS CLARIFICATION: may the assistant look at small previews of the photos to judge content, or only at their file details?]
+- **FR-009**: Photos MUST stay on the person's device: no tool sends the collage to any outside service, and no tool fetches photos from the network. Adding photos is not a tool: the person (or an assistant that operates the browser's own file chooser, such as a desktop assistant) adds them in the usual way, and the tools then arrange them.
+- **FR-010**: The assistant MUST be able to read each photo's details (name, size, orientation, page, position) and a small preview of it, so it can judge content when arranging. Previews are for the person's own assistant only and are never sent elsewhere by the app.
 - **FR-011**: A person's own use of the controls MUST keep working while an assistant is connected, and both MUST act on one shared collage.
 - **FR-012**: When no assistant support is present the app MUST behave exactly as it does today.
 - **FR-013**: Tool names, descriptions and messages MUST be available in the app's languages with English first, like other text in the app.
 - **FR-014**: Every tool MUST be covered by an automated test, and a check MUST fail when a control is added with no matching tool or an exception recorded for it.
-- **FR-015**: The first save by an assistant in a session MUST ask the person to allow it. [NEEDS CLARIFICATION: should saving by an assistant always ask the person first, ask once per session, or follow the browser's own download prompt?]
+- **FR-015**: Saving by an assistant MUST NOT add a prompt of the app's own; whether to ask the person first is the assistant's decision. The browser's own download behaviour is unchanged.
 
 ### Key Entities
 
@@ -130,12 +130,13 @@ Whatever the assistant does, the person sees it, can undo it, and the app never 
 - **SC-001**: 100% of the actions available through the app's controls (as listed by an automated walk of the interface) have a matching tool or a recorded reason why not.
 - **SC-002**: An assistant given only the tool descriptions completes a set of 10 typical requests (for example "3 columns, rounded corners, A4 portrait, two pages, save") correctly on the first try in at least 9.
 - **SC-003**: A change made by a tool is visible in the preview in the same time as the same change made by hand.
-- **SC-004**: No photo data leaves the device when tools are used, shown by the existing no-network check passing with tools exercised.
+- **SC-004**: The app makes no network requests when tools are used, shown by the existing no-network check passing with tools exercised.
 - **SC-005**: With no assistant support, all existing tests pass unchanged.
 - **SC-006**: A collage of 100 photos can be described to an assistant in a state report small enough to read in one go.
 
 ## Assumptions
 
+- Adding photos stays a person's action through the native file chooser (or a desktop assistant driving it); there is no tool for it.
 - The person already has a browser with built-in assistant support; installing one is out of scope.
 - Tools are offered only while the page is open; nothing runs in the background.
 - An assistant has the same permissions as the person using the page and nothing more.
