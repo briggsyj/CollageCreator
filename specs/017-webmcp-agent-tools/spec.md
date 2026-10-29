@@ -8,6 +8,12 @@
 
 **Input**: User description: "WebMCP support for every action facilitating the usage of this web app: the page registers tools with the browser (navigator.modelContext) so an in-browser AI agent can do anything a user can: choose layout, size, pages, borders, corners, columns, shuffle, swap, resize, crop, remove, undo, select, language, theme, and save/export."
 
+## Clarifications
+
+### Session 2026-10-29
+
+- Q: How should an assistant refer to a particular photo? → A: By page and position (e.g. "page 2, third photo"), which changes as photos are removed or moved.
+
 ## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - Ask an assistant to make a collage (Priority: P1)
@@ -92,6 +98,7 @@ Whatever the assistant does, the person sees it, can undo it, and the app never 
 - The browser has no assistant support: the app works as before and nothing is shown or broken.
 - The assistant calls a tool with a missing or wrong value (a photo number that does not exist, an out-of-range column count or page count): it gets a clear message and nothing changes.
 - The assistant acts while a save is in progress or while photos are still loading: it is told to wait, or the action queues, and nothing is half-applied.
+- A photo's position changes after an earlier action (a removal, a move, a shuffle): the assistant must read the state again before relying on an old position, and a request for a position that no longer exists is refused with a reason.
 - Two actions arrive quickly, or the person acts at the same time: each is applied in order to the current state.
 - The person leaves the page or refreshes: the saved work comes back as it does today, and the assistant is told the app was reloaded.
 - A confirmation is left unanswered: the action stays pending and the assistant is told it was not confirmed.
@@ -104,6 +111,7 @@ Whatever the assistant does, the person sees it, can undo it, and the app never 
 - **FR-001**: The app MUST offer an in-browser assistant a tool for every action a person can do with its controls, grouped as: photos, selection and editing, pages, layout and style, size and shape, view and tools, language and theme, saving, help.
 - **FR-002**: Each tool MUST have a plain name, a plain description, and a description of what it needs and what it returns, so an assistant can use it without other documentation.
 - **FR-003**: The app MUST let the assistant read the current state: photos and their pages, selection, layout, columns, borders, corners, output size and shape, page count, language, theme, view, and whether a save or load is in progress.
+- **FR-016**: Photos are referred to by page and position (page 2, third photo, counting from one in reading order). The state report MUST give each photo's page, position and file name, and a tool MUST act on the collage as it is when the request arrives, so a position given before a removal or move is not reused after it.
 - **FR-004**: A tool MUST have the same effect, limits and results as the matching control (for example the 1 to 20 page limit, the carousel image limits, and crop being off with several photos selected).
 - **FR-005**: A tool given an invalid or impossible request MUST change nothing and MUST return a clear reason.
 - **FR-006**: Actions the app confirms first (removing photos, removing a page, Remove all, shuffling after a hand edit) MUST still ask the person, and MUST complete only when the person confirms.
