@@ -13,6 +13,7 @@
 ### Session 2026-10-29
 
 - Q: How should an assistant refer to a particular photo? → A: By page and position (e.g. "page 2, third photo"), which changes as photos are removed or moved.
+- Q: What does a tool do while the person has not yet answered a confirmation? → A: It returns at once with "waiting for the person to confirm"; the outcome (confirmed or cancelled) shows in the state report.
 
 ## User Scenarios & Testing _(mandatory)_
 
@@ -114,7 +115,7 @@ Whatever the assistant does, the person sees it, can undo it, and the app never 
 - **FR-016**: Photos are referred to by page and position (page 2, third photo, counting from one in reading order). The state report MUST give each photo's page, position and file name, and a tool MUST act on the collage as it is when the request arrives, so a position given before a removal or move is not reused after it.
 - **FR-004**: A tool MUST have the same effect, limits and results as the matching control (for example the 1 to 20 page limit, the carousel image limits, and crop being off with several photos selected).
 - **FR-005**: A tool given an invalid or impossible request MUST change nothing and MUST return a clear reason.
-- **FR-006**: Actions the app confirms first (removing photos, removing a page, Remove all, shuffling after a hand edit) MUST still ask the person, and MUST complete only when the person confirms.
+- **FR-006**: Actions the app confirms first (removing photos, removing a page, Remove all, shuffling after a hand edit) MUST still ask the person, and MUST complete only when the person confirms. The tool returns at once saying it is waiting for the person; the state report then shows the pending question and, later, whether it was confirmed or cancelled.
 - **FR-007**: Saving MUST produce the same files as a person's save, MUST report the file names and count to the assistant, and MUST allow progress to be read and a save to be cancelled.
 - **FR-008**: The assistant MUST be able to undo a removal, as the person can.
 - **FR-009**: Photos MUST stay on the person's device: no tool sends the collage to any outside service, and no tool fetches photos from the network. Adding photos is not a tool: the person (or an assistant that operates the browser's own file chooser, such as a desktop assistant) adds them in the usual way, and the tools then arrange them.
@@ -129,7 +130,7 @@ Whatever the assistant does, the person sees it, can undo it, and the app never 
 
 - **Tool**: one action offered to an assistant, with a name, a description, what it needs and what it returns.
 - **App state**: what the assistant reads: photos, pages, selection, settings, progress.
-- **Confirmation**: the question the app puts to the person before a hard-to-reverse action, which an assistant's request waits on.
+- **Confirmation** (pending, confirmed or cancelled): the question the app puts to the person before a hard-to-reverse action, which an assistant's request waits on.
 
 ## Success Criteria _(mandatory)_
 
