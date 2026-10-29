@@ -31,7 +31,16 @@ const EXTENSIONS = new Set([
 ]);
 const NAMES = new Set(["Dockerfile", ".dockerignore"]);
 // Third-party or data files that carry their own notices.
-const SKIP = [/^src\/i18n\/po\//, /^public\/icon\.svg$/, /^LICENSE$/, /^package-lock\.json$/];
+// Spec Kit's own files (MIT, installed by `specify init`) keep their upstream form; the
+// project's constitution in .specify/memory/ is checked like any other file.
+const SKIP = [
+  /^src\/i18n\/po\//,
+  /^public\/icon\.svg$/,
+  /^LICENSE$/,
+  /^package-lock\.json$/,
+  /^\.claude\//,
+  /^\.specify\/(?!memory\/)/,
+];
 
 const files = execFileSync("git", ["ls-files", "-co", "--exclude-standard"], { encoding: "utf8" })
   .split("\n")

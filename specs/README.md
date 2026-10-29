@@ -22,7 +22,8 @@ One folder per feature slice, built in order. A spec is done only when its gate 
 | [015](015-book-export)                      | Saving a book                                                         | One image per page, in order, each matching its preview                                                                               | Done (Chromium)                                                                                                                                                                            |
 | [016](016-pages-everywhere)                 | Every collage is a book of pages                                      | One page behaves as before; page controls and a pill above each page appear from the second page; an Instagram post is a page type    | Done (Chromium)                                                                                                                                                                            |
 
-Spec Kit's CLI could not be installed in the authoring environment (installing from
-an external git source was not permitted), so these documents follow Spec Kit's
-layout by hand: `.specify/memory/constitution.md`, then `spec.md`, `plan.md`,
-`tasks.md` per feature.
+Specs 000 to 016 were written by hand in Spec Kit's layout (the CLI could not be installed at
+the time): `.specify/memory/constitution.md`, then `spec.md`, `plan.md`, `tasks.md` per feature.
+Spec Kit is now installed (`specify init --here --integration claude`): its templates and scripts
+are in `.specify/`, and its Claude Code skills (`/speckit-specify`, `/speckit-plan`,
+`/speckit-tasks`, `/speckit-converge` and others) in `.claude/skills/`. New features use them.
