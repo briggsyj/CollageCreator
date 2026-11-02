@@ -15,6 +15,7 @@ import {
   makeOrientedJpeg,
   near,
   posterPoint,
+  posterRect,
   previewColor,
   previewDifference,
   previewIdle,
@@ -136,6 +137,74 @@ test.describe("Cropping the selected photo", () => {
     await expect(page.locator("#dock-name")).toHaveText(/\.png$/);
     await expect(page.locator("#crop-tools")).toBeHidden();
     await expect(page.locator("#crop-toggle")).toHaveAttribute("aria-pressed", "false");
+  });
+
+  test("double-clicking a photo with the Select tool opens crop mode at once", async ({ page }) => {
+    await setSize(page, 400, 400);
+    await page.fill("#border-width", "0");
+    await addPhotos(page, [await makeOrientedJpeg(page, "halves.jpg", 1)]);
+    await settle(page);
+    await page.click("#mode-select");
+    const p = await posterPoint(page, 0.5, 0.5);
+    await page.mouse.dblclick(p.x, p.y);
+    await expect(page.locator("#crop-tools")).toBeVisible();
+    await expect(page.locator("#crop-toggle")).toHaveAttribute("aria-pressed", "true");
+    // A second double click keeps cropping rather than switching it off.
+    await page.mouse.dblclick(p.x, p.y);
+    await expect(page.locator("#crop-tools")).toBeVisible();
+  });
+
+  test("moving to another photo finishes the crop, and coming back does not resume it", async ({
+    page,
+  }) => {
+    await setSize(page, 400, 800);
+    await page.fill("#border-width", "0");
+    await addPhotos(
+      page,
+      await makeImages(page, [
+        { name: "r.png", w: 400, h: 400, color: "red" as const },
+        { name: "b.png", w: 400, h: 400, color: "blue" as const },
+      ]),
+    );
+    await page.fill("#columns", "1");
+    await settle(page);
+    await clickPhoto(page, 0.5, 0.25);
+    await page.click("#crop-toggle");
+    await expect(page.locator("#crop-tools")).toBeVisible();
+    const bottom = await posterPoint(page, 0.5, 0.75);
+    await page.mouse.click(bottom.x, bottom.y);
+    await expect(page.locator("#crop-tools")).toBeHidden();
+    const top = await posterPoint(page, 0.5, 0.25);
+    await page.mouse.click(top.x, top.y);
+    await expect(page.locator("#span-group")).toBeVisible();
+    await expect(page.locator("#crop-toggle")).toHaveAttribute("aria-pressed", "false");
+    await expect(page.locator("#crop-tools")).toBeHidden();
+  });
+
+  test("holding Space while cropping pans the view, then the crop carries on", async ({
+    page,
+  }) => {
+    await setUp(page);
+    const start = await posterRect(page);
+    const p = await posterPoint(page, 0.5, 0.5);
+    await page.mouse.move(p.x, p.y);
+    await page.keyboard.down("Space");
+    await page.mouse.down();
+    await page.mouse.move(p.x + 60, p.y + 30, { steps: 4 });
+    await page.mouse.up();
+    await page.keyboard.up("Space");
+    await expect.poll(async () => (await posterRect(page)).x).toBeCloseTo(start.x + 60, 0);
+    // Still cropping, and the photo itself did not move inside its cell.
+    await expect(page.locator("#crop-tools")).toBeVisible();
+    await expect(page.locator("#preview")).toHaveAttribute("data-crop", "");
+    // Without Space a drag moves the photo again.
+    await page.locator("#crop-zoom").fill("3");
+    const q = await posterPoint(page, 0.5, 0.5);
+    await page.mouse.move(q.x, q.y);
+    await page.mouse.down();
+    await page.mouse.move(q.x + 40, q.y, { steps: 4 });
+    await page.mouse.up();
+    expect((await posterRect(page)).x).toBeCloseTo(start.x + 60, 0);
   });
 
   test("the crop is kept after a refresh", async ({ page }) => {

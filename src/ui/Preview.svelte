@@ -354,7 +354,8 @@
     const order = app.layout ? readingOrder(app.layout) : [];
     const pressed = order.indexOf(cellAt(e.clientX, e.clientY));
     if (pressed >= 0) app.focused = pressed;
-    if (app.cropping) {
+    // Holding Space while cropping pans the view for a moment; the crop carries on after.
+    if (app.cropping && !app.spaceHeld) {
       // Adjusting a crop: a drag on the selected photo moves it inside its cell.
       const photoIndex = photoAt(cellAt(e.clientX, e.clientY));
       if (photoIndex === app.selected) {
@@ -431,17 +432,17 @@
       switchedWhileCropping = false;
       return;
     }
-    if (cropDrag || app.cropping) {
-      cropDrag = null;
-      return;
-    }
     if (panning) {
       // Panning never picks a photo: only the Select tool does (and Swap, to choose two to swap).
       // A click with the Pan tool (not a drag, nor Space held to pan for a moment) lets go of
       // the selection.
       const moved = Math.hypot(e.clientX - panStart.x, e.clientY - panStart.y);
-      if (moved < 4 && !app.spaceHeld) app.deselect();
+      if (moved < 4 && !app.spaceHeld && !app.cropping) app.deselect();
       endPan();
+      return;
+    }
+    if (cropDrag || app.cropping) {
+      cropDrag = null;
       return;
     }
     const to = cellAt(e.clientX, e.clientY);
@@ -460,6 +461,15 @@
     if (dragFrom >= 0 && dragFrom !== to && app.selected === null) app.pick(dragFrom);
     app.pick(to);
     dragFrom = -1;
+  }
+
+  /** Double-clicking a photo with the Select tool opens crop mode on it. */
+  function onDoubleClick(e: MouseEvent): void {
+    if (app.activeMode !== "select") return;
+    const photoIndex = photoAt(cellAt(e.clientX, e.clientY));
+    if (photoIndex === undefined) return;
+    app.cropPhoto(photoIndex);
+    if (!app.narrow) app.setTab("photos", false);
   }
 
   /** Scrolling over the collage zooms around the mouse (pinch gestures arrive as ctrl + wheel). */
@@ -625,6 +635,7 @@
     onpointerdown={onPointerDown}
     onpointermove={onPointerMove}
     onpointerup={onPointerUp}
+    ondblclick={onDoubleClick}
     onpointercancel={(e) => {
       liftTouch(e);
       if (touches.size === 0) afterPinch = false;

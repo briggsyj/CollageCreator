@@ -810,6 +810,8 @@ export class AppState {
   selectPhoto(photoIndex: number): void {
     const photo = this.photos[photoIndex];
     if (!photo) return;
+    // Moving to another photo finishes cropping this one (its crop is already applied).
+    if (this.cropFor !== photoIndex) this.cropFor = null;
     if (this.multiSelected) {
       // A plain click on one of several selected photos narrows the selection to it.
       this.alsoSelected = new Set();
@@ -919,6 +921,16 @@ export class AppState {
     if (this.selected === null || this.multiSelected) return;
     this.cropFor = this.cropping ? null : this.selected;
     this.setStatus(this.cropping ? t("Drag the photo to move it, scroll to zoom.") : "");
+  }
+
+  /** Select a photo and open crop mode on it at once (a double click with the Select tool). */
+  cropPhoto(photoIndex: number): void {
+    const photo = this.photos[photoIndex];
+    if (!photo) return;
+    if (this.multiSelected) this.alsoSelected = new Set();
+    this.selected = photoIndex;
+    this.cropFor = photoIndex;
+    this.setStatus(t("Drag the photo to move it, scroll to zoom."));
   }
 
   /** The selected photo's cell in layout units (the page is 1 wide), if it has one. */
