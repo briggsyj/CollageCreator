@@ -484,6 +484,10 @@ test.describe("Collage Creator: layout, modes, sizes and notices", () => {
     for (let i = 0; i < 3; i++) await page.click("#zoom-in");
     await expect(page.locator("#view-zoom")).toContainText("%");
     await expect.poll(async () => (await posterRect(page)).w).toBeGreaterThan(before.w * 1.3);
+    // The width can pass the threshold after the second click, while the third zoom is still to
+    // be drawn. Wait for that frame, or the caller's "start" position is read before the view
+    // settles and the drag assertions compare against a stale position (seen on WebKit CI).
+    await previewIdle(page);
   }
 
   test("in Pan mode a drag moves the collage and a click does not select a photo", async ({
