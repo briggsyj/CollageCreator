@@ -86,7 +86,10 @@ test.describe("WebMCP agent tools", () => {
   test("with no WebMCP in the browser the app loads without error", async ({ browser }) => {
     const plain = await browser.newPage();
     const errors: string[] = [];
-    plain.on("pageerror", (e) => errors.push(e.message));
+    // WebKit reports this harmless layout message as an error; it is not the app failing.
+    plain.on("pageerror", (e) => {
+      if (!e.message.startsWith("ResizeObserver loop")) errors.push(e.message);
+    });
     await plain.goto("./");
     await expect(plain.locator("#preview")).toBeVisible();
     expect(await plain.evaluate(() => "modelContext" in navigator)).toBe(false);
