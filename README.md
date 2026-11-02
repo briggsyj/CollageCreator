@@ -45,6 +45,8 @@ Your work is kept in your browser, so a refresh doesn't lose it.
 - Works on phones and tablets (pinch to zoom, press and hold to drag photos) as well as desktop
 - Light and dark themes with a frosted glass look
 - Keyboard friendly, with a tooltip on every button
+- Ready for browser AI assistants: in a browser with WebMCP, an assistant can arrange and save a
+  collage with the same controls you have (it asks you before removing anything)
 - Handles 100+ photos, HEIC photos from iPhones, and photos taken sideways
 
 ## Host your own copy

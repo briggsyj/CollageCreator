@@ -201,6 +201,10 @@ export class AppState {
   /** What the confirm dialog is asking. */
   confirming = $state.raw<Confirmation | null>(null);
   progress = $state(0);
+  /** Where the last confirmation stands (see `confirmationOutcome`). */
+  private confirmState = $state<"pending" | "confirmed" | null>(null);
+  /** What the last save downloaded: the file's name and how many images it holds. */
+  lastSave = $state.raw<{ file: string; images: number } | null>(null);
   /** Becomes true once saved work has been restored; nothing is saved before. */
   persistReady = $state(false);
 
@@ -516,12 +520,25 @@ export class AppState {
   /** Ask before doing something that is hard to take back. */
   confirm(question: Confirmation): void {
     this.confirming = question;
+    this.confirmState = "pending";
     this.dialog = "confirm";
+  }
+
+  /** The question the person is being asked, if the confirm dialog is open. */
+  get pendingQuestion(): string | null {
+    return this.dialog === "confirm" && this.confirming ? this.confirming.title : null;
+  }
+
+  /** How the last question ended: confirmed, or cancelled (closed without the main button). */
+  get confirmationOutcome(): "confirmed" | "cancelled" | null {
+    if (this.confirmState === "confirmed") return "confirmed";
+    return this.confirmState === "pending" && this.dialog !== "confirm" ? "cancelled" : null;
   }
 
   /** The confirm dialog's main button. */
   confirmed(): void {
     const run = this.confirming?.run;
+    this.confirmState = "confirmed";
     this.dialog = null;
     this.confirming = null;
     run?.();
@@ -810,6 +827,8 @@ export class AppState {
   selectPhoto(photoIndex: number): void {
     const photo = this.photos[photoIndex];
     if (!photo) return;
+    // Moving to another photo finishes cropping this one (its crop is already applied).
+    if (this.cropFor !== photoIndex) this.cropFor = null;
     if (this.multiSelected) {
       // A plain click on one of several selected photos narrows the selection to it.
       this.alsoSelected = new Set();
@@ -822,6 +841,25 @@ export class AppState {
       this.selected = photoIndex;
       this.setStatus(t("Selected %(name)s.", { name: photo.name }));
     }
+  }
+
+  /** Select exactly these photos (the first is the main one). */
+  selectMany(indices: readonly number[]): void {
+    const valid = [...new Set(indices)].filter((i) => this.photos[i]);
+    this.cropFor = null;
+    const [first, ...rest] = valid;
+    if (first === undefined) {
+      this.deselect();
+      return;
+    }
+    this.selected = first;
+    this.alsoSelected = new Set(rest.flatMap((i) => this.photos[i]?.id ?? []));
+    const n = valid.length;
+    this.setStatus(
+      n > 1
+        ? t("%(n)s photos selected.", { n })
+        : t("Selected %(name)s.", { name: this.photos[first]?.name ?? "" }),
+    );
   }
 
   /** Add a photo to the selection, or take it out (Shift-click). */
@@ -919,6 +957,16 @@ export class AppState {
     if (this.selected === null || this.multiSelected) return;
     this.cropFor = this.cropping ? null : this.selected;
     this.setStatus(this.cropping ? t("Drag the photo to move it, scroll to zoom.") : "");
+  }
+
+  /** Select a photo and open crop mode on it at once (a double click with the Select tool). */
+  cropPhoto(photoIndex: number): void {
+    const photo = this.photos[photoIndex];
+    if (!photo) return;
+    if (this.multiSelected) this.alsoSelected = new Set();
+    this.selected = photoIndex;
+    this.cropFor = photoIndex;
+    this.setStatus(t("Drag the photo to move it, scroll to zoom."));
   }
 
   /** The selected photo's cell in layout units (the page is 1 wide), if it has one. */
@@ -1133,7 +1181,7 @@ export class AppState {
   }
 
   /** The same size request for several photos at once, with one new arrangement. */
-  private setSpans(indices: readonly number[], change: Partial<PhotoSpan> | "reset"): void {
+  setSpans(indices: readonly number[], change: Partial<PhotoSpan> | "reset"): void {
     const first = this.photos[indices[0] ?? -1];
     if (!first) return;
     const wanted = new Set(indices);
@@ -1333,7 +1381,9 @@ export class AppState {
         baseName: `collage-${this.seed}`,
       });
       const stem = `collage-${this.seed}`;
-      download(blob, settings.splitImages > 1 ? `${stem}.zip` : `${stem}.${ext}`);
+      const name = settings.splitImages > 1 ? `${stem}.zip` : `${stem}.${ext}`;
+      download(blob, name);
+      this.lastSave = { file: name, images: Math.max(1, settings.splitImages) };
     } catch (err) {
       if (!(err instanceof DOMException && err.name === "AbortError")) {
         this.addMessage({
@@ -1384,6 +1434,7 @@ export class AppState {
       });
     }
     download(result.file.blob, result.file.name);
+    this.lastSave = { file: result.file.name, images: result.images };
   }
 
   cancelExport: () => void = () => {};

@@ -18,6 +18,8 @@ export interface BookExport {
   file: BookFile | null;
   /** Pages (0-based) left out because they have no photos. */
   skipped: number[];
+  /** How many images the file holds (the file itself when it is one image). */
+  images: number;
 }
 
 /**
@@ -41,7 +43,7 @@ export async function exportBook(
   const pages = onlyPage === undefined ? filled : filled.filter((k) => k === onlyPage);
   const all = (layout.pages ?? []).map((_, k) => k);
   const skipped = onlyPage === undefined ? all.filter((k) => !filled.includes(k)) : [];
-  if (pages.length === 0) return { file: null, skipped };
+  if (pages.length === 0) return { file: null, skipped, images: 0 };
 
   const carousel = input.settings.splitImages > 1;
   const total = layout.pages?.length ?? 1;
@@ -73,10 +75,10 @@ export async function exportBook(
   const only = files[0];
   if (files.length === 1 && only) {
     const name = onlyPage === undefined ? stem : `${stem}_page-${(pages[0] ?? 0) + 1}`;
-    return { file: { name: `${name}.${ext}`, blob: only.blob }, skipped };
+    return { file: { name: `${name}.${ext}`, blob: only.blob }, skipped, images: 1 };
   }
   const entries = await Promise.all(
     files.map(async (f) => ({ name: f.name, data: new Uint8Array(await f.blob.arrayBuffer()) })),
   );
-  return { file: { name: `${stem}.zip`, blob: zipBlob(entries) }, skipped };
+  return { file: { name: `${stem}.zip`, blob: zipBlob(entries) }, skipped, images: files.length };
 }

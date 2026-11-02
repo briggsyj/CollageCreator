@@ -61,6 +61,17 @@ and keep `AppState` methods thin: change state, call the pure code, set a status
 | `src/platform/` | Detecting the largest canvas the browser allows              | Yes    |
 | `src/i18n/`     | Message lookup from the original `.po` catalogues            | No     |
 | `src/ui/`       | Svelte components, the state, presets, the address           | Yes    |
+| `src/agent/`    | WebMCP tools for a browser assistant, one per action         | Some   |
+
+### Agent tools (WebMCP)
+
+`src/agent/` offers the app's actions to a browser assistant through `navigator.modelContext`
+(or `document.modelContext`), when the browser has one; otherwise it does nothing. Each tool
+is a thin call onto the `AppState` method its control calls, so limits and confirmations are
+shared. Photos are named by page and position (`args.ts`), the state an assistant reads is a
+pure function (`report.ts`), and `controls.json` records which tool matches each control
+(checked by `e2e/agent-coverage.spec.ts`, so a new control needs a tool or a reason). Adding
+photos is not a tool: the person does it through the browser's file chooser.
 
 ## Principles
 

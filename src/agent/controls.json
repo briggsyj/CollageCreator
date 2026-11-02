@@ -1,0 +1,254 @@
+{
+  "//theme": {
+    "reason": "there is no theme control; light and dark follow the system"
+  },
+  "Move page N down": {
+    "tool": "move_page"
+  },
+  "Move page N left": {
+    "tool": "move_page"
+  },
+  "Move page N right": {
+    "tool": "move_page"
+  },
+  "Move page N up": {
+    "tool": "move_page"
+  },
+  "Remove page N": {
+    "tool": "remove_page"
+  },
+  "Rounded": {
+    "tool": "set_corners"
+  },
+  "Save page N": {
+    "tool": "save"
+  },
+  "Slight": {
+    "tool": "set_corners"
+  },
+  "Square": {
+    "tool": "set_corners"
+  },
+  "about-close": {
+    "tool": "close_dialog"
+  },
+  "about-open": {
+    "tool": "open_dialog"
+  },
+  "add": {
+    "reason": "opens the browser's own file chooser; the person adds photos (spec FR-009)"
+  },
+  "add-empty": {
+    "reason": "opens the browser's own file chooser; the person adds photos (spec FR-009)"
+  },
+  "add-page-tile": {
+    "tool": "add_page"
+  },
+  "border-color": {
+    "tool": "set_border"
+  },
+  "border-width": {
+    "tool": "set_border"
+  },
+  "cancel": {
+    "tool": "cancel_save"
+  },
+  "choice:a2": {
+    "tool": "set_output_size"
+  },
+  "choice:a3": {
+    "tool": "set_output_size"
+  },
+  "choice:a4": {
+    "tool": "set_output_size"
+  },
+  "choice:b1": {
+    "tool": "set_output_size"
+  },
+  "choice:custom": {
+    "tool": "set_output_size"
+  },
+  "choice:post": {
+    "tool": "set_instagram_post"
+  },
+  "choice:screen": {
+    "tool": "set_output_size"
+  },
+  "choice:small": {
+    "tool": "set_output_size"
+  },
+  "choice:square": {
+    "tool": "set_output_size"
+  },
+  "columns": {
+    "tool": "set_columns"
+  },
+  "columns-less": {
+    "tool": "set_columns"
+  },
+  "columns-more": {
+    "tool": "set_columns"
+  },
+  "confirm-cancel": {
+    "reason": "the person's own answer to a question; a tool never answers for them"
+  },
+  "confirm-ok": {
+    "reason": "the person's own answer to a question; a tool never confirms for them"
+  },
+  "corner-style": {
+    "tool": "set_corners"
+  },
+  "crop-reset": {
+    "tool": "crop_photo"
+  },
+  "crop-toggle": {
+    "tool": "crop_photo"
+  },
+  "crop-zoom": {
+    "tool": "crop_photo"
+  },
+  "dock-done": {
+    "tool": "clear_selection"
+  },
+  "format": {
+    "tool": "set_save_format"
+  },
+  "format-jpeg": {
+    "tool": "set_save_format"
+  },
+  "format-png": {
+    "tool": "set_save_format"
+  },
+  "height": {
+    "tool": "set_output_size"
+  },
+  "help-close": {
+    "tool": "close_dialog"
+  },
+  "help-open": {
+    "tool": "open_dialog"
+  },
+  "help-open-head": {
+    "tool": "open_dialog"
+  },
+  "language": {
+    "tool": "set_language"
+  },
+  "layout-gallery": {
+    "tool": "set_layout"
+  },
+  "layout-mosaic": {
+    "tool": "set_layout"
+  },
+  "menu-open": {
+    "reason": "opens a menu on narrow screens; its items (language, help, about) have their own tools"
+  },
+  "mode-pan": {
+    "tool": "set_tool"
+  },
+  "mode-select": {
+    "tool": "set_tool"
+  },
+  "mode-swap": {
+    "tool": "set_tool"
+  },
+  "move-page": {
+    "tool": "move_page"
+  },
+  "orient-landscape": {
+    "tool": "set_orientation"
+  },
+  "orient-portrait": {
+    "tool": "set_orientation"
+  },
+  "outer-border": {
+    "tool": "set_border"
+  },
+  "pages": {
+    "tool": "set_page_count"
+  },
+  "pages-less": {
+    "tool": "set_page_count"
+  },
+  "pages-more": {
+    "tool": "set_page_count"
+  },
+  "photo-row": {
+    "tool": "select_photos"
+  },
+  "preset": {
+    "tool": "set_output_size"
+  },
+  "regenerate": {
+    "tool": "shuffle_layout"
+  },
+  "remove-all": {
+    "tool": "remove_all_photos"
+  },
+  "remove-selected": {
+    "tool": "remove_photos"
+  },
+  "reset-view": {
+    "tool": "zoom_view"
+  },
+  "save": {
+    "tool": "save"
+  },
+  "save-close": {
+    "reason": "closes the save options on narrow screens; layout only"
+  },
+  "seed": {
+    "tool": "set_seed"
+  },
+  "sheet-close": {
+    "reason": "closes a sheet on narrow screens; layout only"
+  },
+  "span-reset": {
+    "tool": "resize_photo"
+  },
+  "span-taller": {
+    "tool": "resize_photo"
+  },
+  "span-wider": {
+    "tool": "resize_photo"
+  },
+  "split-count": {
+    "tool": "set_instagram_post"
+  },
+  "split-less": {
+    "tool": "set_instagram_post"
+  },
+  "split-more": {
+    "tool": "set_instagram_post"
+  },
+  "split-size": {
+    "tool": "set_instagram_post"
+  },
+  "swatch": {
+    "tool": "set_border"
+  },
+  "tab-photos": {
+    "tool": "open_tab"
+  },
+  "tab-poster": {
+    "tool": "open_tab"
+  },
+  "tab-save": {
+    "tool": "open_tab"
+  },
+  "tab-style": {
+    "tool": "open_tab"
+  },
+  "undo-remove": {
+    "tool": "undo_remove"
+  },
+  "width": {
+    "tool": "set_output_size"
+  },
+  "zoom-in": {
+    "tool": "zoom_view"
+  },
+  "zoom-out": {
+    "tool": "zoom_view"
+  }
+}

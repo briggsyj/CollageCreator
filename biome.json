@@ -6,7 +6,18 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!src/i18n/po", "!public/icon.svg", "!package-lock.json", "!.claude"]
+    "includes": [
+      "**",
+      "!src/i18n/po",
+      "!public/icon.svg",
+      "!package-lock.json",
+      "!.claude",
+      "!.specify/templates",
+      "!.specify/scripts",
+      "!.specify/workflows",
+      "!.specify/integrations",
+      "!.specify/*.json"
+    ]
   },
   "formatter": {
     "enabled": true,
