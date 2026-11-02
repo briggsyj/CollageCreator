@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: GPL-2.0-or-later -->
 <!-- Copyright (C) 2026 John Briggs -->
 <script lang="ts">
+  import { borderFromPercent, percentFromBorder } from "../core/border";
   import { MAX_COLUMNS, normaliseColumns } from "../core/layout";
   import type { CornerStyle } from "../core/types";
   import { showValue } from "./actions";
@@ -23,12 +24,7 @@
   ];
 
   const gallery = $derived(app.layoutStyle === "gallery");
-  /**
-   * The border slider runs 0 to 100% of its track, for borders of 0 to 10% of the collage's
-   * longer side (wider looks heavy). It shows how full it is, not the share of the side.
-   */
-  const BORDER_MAX = 0.1;
-  const percent = $derived(Math.round((app.settings.borderWidth / BORDER_MAX) * 100));
+  const percent = $derived(percentFromBorder(app.settings.borderWidth));
   const rangeFill = (value: number, min: number, max: number) =>
     `${Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100))}%`;
   /** Bumped when the columns field should show the stored value again (the edit is done). */
@@ -41,9 +37,7 @@
 
   function setBorderWidth(raw: string): void {
     const pct = Number(raw);
-    app.settings.borderWidth = Number.isFinite(pct)
-      ? (Math.min(100, Math.max(0, pct)) / 100) * BORDER_MAX
-      : 0;
+    app.settings.borderWidth = Number.isFinite(pct) ? borderFromPercent(pct) : 0;
   }
 </script>
 

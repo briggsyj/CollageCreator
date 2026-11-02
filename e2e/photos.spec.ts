@@ -181,9 +181,7 @@ test.describe("Cropping the selected photo", () => {
     await expect(page.locator("#crop-tools")).toBeHidden();
   });
 
-  test("holding Space while cropping pans the view, then the crop carries on", async ({
-    page,
-  }) => {
+  test("holding Space while cropping pans the view, then the crop carries on", async ({ page }) => {
     await setUp(page);
     const start = await posterRect(page);
     const p = await posterPoint(page, 0.5, 0.5);

@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-29
 
-**Status**: Draft
+**Status**: Implemented (Chromium); tried by hand with a real assistant: not yet
 
 **Input**: User description: "WebMCP support for every action facilitating the usage of this web app: the page registers tools with the browser (navigator.modelContext) so an in-browser AI agent can do anything a user can: choose layout, size, pages, borders, corners, columns, shuffle, swap, resize, crop, remove, undo, select, language, theme, and save/export."
 

@@ -46,3 +46,4 @@ Mixing standard and carousel pages in one book; a different size for one page; s
 - Several photos can be selected (Shift-click, with any tool or in the Photos step); size and remove apply to all, crop is off, and Move to page moves them together.
 - Selection ends when something unrelated is clicked or another tool is chosen (not while Space is held to pan). Removing photos asks first; Enter confirms in every confirmation dialogue.
 - Two fingers pinch to zoom the preview, also with the Pan tool. Every button has a title shown as a tooltip, and clickable items show hover feedback on devices with a pointer.
+- Cropping: double-clicking a photo with the Select tool selects it and opens crop mode at once. Choosing another photo finishes cropping the first (its crop is kept) and does not resume if the first is chosen again. Holding Space while cropping pans the view for as long as it is held, then the crop carries on.

@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: GPL-2.0-or-later -->
 <!-- Copyright (C) 2026 John Briggs -->
 <script lang="ts">
+  import { readingOrder } from "../core/reading";
   import type { Layout, Rect } from "../core/types";
   import { t } from "../i18n";
   import { cornerRadius } from "../render/draw";
@@ -68,13 +69,6 @@
   });
 
   /** Cells in reading order (top to bottom, left to right), for keyboard navigation. */
-  function readingOrder(layout: Layout): number[] {
-    return layout.placements
-      .map((p, i) => ({ i, page: p.page ?? 0, y: Math.round(p.cell.y * 1000), x: p.cell.x }))
-      .sort((a, b) => a.page - b.page || a.y - b.y || a.x - b.x)
-      .map((e) => e.i);
-  }
-
   /** Redraw on the next frame: wheel and drag events can arrive faster than that. */
   function requestDraw(): void {
     if (frameRequested) return;
