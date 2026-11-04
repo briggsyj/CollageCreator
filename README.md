@@ -18,8 +18,8 @@
 1. **Add photos.** Choose them, drag them onto the page, or drop a zipped folder of them.
 2. **Make it yours.** Pick an output size, a layout, borders and corners. Swap photos, make one
    wider or taller, or crop it.
-3. **Save.** Download a PNG or JPEG. A collage with several pages, or an Instagram carousel, comes
-   as a zip of images.
+3. **Save.** Download a PNG, a JPEG or a PDF. A collage with several pages comes as one PDF with a
+   page for each, or as a zip of images; an Instagram carousel comes as a zip of images.
 
 Your work is kept in your browser, so a refresh doesn't lose it.
 
@@ -32,7 +32,8 @@ Your work is kept in your browser, so a refresh doesn't lose it.
 - Every arrangement has a seed in the address, so you can share or return to it
 
 **Sizes and pages**
-- Screen, print (A4 to B1 at 300 DPI), social and custom sizes, landscape or portrait
+- Screen, print (A4 to B1 at 300 DPI), social and custom sizes, landscape or portrait; a PDF is
+  made at paper size, so print sizes print at full size
 - **Pages:** add as many pages as you need, each saved as its own image; drag photos between them
 - **Instagram carousel:** one wide collage cut into square images, with cut marks in the preview
 

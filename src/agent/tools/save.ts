@@ -12,16 +12,21 @@ export function saveTools(kit: Kit): Tool[] {
   return [
     tool(
       "set_save_format",
-      t("Choose the saved image format: png or jpeg, and for jpeg the quality 1 to 100."),
+      t(
+        "Choose the saved format: png, jpeg or pdf (not for an Instagram post), and for jpeg and pdf the picture quality 1 to 100.",
+      ),
       {
-        format: { type: "string", enum: ["png", "jpeg"] },
+        format: { type: "string", enum: ["png", "jpeg", "pdf"] },
         quality: { type: "integer", minimum: 1, maximum: 100 },
       },
       (a) => {
         const busy = kit.busy();
         if (busy) return busy;
-        if (a.format !== "png" && a.format !== "jpeg") {
-          return refused("bad-value", t("The format is png or jpeg."));
+        if (a.format !== "png" && a.format !== "jpeg" && a.format !== "pdf") {
+          return refused("bad-value", t("The format is png, jpeg or pdf."));
+        }
+        if (a.format === "pdf" && app.isSplit) {
+          return refused("not-supported", t("PDF is not offered for an Instagram post."));
         }
         const quality = a.quality === undefined ? undefined : wholeIn(a.quality, 1, 100);
         if (a.quality !== undefined && quality === undefined) {

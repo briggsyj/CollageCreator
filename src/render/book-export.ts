@@ -5,7 +5,7 @@ import { bookFileNames, pageLayout, pagesWithPhotos } from "../core/book";
 import { splitFileNames } from "../core/split";
 import type { Layout } from "../core/types";
 import { zipBlob } from "../io/zip";
-import { type ExportInput, exportPieces } from "./export";
+import { type ExportInput, exportPieces, pdfBlob } from "./export";
 
 /** What saving a book gives: one file, or a zip of the pages' images. */
 export interface BookFile {
@@ -48,6 +48,8 @@ export async function exportBook(
   const carousel = input.settings.splitImages > 1;
   const total = layout.pages?.length ?? 1;
   const pad = (n: number) => String(n).padStart(String(total).length, "0");
+  const pdf = input.settings.format === "pdf" && !carousel;
+  const pictures: Blob[] = [];
   const files: BookFile[] = [];
   for (const [i, page] of pages.entries()) {
     const pieces = await exportPieces({
@@ -59,12 +61,24 @@ export async function exportBook(
       onProgress: (done, count) =>
         input.onProgress?.((i + (count ? done / count : 1)) / pages.length),
     });
-    if (carousel) {
+    if (pdf) {
+      pictures.push(pieces[0] as Blob);
+    } else if (carousel) {
       const names = splitFileNames(`${stem}_p${pad(page + 1)}`, pieces.length, ext);
       for (const [j, blob] of pieces.entries()) files.push({ name: names[j] as string, blob });
     } else {
       files.push({ name: "", blob: pieces[0] as Blob });
     }
+  }
+  if (pdf) {
+    // One PDF with a page for each page that has photos, in order.
+    const name = onlyPage === undefined ? stem : `${stem}_page-${(pages[0] ?? 0) + 1}`;
+    const { width, height } = input.settings;
+    return {
+      file: { name: `${name}.pdf`, blob: await pdfBlob(pictures, width, height) },
+      skipped,
+      images: pictures.length,
+    };
   }
   if (!carousel) {
     const names = bookFileNames(stem, files.length, ext);

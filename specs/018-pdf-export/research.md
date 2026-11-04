@@ -26,3 +26,7 @@
 ## D5. Instagram post
 
 - **Decision**: no PDF for a post (clarification Q2). The choice is hidden; choosing the post size while PDF is chosen goes back to PNG.
+
+## D6. Checked with real readers
+
+A three-page A4 book saved from the app was read by poppler's `pdfinfo` (3 pages, A4, no errors), by pypdf (page boxes 841.92 × 595.2, a 3508 × 2480 picture on each page) and rendered with `pdftoppm`: the picture was right. Not yet opened in a desktop reader, a phone or a print shop's software.

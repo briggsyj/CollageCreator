@@ -56,7 +56,7 @@ and keep `AppState` methods thin: change state, call the pure code, set a status
 | Folder          | Responsibility                                               | DOM?   |
 | --------------- | ------------------------------------------------------------ | ------ |
 | `src/core/`     | Layout, pages, crops, split images, seeded randomness, types | No     |
-| `src/io/`       | Import, ZIP read and write, HEIC, saved work, colours        | Some   |
+| `src/io/`       | Import, ZIP and PDF writing, ZIP reading, HEIC, saved work   | Some   |
 | `src/render/`   | Preview and export drawing, worker pool, view maths          | Canvas |
 | `src/platform/` | Detecting the largest canvas the browser allows              | Yes    |
 | `src/i18n/`     | Message lookup from the original `.po` catalogues            | No     |

@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-02
 
-**Status**: Draft
+**Status**: Implemented (Chromium); read by poppler and pypdf, not yet by a desktop or phone reader
 
 **Input**: User description: "the ability to export to pdf"
 

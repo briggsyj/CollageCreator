@@ -3,6 +3,7 @@
 
 import { sliceRects, splitFileNames } from "../core/split";
 import type { Layout, Photo, PosterSettings } from "../core/types";
+import { pdfBytes } from "../io/pdf";
 import { zipBlob } from "../io/zip";
 import {
   borderPixels,
@@ -28,13 +29,30 @@ export interface ExportInput {
   baseName?: string;
 }
 
+/** The picture type drawn for a format: a PDF holds JPEG pictures. */
 export function mimeType(format: PosterSettings["format"]): string {
-  return format === "jpeg" ? "image/jpeg" : "image/png";
+  return format === "png" ? "image/png" : "image/jpeg";
 }
 
 /** The file extension for a format. */
 export function extension(format: PosterSettings["format"]): string {
-  return format === "jpeg" ? "jpg" : "png";
+  return format === "jpeg" ? "jpg" : format;
+}
+
+/** A PDF with a page for each picture (JPEG blobs of `width` × `height` pixels). */
+export async function pdfBlob(
+  pictures: readonly Blob[],
+  width: number,
+  height: number,
+): Promise<Blob> {
+  const pages = await Promise.all(
+    pictures.map(async (blob) => ({
+      jpeg: new Uint8Array(await blob.arrayBuffer()),
+      width,
+      height,
+    })),
+  );
+  return new Blob([pdfBytes(pages) as BlobPart], { type: "application/pdf" });
 }
 
 /**
@@ -49,9 +67,16 @@ export async function exportCollage(input: ExportInput): Promise<Blob> {
   const pieces = await exportPieces(input);
   const { settings } = input;
   const count = settings.splitImages;
-  if (count < 2) return pieces[0] as Blob;
+  if (count < 2) {
+    const page = pieces[0] as Blob;
+    return settings.format === "pdf" ? pdfBlob([page], settings.width, settings.height) : page;
+  }
   // One square image per part of the collage, named in order from the leftmost.
-  const names = splitFileNames(input.baseName ?? "collage", count, extension(settings.format));
+  const names = splitFileNames(
+    input.baseName ?? "collage",
+    count,
+    extension(settings.format === "pdf" ? "jpeg" : settings.format),
+  );
   const entries = await Promise.all(
     pieces.map(async (blob, i) => ({
       name: names[i] as string,
@@ -121,7 +146,7 @@ export async function exportPieces(input: ExportInput): Promise<Blob[]> {
     drawBorders(ctx, rects, width, height, frame);
     const options = {
       type: mimeType(settings.format),
-      quality: settings.format === "jpeg" ? settings.jpegQuality : undefined,
+      quality: settings.format === "png" ? undefined : settings.jpegQuality,
     };
     const count = settings.splitImages;
     if (count < 2) return [await canvas.convertToBlob(options)];

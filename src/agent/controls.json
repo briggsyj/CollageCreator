@@ -116,6 +116,9 @@
   "format-jpeg": {
     "tool": "set_save_format"
   },
+  "format-pdf": {
+    "tool": "set_save_format"
+  },
   "format-png": {
     "tool": "set_save_format"
   },
