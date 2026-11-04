@@ -13,7 +13,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain (1 open: FR-004)
+- [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
@@ -31,4 +31,4 @@
 
 ## Notes
 
-- One question (FR-004) needs an answer before `/speckit-clarify` or `/speckit-plan`.
+- Both questions answered 2026-11-04: no PDF for an Instagram post; 300 pixels per inch for sizes with no paper size.

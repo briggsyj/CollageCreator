@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-02
 
-**Status**: Draft (one open question: FR-004)
+**Status**: Draft
 
 **Input**: User description: "the ability to export to pdf"
 
@@ -13,6 +13,7 @@
 ### Session 2026-11-04
 
 - Q: What should the PDF of an Instagram post be? → A: There is none; the PDF choice is hidden for the Instagram post size.
+- Q: How big is the PDF page on paper for sizes that have no paper size? → A: The pixel size at 300 pixels per inch, as the print sizes are made.
 
 ## User Scenarios & Testing _(mandatory)_
 
@@ -77,7 +78,7 @@ A person making an Instagram post (a wide page cut into square images) is not of
 - **FR-001**: The Save options MUST offer PDF as a format beside PNG and JPEG.
 - **FR-002**: Saving as PDF MUST give a PDF file whose pages look the same as the preview of the pages.
 - **FR-003**: For a print size (A4, A3, A2, B1) in either orientation, a PDF page MUST be that paper size, so it prints at full size.
-- **FR-004**: For other sizes (screen, small, square, custom), a PDF page MUST have the shape of the output size. [NEEDS CLARIFICATION: how big should the page be on paper for sizes that have no paper size? Options: A) the size in pixels at 96 per inch, as a browser shows it; B) the size in pixels at 300 per inch, as the print sizes are made; C) fit to A4.]
+- **FR-004**: For other sizes (screen, small, square, custom), a PDF page MUST have the shape of the output size and be made at 300 pixels per inch, as the print sizes are (so 1600 × 1200 gives a page of about 5.3 × 4 inches).
 - **FR-005**: A collage with several pages MUST save as one PDF with a page for each page that has photos, in page order; empty pages are skipped with a notice.
 - **FR-006**: A page's own save button MUST save a PDF of just that page when PDF is chosen.
 - **FR-007**: The picture quality of the PDF MUST follow the quality control the person already uses for JPEG; PNG-style lossless quality is not offered for PDF.
