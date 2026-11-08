@@ -45,6 +45,8 @@ npx playwright test --project=chromium e2e/pdf.spec.ts # one engine, one file
 - `addPhotos`, `setSize`, `setSeed`, `clickPhoto`, `posterPoint`, `swapMode`.
 - `settle` / `previewIdle` wait for the preview's `data-pending` to clear; `savedWork` waits for
   `data-saving`. Never use fixed timeouts.
+- The preview canvas exposes `data-poster` (where the poster is), `data-crop` (the selected photo's
+  crop) and `data-photos` (the photos shown, by id, in placement order) for tests.
 - `saveAndRead`, `analyse`, `previewColor`, `previewDifference` compare the preview with saved images.
 - `autoReveal` opens the step that holds a control before acting on it, and turns off blur effects that
   slow WebKit on CI.

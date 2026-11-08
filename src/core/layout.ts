@@ -10,7 +10,9 @@
 // reproducible from a seed; a photo can ask to span two columns or to be taller;
 // Page.scale/scale_to_fit, Cell.content_coords and
 // Photo.move were not ported (the renderer does cover-cropping itself); the
-// column count is clamped to at least 1.
+// column count is clamped to at least 1. CHANGED again on 2026-11-08: an
+// arrangement that leaves a hole or squeezes a cell to nothing is made again
+// (from seeds drawn from the same sequence, then with fewer spanning cells).
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -26,7 +28,7 @@
 // with this program; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-import { type Rng, shuffle } from "./rng";
+import { type Rng, seededRng, shuffle } from "./rng";
 import type { Layout, LayoutPhoto, PhotoSize } from "./types";
 
 /*
@@ -284,6 +286,11 @@ export class Page {
     public targetRatio: number,
     noCols: number,
     private readonly rng: Rng,
+    /**
+     * Which photos may span two columns: any (the original), only those asked to be wider, or
+     * none. The fallbacks of `generateLayout` use the narrower modes, which always tile.
+     */
+    private readonly spans: "any" | "asked" | "none" = "any",
   ) {
     const colW = w / noCols;
     for (let i = 0; i < noCols; i++) this.cols.push(new Column(this, colW));
@@ -368,7 +375,7 @@ export class Page {
     const col = this.nextFreeCol();
     const left = col.leftNeighbor();
     const right = col.rightNeighbor();
-    if (photo.forceSpan) {
+    if (photo.forceSpan && this.spans !== "none") {
       // Asked for: span two columns whatever the usual rule says, with the neighbour whose
       // height is closest so the mismatch to absorb is as small as possible.
       // One that can be joined without a hole is preferred.
@@ -385,7 +392,7 @@ export class Page {
         return;
       }
     }
-    if (2 * this.rng.random() > photo.ratio) {
+    if (this.spans === "any" && 2 * this.rng.random() > photo.ratio) {
       if (left && Math.abs(col.h - left.h) < 0.5 * col.w && this.canJoin(left, col)) {
         this.addCellMultiCol(left, col, photo);
         return;
@@ -489,6 +496,22 @@ export class Page {
     this.adjustColsHeights();
   }
 
+  /**
+   * Whether the cells tile the page exactly: every cell has room, and together they cover the
+   * whole page. The original algorithm sometimes leaves a hole or squeezes a cell to nothing.
+   */
+  tiles(): boolean {
+    const layout = this.toLayout();
+    const pageArea = layout.width * layout.height;
+    const tiny = 1e-9 * Math.max(1, layout.placements.length);
+    let area = 0;
+    for (const { cell } of layout.placements) {
+      if (!(cell.w > tiny && cell.h > tiny)) return false;
+      area += cell.w * cell.h;
+    }
+    return Math.abs(area - pageArea) <= 1e-9 * Math.max(1, pageArea);
+  }
+
   /** Change the poster shape without changing which photo is where. */
   setTargetRatio(ratio: number): void {
     this.targetRatio = ratio;
@@ -582,15 +605,34 @@ export function generateLayout(
   // A photo that asks for more height gets a cell that many times taller than its shape implies.
   const ratios = photos.map((p) => (p.height / p.width) * (p.span?.rows ?? 1));
 
-  const page = new Page(1, posterRatio, noCols, rng);
-  const order = ratios.map((_, i) => i);
-  shuffle(order, rng);
-  for (const i of order) {
-    page.addCell(new PagePhoto(i, ratios[i] as number, photos[i]?.span?.columns === 2));
+  const build = (random: Rng, spans: "any" | "asked" | "none"): Page => {
+    const page = new Page(1, posterRatio, noCols, random, spans);
+    const order = ratios.map((_, i) => i);
+    shuffle(order, random);
+    for (const i of order) {
+      page.addCell(new PagePhoto(i, ratios[i] as number, photos[i]?.span?.columns === 2));
+    }
+    page.adjust();
+    return page;
+  };
+
+  // The original sometimes leaves a hole or squeezes a cell to nothing (specs/001, research 3).
+  // Such an arrangement is made again from a seed drawn from the same sequence, so a seed still
+  // always gives the same layout. If that keeps failing, photos stop spanning two columns
+  // unasked, and finally not at all, which always tiles.
+  let page = build(rng, "any");
+  for (let attempt = 1; !page.tiles() && attempt < RETRIES; attempt++) {
+    page = build(seededRng(Math.floor(rng.random() * 2 ** 32) >>> 0), "any");
   }
-  page.adjust();
+  for (let attempt = 0; !page.tiles() && attempt < 4 * RETRIES; attempt++) {
+    page = build(seededRng(Math.floor(rng.random() * 2 ** 32) >>> 0), "asked");
+  }
+  if (!page.tiles()) page = build(seededRng(Math.floor(rng.random() * 2 ** 32) >>> 0), "none");
   return page;
 }
+
+/** How many times each kind of arrangement is tried before a stricter one is used. */
+const RETRIES = 8;
 
 /** For tests: build a page and add cells with explicit ratios, bypassing the shuffle. */
 export function pagePhoto(index: number, ratio: number): PagePhoto {

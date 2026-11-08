@@ -5,7 +5,7 @@
 - [x] T001 Port `test_collage.py` to Vitest (`tests/layout.test.ts`)
 - [x] T002 Seeded RNG, `Rng` interface, shuffle
 - [x] T003 Port Page/Column/Cell/CellExtent and `generateLayout`
-- [x] T004 Property tests: tiling, every photo once, determinism, retargeting, swap, edge cases (**tiling ones fail by decision, see research.md**)
+- [x] T004 Property tests: tiling, every photo once, determinism, retargeting, swap, edge cases (tiling ones fixed by T062)
 - [x] T005 Layout benchmark (`npm run bench`)
 
 ## US1 Add photos (P1)
@@ -39,4 +39,4 @@
 
 - [x] T060 e2e user stories, EXIF, offline, no foreign requests (Chromium)
 - [ ] T061 e2e in Firefox and WebKit (configured; runs in CI, not run in the authoring sandbox)
-- [ ] T062 Fix layout holes so the four failing tiling tests pass (owner: later)
+- [x] T062 Fix layout holes so the four failing tiling tests pass (retry with derived seeds, then fewer spans; see research.md §3)

@@ -31,6 +31,16 @@ A TypeScript port of PhotoCollage's `collage.py`, in three phases:
 The number of columns comes from the original's heuristic (photos and page shape) or is set by the user (1
 to 100). Taller photos get more height in their column.
 
+### Holes and squeezed cells
+
+The original algorithm sometimes leaves a hole or squeezes a cell to nothing (see
+[spec 001 research](../../specs/001-create-and-export-collage/research.md), §3). `generateLayout`
+checks every arrangement with `Page.tiles()` and, if it fails, builds it again from seeds drawn from the
+same random sequence (8 tries), then without photos spanning two columns unasked (32 tries), and finally
+with no spanning at all, which always tiles. The result is still fixed by the seed, and arrangements that
+tiled first time are exactly the original's. A requested Wider is kept except in rare extreme cases (many
+photos asking for it at once), where the last fallback drops it rather than leave a hole.
+
 ## Gallery (`slicing.ts`)
 
 The page is cut into panels by a slicing tree: every inner node cuts its rectangle side by side or stacked,
