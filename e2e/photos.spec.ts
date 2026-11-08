@@ -14,6 +14,7 @@ import {
   makeImages,
   makeOrientedJpeg,
   near,
+  openTechnical,
   posterPoint,
   posterRect,
   previewColor,
@@ -41,7 +42,7 @@ test.describe("Cropping the selected photo", () => {
     await addPhotos(page, [await makeOrientedJpeg(page, "halves.jpg", 1)]);
     await settle(page);
     await clickPhoto(page, 0.5, 0.5);
-    await expect(page.locator("#span-group")).toBeVisible();
+    await expect(page.locator("#photo-actions")).toBeVisible();
     await page.click("#crop-toggle");
     await expect(page.locator("#crop-tools")).toBeVisible();
   }
@@ -106,7 +107,9 @@ test.describe("Cropping the selected photo", () => {
     const png = await saveAndRead(page);
     expect(await previewDifference(page, png)).toBeLessThan(8);
 
-    await page.click("#crop-reset");
+    // Zooming all the way out shows the photo whole again (there is no separate reset).
+    await page.locator("#crop-zoom").fill("1");
+    await expect(page.locator("#preview")).toHaveAttribute("data-crop", "");
     await settle(page);
     expect(near(await previewColor(page, 0.9, 0.5), COLORS.blue, 60)).toBe(true);
   });
@@ -125,14 +128,14 @@ test.describe("Cropping the selected photo", () => {
     await page.fill("#columns", "1");
     await settle(page);
     await clickPhoto(page, 0.5, 0.25);
-    await expect(page.locator("#span-group")).toBeVisible();
+    await expect(page.locator("#photo-actions")).toBeVisible();
     const first = await page.locator("#dock-name").textContent();
     await page.click("#crop-toggle");
     await expect(page.locator("#crop-tools")).toBeVisible();
     const bottom = await posterPoint(page, 0.5, 0.75);
     await page.mouse.click(bottom.x, bottom.y);
     // The other photo is now the selected one: the dock is still there, showing its name.
-    await expect(page.locator("#span-group")).toBeVisible();
+    await expect(page.locator("#photo-actions")).toBeVisible();
     await expect(page.locator("#dock-name")).not.toHaveText(first ?? "");
     await expect(page.locator("#dock-name")).toHaveText(/\.png$/);
     await expect(page.locator("#crop-tools")).toBeHidden();
@@ -176,7 +179,7 @@ test.describe("Cropping the selected photo", () => {
     await expect(page.locator("#crop-tools")).toBeHidden();
     const top = await posterPoint(page, 0.5, 0.25);
     await page.mouse.click(top.x, top.y);
-    await expect(page.locator("#span-group")).toBeVisible();
+    await expect(page.locator("#photo-actions")).toBeVisible();
     await expect(page.locator("#crop-toggle")).toHaveAttribute("aria-pressed", "false");
     await expect(page.locator("#crop-tools")).toBeHidden();
   });
@@ -203,6 +206,66 @@ test.describe("Cropping the selected photo", () => {
     await page.mouse.move(q.x + 40, q.y, { steps: 4 });
     await page.mouse.up();
     expect((await posterRect(page)).x).toBeCloseTo(start.x + 60, 0);
+  });
+
+  test("the photo actions sit beside the tools; the tick and Enter finish cropping", async ({
+    page,
+  }) => {
+    await setUp(page);
+    // Crop moved out of the sidebar into the actions beside the tools.
+    await expect(page.locator("#tools #photo-actions #crop-toggle")).toBeVisible();
+    await expect(page.locator("#selected-dock #crop-toggle")).toHaveCount(0);
+    await expect(page.locator("#crop-done")).toBeVisible();
+    await page.click("#crop-done");
+    await expect(page.locator("#crop-tools")).toBeHidden();
+    // Still selected: the actions stay, Crop is off.
+    await expect(page.locator("#crop-toggle")).toHaveAttribute("aria-pressed", "false");
+    await page.click("#crop-toggle");
+    await expect(page.locator("#crop-tools")).toBeVisible();
+    await page.locator("#preview").focus();
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#crop-tools")).toBeHidden();
+    await expect(page.locator("#photo-actions")).toBeVisible();
+  });
+
+  test("W, T and C act on the selected photo; not while typing", async ({ page }) => {
+    await setUp(page);
+    await page.click("#crop-done");
+    await page.locator("#preview").focus();
+    await page.keyboard.press("w");
+    await expect(page.locator("#span-wider")).toHaveAttribute("aria-pressed", "true");
+    await page.keyboard.press("t");
+    await expect(page.locator("#span-taller")).toHaveText("Taller ×2");
+    await page.keyboard.press("c");
+    await expect(page.locator("#crop-tools")).toBeVisible();
+    await page.keyboard.press("c");
+    await expect(page.locator("#crop-tools")).toBeHidden();
+    // Typing a seed does not trigger them.
+    await page.click("#tab-style");
+    await openTechnical(page);
+    await page.locator("#seed").click();
+    await page.keyboard.press("w");
+    await expect(page.locator("#span-wider")).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("the Swap tool has no photo actions; several selected turn Crop off", async ({ page }) => {
+    await addPhotos(page, await makeImages(page, SIX));
+    await settle(page);
+    await page.click("#mode-swap");
+    const first = await posterPoint(page, 0.2, 0.2);
+    await page.mouse.click(first.x, first.y);
+    await expect(page.locator("#hint")).toContainText("Choose another photo to swap");
+    await expect(page.locator("#photo-actions")).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await page.click("#mode-select");
+    await clickPhoto(page, 0.2, 0.2);
+    const p = await posterPoint(page, 0.8, 0.8);
+    await page.keyboard.down("Shift");
+    await page.mouse.click(p.x, p.y);
+    await page.keyboard.up("Shift");
+    await expect(page.locator("#crop-toggle")).toBeDisabled();
+    await expect(page.locator("#crop-toggle")).toHaveAttribute("title", "Select one photo to crop");
+    await expect(page.locator("#span-wider")).toBeEnabled();
   });
 
   test("the crop is kept after a refresh", async ({ page }) => {
@@ -234,10 +297,10 @@ test.describe("Touch", () => {
     const p = await posterPoint(page, 0.5, 0.5);
     await page.touchscreen.tap(p.x, p.y);
     await previewIdle(page);
-    await expect(page.locator("#span-group")).toBeHidden();
+    await expect(page.locator("#photo-actions")).toBeHidden();
     await page.click("#mode-select");
     await page.touchscreen.tap(p.x, p.y);
-    await expect(page.locator("#span-group")).toBeVisible();
+    await expect(page.locator("#photo-actions")).toBeVisible();
   });
 });
 
@@ -352,7 +415,7 @@ test.describe("Removing photos", () => {
     // A click selects a photo (blue ring) and does not draw the orange one on the first photo.
     await clickPhoto(page, 0.5, 0.5);
     const p = await posterPoint(page, 0.5, 0.5);
-    await expect(page.locator("#span-group")).toBeVisible();
+    await expect(page.locator("#photo-actions")).toBeVisible();
     await previewIdle(page);
     expect(await orange()).toBe(0);
     // Arrow keys show the ring.
@@ -478,7 +541,7 @@ test.describe("Asking for a photo to be bigger", () => {
       for (let x = 0.05; x < 1; x += 0.1) {
         if (near(await previewColor(page, x, y), rgb, 40)) {
           await clickPhoto(page, x, y);
-          await expect(page.locator("#span-group")).toBeVisible();
+          await expect(page.locator("#photo-actions")).toBeVisible();
           return;
         }
       }
@@ -499,18 +562,20 @@ test.describe("Asking for a photo to be bigger", () => {
 
   test("the size buttons appear only while a photo is selected", async ({ page }) => {
     await addPhotos(page, await makeImages(page, THREE));
-    await expect(page.locator("#span-group")).toBeHidden();
+    await expect(page.locator("#photo-actions")).toBeHidden();
     await selectPhoto(page, COLORS.red);
     await expect(page.getByRole("button", { name: "Wider" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Taller" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Default size" })).toBeDisabled();
+    await expect(page.locator("#crop-toggle")).toBeVisible();
+    // There are no reset buttons: Wider and Taller are turned back off instead.
+    await expect(page.getByRole("button", { name: "Default size" })).toHaveCount(0);
     await page.keyboard.press("Escape");
     await page.locator("#preview").focus();
     await page.keyboard.press("Escape");
-    await expect(page.locator("#span-group")).toBeHidden();
+    await expect(page.locator("#photo-actions")).toBeHidden();
   });
 
-  test("Taller gives a photo more of the height, in steps, and Default size takes it back", async ({
+  test("Taller gives a photo more of the height, in steps, and goes back round to normal", async ({
     page,
   }) => {
     await setSize(page, 400, 400);
@@ -537,11 +602,7 @@ test.describe("Asking for a photo to be bigger", () => {
     await expect(page.locator("#span-taller")).toHaveText("Taller");
     expect(await shareDown(page, COLORS.red)).toBeCloseTo(normal, 1);
 
-    await page.locator("#span-taller").click();
-    await page.getByRole("button", { name: "Default size" }).click();
-    await expect(page.locator("#span-taller")).toHaveText("Taller");
     await expect(page.locator("#photo-list li").first()).not.toContainText("taller");
-    expect(await shareDown(page, COLORS.red)).toBeCloseTo(normal, 1);
   });
 
   test("Wider makes a photo span two columns, and the photo stays selected", async ({ page }) => {
@@ -555,7 +616,7 @@ test.describe("Asking for a photo to be bigger", () => {
     await expect(page.locator("#span-wider")).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator("#photo-list li").first()).toContainText("wider");
     // Still selected, so the buttons are still there.
-    await expect(page.locator("#span-group")).toBeVisible();
+    await expect(page.locator("#photo-actions")).toBeVisible();
 
     // Somewhere down the poster the red photo covers both the left and the right edge.
     const bothSides = async () => {

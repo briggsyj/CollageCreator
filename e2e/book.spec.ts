@@ -332,7 +332,7 @@ test.describe("Book: pages", () => {
     };
     const before = await rest();
     await clickPhoto(page, 0.1, 0.5);
-    await expect(page.locator("#span-group")).toBeVisible();
+    await expect(page.locator("#photo-actions")).toBeVisible();
     await page.locator("#span-wider").click();
     await settle(page);
     expect(await rest()).toBe(before);

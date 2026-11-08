@@ -492,8 +492,33 @@
   }
 
   // Holding Space over the preview makes a drag move the collage. Form controls keep their own use of Space.
+  /** W, T and C act on the selected photos (Wider, Taller, Crop); Enter finishes a crop. */
+  function photoActionKey(e: KeyboardEvent): boolean {
+    if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return false;
+    if (app.dialog || app.mode === "swap" || app.selected === null) return false;
+    const typing =
+      e.target instanceof HTMLInputElement ||
+      e.target instanceof HTMLSelectElement ||
+      e.target instanceof HTMLTextAreaElement;
+    const key = e.key.toLowerCase();
+    if (typing && e.target instanceof HTMLInputElement && e.target.type !== "range") return false;
+    if (typing && !(e.target instanceof HTMLInputElement)) return false;
+    if (key === "w") app.toggleWider();
+    else if (key === "t") app.cycleTaller();
+    else if (key === "c" && !app.multiSelected) app.toggleCrop();
+    // A focused button takes Enter itself; elsewhere Enter finishes a crop.
+    else if (e.key === "Enter" && app.cropping && !isFormControl(e.target)) app.toggleCrop();
+    else return false;
+    e.preventDefault();
+    return true;
+  }
+
   function onWindowKeyDown(e: KeyboardEvent): void {
-    if (e.code !== "Space") return;
+    if (e.code !== "Space") {
+      // The canvas handles its own keys first; other keys reach the photo actions here.
+      if (e.target !== canvas) photoActionKey(e);
+      return;
+    }
     // A button that still has the focus (the Pan / Swap toggle just pressed) must not swallow
     // Space while the pointer is over the preview.
     const buttonUnderPointer = pointerOver && e.target instanceof HTMLButtonElement;
@@ -511,6 +536,7 @@
   }
 
   function onCanvasKeyDown(e: KeyboardEvent): void {
+    if (photoActionKey(e)) return;
     // View keys and undo work whether or not there are photos.
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
       e.preventDefault();

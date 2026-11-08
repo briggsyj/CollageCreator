@@ -84,18 +84,22 @@
   <ul class="help-list">
     <li>
       <strong>{tr("Swap")}</strong>:
-      <span>{tr("click a photo, then another, to swap them.")}</span>
+      <span>{tr("drag a photo onto another to swap them, or click one and then the other.")}</span>
     </li>
     <li>
       <strong>{tr("Select")}</strong>:
       <span
-        >{tr("click a photo to select it in the Photos step, then make it wider or taller. Shift-click to select several.")}</span
+        >{tr("click a photo to select it; its actions appear beside the tools. Shift-click to select several.")}</span
       >
+    </li>
+    <li>
+      <strong>{tr("Wider and Taller")}</strong>:
+      <span>{tr("give the selected photos more room; press again to go back.")}</span>
     </li>
     <li>
       <strong>{tr("Crop")}</strong>:
       <span
-        >{tr("select a photo, press Crop, then drag it and zoom to choose which part shows.")}</span
+        >{tr("press Crop (or double-click a photo), drag the photo and use the slider to zoom. Zoom all the way out to show it whole again; the tick finishes.")}</span
       >
     </li>
     <li>
@@ -104,6 +108,16 @@
         >{tr("press Add page under the collage for more pages in a row, each saved as its own image. Swap works between pages.")}</span
       >
     </li>
+  </ul>
+  <h3>{tr("Keyboard")}</h3>
+  <ul class="help-list" id="help-keys">
+    <li><kbd>W</kbd> <span>{tr("Wider")}</span></li>
+    <li><kbd>T</kbd> <span>{tr("Taller")}</span></li>
+    <li><kbd>C</kbd> <span>{tr("Crop")}</span></li>
+    <li><kbd>Enter</kbd> <span>{tr("finish cropping")}</span></li>
+    <li><kbd>Space</kbd> <span>{tr("hold to pan from any tool")}</span></li>
+    <li><kbd>Delete</kbd> <span>{tr("remove the selected photos")}</span></li>
+    <li><kbd>Esc</kbd> <span>{tr("let go of the selection")}</span></li>
   </ul>
   <p class="hint help-note">
     {tr("Everything runs in your browser. Your photos are never uploaded.")}

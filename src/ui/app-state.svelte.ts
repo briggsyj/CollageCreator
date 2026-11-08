@@ -956,7 +956,9 @@ export class AppState {
   toggleCrop(): void {
     if (this.selected === null || this.multiSelected) return;
     this.cropFor = this.cropping ? null : this.selected;
-    this.setStatus(this.cropping ? t("Drag the photo to move it, scroll to zoom.") : "");
+    this.setStatus(
+      this.cropping ? t("Drag the photo to move it; use the slider to zoom into it.") : "",
+    );
   }
 
   /** Select a photo and open crop mode on it at once (a double click with the Select tool). */
@@ -966,7 +968,7 @@ export class AppState {
     if (this.multiSelected) this.alsoSelected = new Set();
     this.selected = photoIndex;
     this.cropFor = photoIndex;
-    this.setStatus(t("Drag the photo to move it, scroll to zoom."));
+    this.setStatus(t("Drag the photo to move it; use the slider to zoom into it."));
   }
 
   /** The selected photo's cell in layout units (the page is 1 wide), if it has one. */
@@ -1004,6 +1006,11 @@ export class AppState {
     const photo = index === null ? undefined : this.photos[index];
     const cell = this.selectedCell();
     if (index === null || !photo || !cell) return;
+    // All the way out is the photo's own fit again, so zooming out undoes the crop.
+    if (zoom <= 1) {
+      this.writeCrop(index, NO_CROP);
+      return;
+    }
     this.writeCrop(
       index,
       zoomCrop(photo.crop ?? NO_CROP, zoom, photo.width, photo.height, cell.w, cell.h),

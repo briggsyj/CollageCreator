@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-08
 
-**Status**: Draft
+**Status**: Implemented (Chromium)
 
 **Input**: User description: "When an image is selected, a new tool group appears (semantically these are actions), visually distinct from the tools. The actions are Wider, Taller and Crop. Crop turns on cropping with a zoom slider under it and a button to finish. Clicking away deactivates it; holding Space still pans. Crop, Wider and Taller leave the sidebar. Swap stays a tool: while it is active, photos are dragged onto each other to swap them."
 
@@ -119,7 +119,7 @@ On a phone the same floating group appears with the tools; the selected-photo ba
 
 ### Functional Requirements
 
-- **FR-001**: While one or more photos are selected with the Select tool, the preview MUST show a photo action group with Wider, Taller, a divider and Crop, in that order, between the tools and the zoom group; it MUST be hidden otherwise.
+- **FR-001**: While one or more photos are selected (on the preview or in the Photos list), except while the Swap tool is choosing two photos, the preview MUST show a photo action group with Wider, Taller, a divider and Crop, in that order, between the tools and the zoom group; it MUST be hidden otherwise.
 - **FR-002**: The action group MUST look different from the tool groups: the same glass, accent-coloured icons and labels, filled with the accent colour when on.
 - **FR-003**: Wider and Taller MUST behave as the sidebar buttons did (Wider toggles two columns; Taller steps 1, 2, 3 rows), including on several photos, and Taller MUST show the number of rows while above 1.
 - **FR-004**: Crop MUST turn on cropping as it works now; while on, a vertical zoom slider and a round tick button in the quiet raised style (not a filled accent colour) MUST appear under Crop in the group. The tick, Enter and pressing Crop again MUST end cropping and keep the photo selected.
