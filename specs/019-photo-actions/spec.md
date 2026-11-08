@@ -8,6 +8,12 @@
 
 **Input**: User description: "When an image is selected, a new tool group appears (semantically these are actions), visually distinct from the tools. The actions are Wider, Taller, Swap and Crop. Swap makes the next photo chosen trade places; Crop turns on cropping with a zoom slider under it and a round blue tick to finish. Clicking away deactivates either; holding Space still pans. Crop, Wider and Taller leave the sidebar; the Swap tool is removed."
 
+## Clarifications
+
+### Session 2026-11-08
+
+- Q: What should the button that finishes cropping look like? → A: A round button in the quiet raised style (white with an accent tick; soft grey in dark mode), under the zoom slider; no label.
+
 ## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - Act on the selected photo from the preview (Priority: P1)
@@ -48,7 +54,7 @@ With a photo selected, the person presses Swap and then chooses another photo; t
 
 ### User Story 3 - Crop as an action (Priority: P1)
 
-With a photo selected, the person presses Crop. A zoom slider appears under it in the action group, and a round blue button with a tick. Dragging the photo moves it in its cell, as now. The tick ends cropping and leaves the photo selected.
+With a photo selected, the person presses Crop. A zoom slider appears under it in the action group, and a round, quiet button with a tick. Dragging the photo moves it in its cell, as now. The tick ends cropping and leaves the photo selected.
 
 **Why this priority**: cropping moves out of the sidebar, so it must be complete here.
 
@@ -56,7 +62,7 @@ With a photo selected, the person presses Crop. A zoom slider appears under it i
 
 **Acceptance Scenarios**:
 
-1. **Given** a photo is selected, **When** the person presses Crop, **Then** Crop shows as on and a vertical zoom slider and a round blue tick appear under it, inside the group.
+1. **Given** a photo is selected, **When** the person presses Crop, **Then** Crop shows as on and a vertical zoom slider and a round, quietly styled tick button appear under it, inside the group.
 2. **Given** Crop is on, **When** the person drags the photo or moves the slider, **Then** the photo moves or zooms inside its cell, as cropping does now.
 3. **Given** Crop is on, **When** the person presses the tick or Enter, **Then** cropping ends, the crop is kept and the photo stays selected.
 4. **Given** Crop is on, **When** the person clicks empty space or another photo, **Then** cropping ends as now (the crop is kept), and the other photo is selected if one was clicked.
@@ -117,7 +123,7 @@ On a phone the same floating group appears with the tools; the selected-photo ba
 - **FR-003**: Wider and Taller MUST behave as the sidebar buttons did (Wider toggles two columns; Taller steps 1, 2, 3 rows), including on several photos, and Taller MUST show the number of rows while above 1.
 - **FR-004**: Swap MUST wait for one further photo choice and then swap the two photos as the Swap tool did, across pages; it MUST turn off after the swap, on clicking empty space, on Escape, on pressing it again, on choosing another tool and on deselecting.
 - **FR-005**: The Swap tool MUST be removed; the tools are Pan and Select.
-- **FR-006**: Crop MUST turn on cropping as it works now; while on, a vertical zoom slider and a round blue tick button MUST appear under Crop in the group. The tick and Enter MUST end cropping and keep the photo selected.
+- **FR-006**: Crop MUST turn on cropping as it works now; while on, a vertical zoom slider and a round tick button in the quiet raised style (not a filled accent colour) MUST appear under Crop in the group. The tick and Enter MUST end cropping and keep the photo selected.
 - **FR-007**: Clicking empty space or another photo while cropping MUST end cropping as it does now.
 - **FR-008**: Holding Space MUST pan the view during Swap or Crop and MUST leave the action on when released.
 - **FR-009**: With several photos selected, Swap and Crop MUST be disabled with tooltips saying one photo is needed; Wider and Taller act on all.
@@ -146,5 +152,5 @@ On a phone the same floating group appears with the tools; the selected-photo ba
 ## Assumptions
 
 - Pan and Select keep their places; the zoom group keeps +, −, Fit and the percentage.
-- The look follows the agreed mockup (style C, Wider and Taller first, round blue tick under the crop slider).
+- The look follows the agreed mockup (style C, Wider and Taller first, round quiet tick under the crop slider).
 - Remove and Move to page stay in the sidebar panel and the phone bar.
