@@ -2,7 +2,8 @@
 
 Thanks for helping. Collage Creator is GPL-2.0-or-later and derived from
 [PhotoCollage](https://github.com/adrienverge/PhotoCollage); contributions are accepted under the
-same licence.
+same licence. Please read the [code of conduct](CODE_OF_CONDUCT.md); the
+[technical docs](docs/technical/README.md) explain how the app is built, tested and deployed.
 
 ## Set up
 
