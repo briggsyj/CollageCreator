@@ -99,7 +99,7 @@
     <li>
       <strong>{tr("Crop")}</strong>:
       <span
-        >{tr("press Crop (or double-click a photo), drag the photo and use the slider to zoom. Zoom all the way out to show it whole again; the tick finishes.")}</span
+        >{tr("press Crop (or double-click a photo), drag the photo and use the slider to zoom. Zoom all the way out to undo the crop; the tick finishes.")}</span
       >
     </li>
     <li>
@@ -116,8 +116,6 @@
     <li><kbd>C</kbd> <span>{tr("Crop")}</span></li>
     <li><kbd>Enter</kbd> <span>{tr("finish cropping")}</span></li>
     <li><kbd>Space</kbd> <span>{tr("hold to pan from any tool")}</span></li>
-    <li><kbd>Delete</kbd> <span>{tr("remove the selected photos")}</span></li>
-    <li><kbd>Esc</kbd> <span>{tr("let go of the selection")}</span></li>
   </ul>
   <p class="hint help-note">
     {tr("Everything runs in your browser. Your photos are never uploaded.")}

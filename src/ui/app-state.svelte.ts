@@ -1006,8 +1006,9 @@ export class AppState {
     const photo = index === null ? undefined : this.photos[index];
     const cell = this.selectedCell();
     if (index === null || !photo || !cell) return;
-    // All the way out is the photo's own fit again, so zooming out undoes the crop.
-    if (zoom <= 1) {
+    // Zooming back down to 1 is the photo's own fit again, so zooming out undoes the crop.
+    // (Already at 1, a pan chosen there is kept.)
+    if (zoom <= 1 && (photo.crop?.zoom ?? 1) > 1) {
       this.writeCrop(index, NO_CROP);
       return;
     }
@@ -1219,10 +1220,6 @@ export class AppState {
     if (index === null) return;
     const rows = this.photos[index]?.span?.rows ?? 1;
     this.setSpans(this.selection, { rows: rows === 1 ? 2 : rows === 2 ? 3 : 1 });
-  }
-
-  resetSpan(): void {
-    if (this.selected !== null) this.setSpans(this.selection, "reset");
   }
 
   // ---------------------------------------------------------------------- size

@@ -463,7 +463,6 @@
     const photoIndex = photoAt(cellAt(e.clientX, e.clientY));
     if (photoIndex === undefined) return;
     app.cropPhoto(photoIndex);
-    if (!app.narrow) app.setTab("photos", false);
   }
 
   /** Scrolling over the collage zooms around the mouse (pinch gestures arrive as ctrl + wheel). */
@@ -496,6 +495,10 @@
   function photoActionKey(e: KeyboardEvent): boolean {
     if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return false;
     if (app.dialog || app.mode === "swap" || app.selected === null) return false;
+    // Links, disclosures and editable text keep their own keys.
+    if (e.target instanceof HTMLElement) {
+      if (e.target.isContentEditable || e.target.closest("a, summary")) return false;
+    }
     const typing =
       e.target instanceof HTMLInputElement ||
       e.target instanceof HTMLSelectElement ||

@@ -72,8 +72,8 @@
         max={app.maxZoom}
         step="0.01"
         value={zoom}
-        aria-label={tr("Zoom into the photo (all the way out shows it whole again)")}
-        title={tr("Zoom into the photo; all the way out shows it whole again")}
+        aria-label={tr("Zoom into the photo; all the way out undoes the crop")}
+        title={tr("Zoom into the photo; all the way out undoes the crop")}
         oninput={(e) => app.zoomSelectedCrop(Number(e.currentTarget.value))}
       />
       <span class="crop-pct" aria-hidden="true">{Math.round(zoom * 100)}%</span>
