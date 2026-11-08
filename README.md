@@ -73,6 +73,7 @@ npm test           # unit tests
 npm run test:e2e   # browser tests (first run: npx playwright install)
 ```
 
+- [User guide](docs/user-guide/README.md) and [technical docs](docs/technical/README.md)
 - [CONTRIBUTING.md](CONTRIBUTING.md): checks to run, code style, licence headers, translations
 - [ARCHITECTURE.md](ARCHITECTURE.md): how the code fits together
 - [specs/](specs/): how each feature was planned
