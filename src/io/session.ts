@@ -193,6 +193,7 @@ export function checkSettings(raw: unknown, defaults: PosterSettings): PosterSet
   const r = (typeof raw === "object" && raw !== null ? raw : {}) as Record<string, unknown>;
   const num = (v: unknown, min: number, max: number, fallback: number): number =>
     typeof v === "number" && Number.isFinite(v) && v >= min && v <= max ? v : fallback;
+  const splitImages = splitOf(r.splitImages, r.width, r.height);
   return {
     width: Math.round(num(r.width, 1, 1e6, defaults.width)),
     height: Math.round(num(r.height, 1, 1e6, defaults.height)),
@@ -203,8 +204,9 @@ export function checkSettings(raw: unknown, defaults: PosterSettings): PosterSet
         : defaults.borderColor,
     cornerStyle: r.cornerStyle === "slight" || r.cornerStyle === "rounded" ? r.cornerStyle : "none",
     outerBorder: typeof r.outerBorder === "boolean" ? r.outerBorder : defaults.outerBorder,
-    splitImages: splitOf(r.splitImages, r.width, r.height),
-    format: r.format === "jpeg" ? "jpeg" : "png",
+    splitImages,
+    // An Instagram post is images to post, so a saved PDF choice is read as PNG for one.
+    format: r.format === "jpeg" ? "jpeg" : r.format === "pdf" && splitImages < 2 ? "pdf" : "png",
     jpegQuality: num(r.jpegQuality, 0.1, 1, defaults.jpegQuality),
   };
 }

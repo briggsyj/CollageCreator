@@ -7,26 +7,36 @@
 
   let { block = $bindable() }: { block?: HTMLElement } = $props();
 
-  const kind = $derived(app.settings.format === "jpeg" ? "JPEG" : "PNG");
+  const kind = $derived(
+    app.settings.format === "jpeg" ? "JPEG" : app.settings.format === "pdf" ? "PDF" : "PNG",
+  );
   const filledPages = $derived(app.pageCounts.filter((n) => n > 0).length);
   const post = $derived(app.settings.splitImages > 1);
   /** Images in a book: one per page, or one per square of every page made for a post. */
   const bookImages = $derived(filledPages * (post ? app.settings.splitImages : 1));
   const summary = $derived(
-    app.book && bookImages > 1
-      ? tr("ZIP of %(n)s %(kind)s images, %(w)s × %(h)s px each", {
-          n: bookImages,
-          kind,
-          w: post ? app.settings.height : app.settings.width,
-          h: app.settings.height,
-        })
-      : app.settings.splitImages > 1
-        ? tr("ZIP of %(n)s %(kind)s images, %(px)s × %(px)s px each", {
-            n: app.settings.splitImages,
-            kind,
-            px: app.settings.height,
+    app.settings.format === "pdf"
+      ? app.book && filledPages > 1
+        ? tr("PDF of %(n)s pages, %(w)s × %(h)s px each", {
+            n: filledPages,
+            w: app.settings.width,
+            h: app.settings.height,
           })
-        : `${kind}, ${app.settings.width} × ${app.settings.height} px`,
+        : `PDF, ${app.settings.width} × ${app.settings.height} px`
+      : app.book && bookImages > 1
+        ? tr("ZIP of %(n)s %(kind)s images, %(w)s × %(h)s px each", {
+            n: bookImages,
+            kind,
+            w: post ? app.settings.height : app.settings.width,
+            h: app.settings.height,
+          })
+        : app.settings.splitImages > 1
+          ? tr("ZIP of %(n)s %(kind)s images, %(px)s × %(px)s px each", {
+              n: app.settings.splitImages,
+              kind,
+              px: app.settings.height,
+            })
+          : `${kind}, ${app.settings.width} × ${app.settings.height} px`,
   );
   const quality = $derived(Math.round(app.settings.jpegQuality * 100));
 </script>
@@ -60,6 +70,16 @@
       >
         JPEG
       </button>
+      <button
+        type="button"
+        id="format-pdf"
+        title={tr("Save as PDF: a document with a page for each page of the collage")}
+        aria-pressed={app.settings.format === "pdf"}
+        hidden={post}
+        onclick={() => (app.settings.format = "pdf")}
+      >
+        PDF
+      </button>
     </fieldset>
     <select
       id="format"
@@ -67,19 +87,26 @@
       tabindex="-1"
       aria-label="Format"
       use:showValue={{ value: app.settings.format }}
-      onchange={(e) => (app.settings.format = e.currentTarget.value === "jpeg" ? "jpeg" : "png")}
+      onchange={(e) =>
+        (app.settings.format =
+          e.currentTarget.value === "jpeg"
+            ? "jpeg"
+            : e.currentTarget.value === "pdf" && !post
+              ? "pdf"
+              : "png")}
     >
       <option value="png">PNG</option>
       <option value="jpeg">JPEG</option>
+      {#if !post}<option value="pdf">PDF</option>{/if}
     </select>
-    <label class="field" id="quality-field" hidden={app.settings.format !== "jpeg"}>
+    <label class="field" id="quality-field" hidden={app.settings.format === "png"}>
       <span class="rowhead"
         ><span class="quality-label">{tr("Quality")}</span>
         <output id="quality-output" for="quality">{quality}%</output></span
       >
       <input
         id="quality"
-        title={tr("JPEG quality")}
+        title={tr("JPEG quality (also used for PDF)")}
         class="range"
         type="range"
         min="10"

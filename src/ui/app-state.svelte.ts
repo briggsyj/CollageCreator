@@ -76,7 +76,7 @@ import { loadSession, saveSession } from "../io/session";
 import { isZip, unzipImages } from "../io/unzip";
 import { type CanvasLimits, clampSize, detectLimits, FALLBACK_LIMITS } from "../platform/limits";
 import { exportBook } from "../render/book-export";
-import { exportCollage } from "../render/export";
+import { exportCollage, extension } from "../render/export";
 import { WorkerPool } from "../render/pool";
 import { fitSize } from "../render/preview";
 import { SPLIT_MARGIN } from "../render/splitmarks";
@@ -1328,6 +1328,8 @@ export class AppState {
       : "";
     const changed = n !== this.settings.splitImages;
     this.settings.splitImages = n;
+    // An Instagram post is saved as images, so PDF is not offered for one.
+    if (this.settings.format === "pdf") this.settings.format = "png";
     this.settings.width = n * px;
     this.settings.height = px;
     this.syncOrientation();
@@ -1364,7 +1366,7 @@ export class AppState {
     this.progress = 0;
     this.dialog = "progress";
     try {
-      const ext = settings.format === "jpeg" ? "jpg" : "png";
+      const ext = extension(settings.format);
       if (layout.pages) {
         await this.saveBook(layout, settings, ext, controller.signal, onlyPage);
         return;

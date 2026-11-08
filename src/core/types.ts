@@ -51,7 +51,8 @@ export interface Photo extends LayoutPhoto {
   bookPage?: number;
 }
 
-export type ImageFormat = "png" | "jpeg";
+/** What is saved: PNG or JPEG images, or a PDF whose pages are JPEG pictures. */
+export type ImageFormat = "png" | "jpeg" | "pdf";
 
 /** Shape of each photo's corners: square, slightly rounded, or rounded. */
 export type CornerStyle = "none" | "slight" | "rounded";

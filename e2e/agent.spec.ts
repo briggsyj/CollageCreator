@@ -301,6 +301,24 @@ test.describe("WebMCP agent tools", () => {
     expect(await call(page, "cancel_save")).toMatchObject({ code: "not-supported" });
   });
 
+  test("an assistant can choose PDF and save it, but not for an Instagram post", async ({
+    page,
+  }) => {
+    await withPhotos(page, 3);
+    expect((await call(page, "set_save_format", { format: "pdf" })).ok).toBe(true);
+    expect((await state(page)).save.format).toBe("pdf");
+    const download = page.waitForEvent("download");
+    expect((await call(page, "save")).ok).toBe(true);
+    expect((await download).suggestedFilename()).toMatch(/^collage-\d+\.pdf$/);
+    await expect.poll(async () => (await state(page)).save.last?.file).toMatch(/\.pdf$/);
+    await call(page, "set_instagram_post", { images: 3 });
+    expect((await state(page)).save.format).toBe("png");
+    expect(await call(page, "set_save_format", { format: "pdf" })).toMatchObject({
+      isError: true,
+      code: "not-supported",
+    });
+  });
+
   test("a book of posts saves every page's images in one zip", async ({ page }) => {
     await withPhotos(page, 4);
     await call(page, "set_instagram_post", { images: 3, side: 200 });
