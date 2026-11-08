@@ -120,6 +120,11 @@
     // Where the poster is, in CSS pixels from the canvas's top-left (used by tests and tooling).
     canvas.dataset.poster = [ox, oy, pw, ph].map((n) => (n / dpr).toFixed(1)).join(",");
 
+    // The photos shown, by id in placement order (used by tests to check each shows once).
+    canvas.dataset.photos = (app.layout?.placements ?? [])
+      .map((p) => app.photos[p.photoIndex]?.id ?? "?")
+      .join(",");
+
     // The selected photo's crop (used by tests and tooling).
     const crop = app.selectedPhoto?.crop;
     canvas.dataset.crop = crop

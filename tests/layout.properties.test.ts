@@ -5,7 +5,7 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { generateLayout } from "../src/core/layout";
 import { seededRng } from "../src/core/rng";
-import type { Layout, PhotoSize, Rect } from "../src/core/types";
+import type { Layout, LayoutPhoto, PhotoSize, Rect } from "../src/core/types";
 
 const EPS = 1e-6;
 
@@ -115,6 +115,112 @@ describe("layout core properties", () => {
     expect(cellOf(after, 2)).toEqual(cellOf(before, 5));
     expect(cellOf(after, 5)).toEqual(cellOf(before, 2));
     expectExactTiling(after);
+  });
+});
+
+describe("no holes or squeezed cells (T062)", () => {
+  const spanArb = fc.option(
+    fc.record({
+      columns: fc.constantFrom(1 as const, 2 as const),
+      rows: fc.constantFrom(1 as const, 2 as const, 3 as const),
+    }),
+    { nil: undefined },
+  );
+  it("tiles exactly with size requests and any number of columns", () => {
+    fc.assert(
+      fc.property(
+        fc.array(
+          fc.record({
+            width: fc.integer({ min: 100, max: 8000 }),
+            height: fc.integer({ min: 100, max: 8000 }),
+            span: spanArb,
+          }),
+          { minLength: 1, maxLength: 40 },
+        ),
+        ratioArb,
+        seedArb,
+        fc.option(fc.integer({ min: 1, max: 12 }), { nil: undefined }),
+        (photos, ratio, seed, columns) => {
+          const page = generateLayout(photos, ratio, seededRng(seed), { columns });
+          expect(page.tiles()).toBe(true);
+          expectExactTiling(page.toLayout());
+        },
+      ),
+      { numRuns: 1000 },
+    );
+  });
+
+  it("tiles exactly with many photos on a tall poster, where the original left holes most", () => {
+    fc.assert(
+      fc.property(photosArb, seedArb, (photos, seed) => {
+        expectExactTiling(build(photos, Math.SQRT2, seed).toLayout());
+      }),
+      { numRuns: 300 },
+    );
+  });
+
+  // Arrangements the original got wrong: a squeezed cell, or a hole.
+  const known: {
+    name: string;
+    photos: PhotoSize[];
+    ratio: number;
+    seed: number;
+    columns?: number;
+  }[] = [
+    {
+      name: "a cell squeezed to nothing at the bottom (CI, November 2026)",
+      photos: [
+        { width: 548, height: 100 },
+        { width: 100, height: 158 },
+        { width: 103, height: 100 },
+        { width: 401, height: 100 },
+        { width: 7159, height: 5659 },
+        { width: 100, height: 109 },
+        { width: 2106, height: 2943 },
+      ],
+      ratio: 0.4436075309959165,
+      seed: 18,
+    },
+    {
+      name: "a hole of 3% of the page in three columns",
+      photos: [
+        { width: 3900, height: 100 },
+        { width: 3000, height: 4000 },
+        { width: 3300, height: 200 },
+        { width: 1200, height: 800 },
+      ],
+      ratio: 0.75,
+      seed: 177,
+      columns: 3,
+    },
+  ];
+  for (const k of known) {
+    it(`tiles exactly: ${k.name}`, () => {
+      const page = generateLayout(k.photos, k.ratio, seededRng(k.seed), { columns: k.columns });
+      expect(page.toLayout().placements).toHaveLength(k.photos.length);
+      expectExactTiling(page.toLayout());
+    });
+  }
+
+  it("still gives the same layout for the same seed when it had to try again", () => {
+    const k = known[0] as (typeof known)[number];
+    const a = generateLayout(k.photos, k.ratio, seededRng(k.seed)).toLayout();
+    const b = generateLayout(k.photos, k.ratio, seededRng(k.seed)).toLayout();
+    expect(a).toEqual(b);
+  });
+
+  it("keeps a requested Wider when it can", () => {
+    for (let seed = 0; seed < 300; seed++) {
+      const photos: LayoutPhoto[] = Array.from({ length: 8 }, (_, i) => ({
+        width: 1500 + i * 120,
+        height: 1000 + ((i * 7) % 5) * 300,
+        ...(i === 3 ? { span: { columns: 2 as const, rows: 1 as const } } : {}),
+      }));
+      const page = generateLayout(photos, 0.75, seededRng(seed), { columns: 3 });
+      const cell = page.toLayout().placements.find((p) => p.photoIndex === 3)?.cell;
+      expect(cell?.w ?? 0, `seed ${seed}`).toBeGreaterThan(1.5 / page.noCols);
+      expectExactTiling(page.toLayout());
+    }
   });
 });
 

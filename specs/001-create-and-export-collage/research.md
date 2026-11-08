@@ -51,6 +51,8 @@ Zero photos (empty page, nothing to save); one photo; extreme aspect ratios; ver
 
 Holes are drawn as the white page background.
 
+**Fixed (2026-11-08, T062).** A third cause was found: a photo spanning two columns that is the last in its own column while the neighbouring column has more photos below it, so stretching its column to the bottom leaves them no room (a cell squeezed to nothing). Fixing the causes inside the algorithm (option C below) needs a different way of giving cells their heights and would change many arrangements, so the retry was chosen: `generateLayout` checks that the cells tile the page (`Page.tiles()`); if not, it builds again from seeds drawn from the same sequence (8 tries), then without unasked spans (32 tries), and finally with no spans, which always tiles. A seed still gives the same layout, and arrangements that tiled first time are unchanged. Measured over 100,000 random cases (1 to 60 photos, any shape, size requests, chosen columns): 0 failures, against 6.9% before. A requested Wider is kept in every ordinary case; with a quarter of all photos asking for it, about 1 layout in 300 falls back to no spans. The tiling tests pass.
+
 **Options already analysed for the later fix**: deterministic retry with derived sub-seeds (algorithm untouched, about 98% of layouts pass first time); a hole-fill step that stretches bordering cells (guaranteed, new logic); or relaxing the requirement.
 
 ## 4. Downscale quality (plan research item 1)
