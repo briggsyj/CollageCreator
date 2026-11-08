@@ -9,6 +9,7 @@
   --sub: #3b3b37;
   --faint: #66655e;
   --accent: #1a56b0;
+  --on-accent: #fff;
   --danger: #a3221b;
   --focus: #ff9d00;
   --stage-bg: #ebeae7;
@@ -71,6 +72,7 @@
     --sub: #cfcdc6;
     --faint: #a9a79f;
     --accent: #8fb8ff;
+    --on-accent: #0d1b33;
     --danger: #f2a09a;
     --stage-bg: #101012;
     --solid-bg: #1b1b1f;
@@ -237,6 +239,7 @@ body:has(.app[data-empty="true"]) {
 
 .side,
 .modes,
+.photo-actions,
 .zoomers,
 .pill,
 .page-pill,
@@ -281,7 +284,14 @@ button {
 }
 
 /* Raised buttons sink in while pressed. Flat ones (tabs, segments, links) keep their look. */
-button:active:not(:disabled):not(.link, .icon-btn, .seg button, .tabs button, .modes button) {
+button:active:not(:disabled):not(
+  .link,
+  .icon-btn,
+  .seg button,
+  .tabs button,
+  .modes button,
+  .photo-actions button
+) {
   box-shadow: var(--down-shadow);
   transform: translateY(1px);
   filter: brightness(0.94);
@@ -974,6 +984,18 @@ input.custom-swatch {
   bottom: 16px;
 }
 
+kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0 5px;
+  border: 1px solid var(--track);
+  border-radius: 6px;
+  font:
+    600 0.8rem ui-monospace,
+    monospace;
+  text-align: center;
+}
+
 .help-list {
   margin: 0 0 12px;
   padding-left: 20px;
@@ -1355,68 +1377,6 @@ button.notices-toggle {
   white-space: nowrap;
 }
 
-.span-group {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.span-group button {
-  gap: 6px;
-  padding: 0 6px;
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.span-group button[aria-pressed="true"] {
-  background: var(--press-bg);
-  box-shadow: var(--press-shadow);
-  color: var(--press-text);
-}
-
-/* Crop: once on, the button and its tools share one recessed panel, so they read as one. */
-.crop-area {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  border-radius: calc(var(--r-ctl) + 4px);
-}
-
-.crop-area.open {
-  padding: 6px 6px 10px;
-  background: var(--inset-bg);
-  box-shadow: var(--inset-shadow);
-}
-
-#crop-toggle {
-  gap: 8px;
-}
-
-#crop-toggle[aria-pressed="true"] {
-  background: var(--press-bg);
-  box-shadow: var(--press-shadow);
-  color: var(--press-text);
-}
-
-.crop-tools {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  padding: 0 6px;
-}
-
-.crop-tools .hint {
-  grid-column: 1 / -1;
-  margin: 0;
-  font-size: 0.85rem;
-  color: var(--sub);
-}
-
 .save-block {
   flex: none;
   display: flex;
@@ -1693,8 +1653,13 @@ body.dragging .canvas-box {
   top: 16px;
   display: flex;
   flex-direction: column;
+  /* Too tall for the window (photo actions open while cropping): the zoom group moves to a
+     column on the left rather than under the save panel. */
+  flex-wrap: wrap-reverse;
+  align-content: flex-start;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
+  max-height: calc(100% - var(--save-room, 0px) - 48px);
 }
 
 .modes {
@@ -1724,9 +1689,131 @@ body.dragging .canvas-box {
 }
 
 .zoomers .sq {
-  width: 60px;
-  height: 48px;
+  width: 44px;
+  height: 40px;
   font-size: 0.85rem;
+}
+
+/*
+ * Photo actions: the same glass as the tools, but accent-coloured and filled with the accent
+ * when on, so they read as acting on the selected photos rather than as tools.
+ */
+.photo-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 4px;
+  border-radius: calc(var(--r-ctl) + 6px);
+}
+
+.photo-actions > button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  min-height: 60px;
+  padding: 0;
+  gap: 4px;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.photo-actions > button svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.photo-actions > button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.photo-actions > button:disabled {
+  opacity: 0.4;
+}
+
+.rows-badge {
+  margin-left: 3px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.68rem;
+}
+
+.photo-actions > button[aria-pressed="true"] .rows-badge {
+  background: var(--on-accent);
+  color: var(--accent);
+}
+
+.actions-sep {
+  align-self: stretch;
+  height: 1px;
+  margin: 2px 10px;
+  background: var(--track);
+}
+
+.crop-tools {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0 2px;
+}
+
+#crop-zoom {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 24px;
+  height: 104px;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  accent-color: var(--accent);
+}
+
+.crop-pct {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--faint);
+}
+
+/* Finishing a crop: a quiet raised round button, like a pressed tool. */
+.crop-done {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: 2px 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--press-bg);
+  box-shadow: var(--press-shadow);
+  color: var(--press-text);
+}
+
+#crop-done svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .zoom-pct {
@@ -2111,11 +2198,44 @@ dialog .button-row {
     flex-direction: row;
     align-items: flex-start;
     justify-content: space-between;
+    flex-wrap: nowrap;
+    max-height: none;
   }
 
   .modes,
   .zoomers {
     flex-direction: row;
+  }
+
+  /* The photo actions float in their own row under the tools, at the right. */
+  .photo-actions {
+    position: absolute;
+    top: 76px;
+    right: 0;
+    flex-direction: row;
+  }
+
+  .photo-actions > button {
+    width: 52px;
+    min-height: 52px;
+  }
+
+  .actions-sep {
+    width: 1px;
+    height: auto;
+    margin: 10px 2px;
+  }
+
+  .crop-tools {
+    flex-direction: row;
+    padding: 0 4px;
+  }
+
+  #crop-zoom {
+    writing-mode: horizontal-tb;
+    direction: ltr;
+    width: 96px;
+    height: 24px;
   }
 
   /* In a row, minus comes before plus. */
@@ -2130,6 +2250,10 @@ dialog .button-row {
   .hint-pill {
     top: calc(var(--inset) + 66px + 76px);
     max-width: calc(100% - 2 * var(--inset));
+  }
+
+  .stage.acting .hint-pill {
+    top: calc(var(--inset) + 66px + 76px + 70px);
   }
 
   .zoomers {
@@ -2208,6 +2332,7 @@ dialog .button-row {
     .seg button,
     .tabs button,
     .modes button,
+    .photo-actions button,
     .zoomers .sq,
     .swatches button
   ) {
@@ -2227,6 +2352,7 @@ dialog .button-row {
   .seg button:hover:not(:disabled, [aria-pressed="true"]),
   .tabs button:hover:not(:disabled, [aria-selected="true"], .tab-save),
   .modes button:hover:not(:disabled, [aria-pressed="true"]),
+  .photo-actions > button:hover:not(:disabled, [aria-pressed="true"]),
   .zoomers .sq:hover:not(:disabled),
   .icon-btn:hover:not(:disabled) {
     background-color: var(--hover-flat-bg);

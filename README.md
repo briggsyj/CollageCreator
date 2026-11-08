@@ -38,7 +38,8 @@ Your work is kept in your browser, so a refresh doesn't lose it.
 - **Instagram carousel:** one wide collage cut into square images, with cut marks in the preview
 
 **Editing**
-- Swap two photos, select several at once, make a photo wider or taller, or crop it
+- Swap two photos by dragging one onto another, select several at once, and make photos wider,
+  taller or cropped from the actions that appear beside the tools
 - Border colour and thickness, square or rounded corners, with or without an outer border
 - Undo removals; confirmations before anything you can't easily take back
 

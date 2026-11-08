@@ -98,7 +98,7 @@
   "corner-style": {
     "tool": "set_corners"
   },
-  "crop-reset": {
+  "crop-done": {
     "tool": "crop_photo"
   },
   "crop-toggle": {
@@ -205,9 +205,6 @@
   },
   "sheet-close": {
     "reason": "closes a sheet on narrow screens; layout only"
-  },
-  "span-reset": {
-    "tool": "resize_photo"
   },
   "span-taller": {
     "tool": "resize_photo"

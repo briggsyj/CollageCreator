@@ -2,6 +2,7 @@
 <!-- Copyright (C) 2026 John Briggs -->
 <script lang="ts">
   import { app } from "./app-state.svelte";
+  import PhotoActions from "./PhotoActions.svelte";
   import Preview from "./Preview.svelte";
   import SaveBlock from "./SaveBlock.svelte";
   import { tr } from "./tr.svelte";
@@ -18,6 +19,11 @@
     ].join(" · ");
   });
   const none = $derived(!app.hasPhotos);
+  /**
+   * The photo actions show while photos are selected (on the preview or in the Photos list),
+   * except in Swap, where a selected photo is only the first of two being swapped.
+   */
+  const acting = $derived(app.mode !== "swap" && app.selection.length > 0);
 
   /** The save panel's height, so the preview area stops above it and it never covers a page. */
   let saveBlock: HTMLElement | undefined = $state();
@@ -31,7 +37,7 @@
   });
 </script>
 
-<main class="stage" aria-label="Preview" style:--save-room={`${saveRoom}px`}>
+<main class="stage" class:acting aria-label="Preview" style:--save-room={`${saveRoom}px`}>
   <p id="hint" class="pill hint-pill">{app.status}</p>
   <div class="tools" id="tools">
     <fieldset class="modes group" id="modes" aria-label="Mode">
@@ -78,6 +84,7 @@
         <span>{tr("Select")}</span>
       </button>
     </fieldset>
+    {#if acting}<PhotoActions />{/if}
     <fieldset class="zoomers group" aria-label="Zoom">
       <button
         type="button"

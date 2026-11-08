@@ -462,7 +462,10 @@ test.describe("Collage Creator: layout, modes, sizes and notices", () => {
     await expect(dialog).toBeVisible();
     await expect(dialog).toContainText("drag the collage to move it");
     await expect(dialog).toContainText("scroll over the collage");
-    await expect(dialog).toContainText("click a photo, then another");
+    await expect(dialog).toContainText("drag a photo onto another to swap them");
+    // The photo actions' keys are listed here, not on the buttons.
+    await expect(page.locator("#help-keys")).toContainText("W");
+    await expect(page.locator("#help-keys")).toContainText("finish cropping");
     await page.click("#help-close");
     await expect(dialog).toBeHidden();
   });
